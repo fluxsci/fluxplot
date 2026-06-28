@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://flux.dev/schemas/fluxplot-manifest-0.1.0.json",
+  "title": "FluxPlot manifest",
+  "type": "object",
+  "required": ["spec", "schemaVersion", "plotType", "svg", "size", "axes", "series", "parts", "build"],
+  "properties": {
+    "spec": { "const": "fluxplot/manifest" },
+    "schemaVersion": { "type": "string" },
+    "generator": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "matplotlib": { "type": "string" }
+      }
+    },
+    "plotType": { "type": "string" },
+    "svg": { "type": "string" },
+    "size": {
+      "type": "object",
+      "required": ["width", "height", "unit"],
+      "properties": {
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "unit": { "type": "string" }
+      }
+    },
+    "axes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["x", "y"],
+        "properties": {
+          "id": { "type": "string" },
+          "svgId": { "type": "string" },
+          "x": { "$ref": "#/$defs/axis" },
+          "y": { "$ref": "#/$defs/axis" },
+          "pixelBox": { "type": "object" }
+        }
+      }
+    },
+    "series": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "svg"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "kind": { "type": ["string", "null"] },
+          "roles": { "type": "array", "items": { "type": "string" } },
+          "svg": { "type": "object" },
+          "data": { "type": "object" },
+          "label": { "type": "string" },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["index", "svgId"],
+              "properties": {
+                "index": { "type": "integer" },
+                "svgId": { "type": "string" },
+                "x": { "type": "number" },
+                "y": { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "guides": { "type": "array" },
+    "overlays": { "type": "array" },
+    "parts": { "type": "object", "required": ["id", "role"] },
+    "build": {
+      "type": "object",
+      "required": ["order"],
+      "properties": {
+        "order": { "type": "array", "items": { "type": "string" } },
+        "presets": { "type": "object" }
+      }
+    }
+  },
+  "$defs": {
+    "axis": {
+      "type": "object",
+      "required": ["scale", "domain", "anchors"],
+      "properties": {
+        "scale": { "type": "string" },
+        "label": { "type": "string" },
+        "base": { "type": "number" },
+        "domain": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "anchors": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["data", "svg"],
+            "properties": {
+              "data": { "type": "number" },
+              "svg": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
