@@ -72,9 +72,16 @@ def postprocess(svg_bytes: bytes, reg, guides, plot_type: str):
     for g in guides:
         el = id_map.get(g.gid)
         if el is not None:
-            _set(el, data_role=g.role, data_axis=g.axis)
+            _set(el, data_role=g.role, data_axis=g.axis, data_index=g.index, data_series=g.series)
 
-    return _serialize(root), warnings
+    # The set of ids that actually survived into the SVG (computed AFTER injection
+    # so per-point <use> ids are included). matplotlib culls boundary ticks/
+    # gridlines at draw and omits empty axis titles even though the artists carry a
+    # gid — the manifest must reference only what's really here, so callers prune
+    # guides/members against this set (else the X-Ray shows dead nodes).
+    present = {el.get("id") for el in root.iter() if el.get("id")}
+
+    return _serialize(root), warnings, present
 
 
 def _rename(id_map, old, new, role) -> None:

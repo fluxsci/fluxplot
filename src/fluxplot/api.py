@@ -212,12 +212,15 @@ def save(fig, path, *, recipe=None, addressable_points=None, style_classes=False
 
     # 5. inject data-* + canonicalize
     plot_type = _infer_plot_type(reg)
-    out_svg, warnings = _postprocess.postprocess(svg_bytes, reg, guides, plot_type)
+    out_svg, warnings, present = _postprocess.postprocess(svg_bytes, reg, guides, plot_type)
 
-    # 6. assemble manifest + recipe
+    # 6. assemble manifest + recipe. Drop scaffold guides matplotlib culled at draw
+    # (boundary ticks/gridlines, empty axis titles) so the manifest references only
+    # parts that exist in the SVG — keeps the parts tree / group members honest.
+    kept_guides = [g for g in guides if g.gid in present]
     man = _manifest.build_manifest(
-        fig, reg, guides, axes_capture, plot_type, svg_filename,
-        SPEC_VERSION, __version__, matplotlib.__version__,
+        fig, reg, kept_guides, axes_capture, plot_type, svg_filename,
+        SPEC_VERSION, __version__, matplotlib.__version__, present=present,
     )
     rec = _recipe.build_recipe(
         recipe, plot_name=plot_name, svg_filename=svg_filename,

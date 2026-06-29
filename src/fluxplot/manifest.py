@@ -24,8 +24,16 @@ def build_manifest(
     spec_version: str,
     fluxplot_version: str,
     mpl_version: str,
+    present: set | None = None,
 ) -> dict:
     vbw, vbh = svg_viewbox(fig)
+
+    # `present` = the gids that actually survived into the SVG (matplotlib culls
+    # boundary ticks and renders point clouds as collections where per-point ids
+    # can't be assigned). Reference only what's really there so the parts tree /
+    # group members stay honest. None = keep everything (direct/legacy callers).
+    def _keep(gid) -> bool:
+        return present is None or gid in present
 
     # group series marks by series name (insertion order preserved)
     by_series: dict[str, list] = {}
@@ -50,9 +58,11 @@ def build_manifest(
             if m.x is not None and not data:
                 data = {"x": _floats(m.x), "y": _floats(m.y)}
             if m.role == "line":
-                svg["line"] = m.gid
+                if _keep(m.gid):
+                    svg["line"] = m.gid
             elif m.role == "point":
-                svg["points"] = m.gid
+                if _keep(m.gid):
+                    svg["points"] = m.gid
                 points = [
                     {
                         "index": k,
@@ -61,10 +71,13 @@ def build_manifest(
                         "y": float(m.y[k]),
                     }
                     for k in range(len(m.member_gids))
+                    if _keep(m.member_gids[k])
                 ]
             elif m.role == "bar":
-                svg["bars"] = list(m.member_gids)
-            else:
+                bars = [g for g in m.member_gids if _keep(g)]
+                if bars:
+                    svg["bars"] = bars
+            elif _keep(m.gid):
                 svg[m.role] = m.gid
         entry = {
             "id": _ids.series_root(series),
@@ -76,29 +89,31 @@ def build_manifest(
         }
         if label:
             entry["label"] = label
-        if points is not None:
+        if points:
             entry["points"] = points
         series_entries.append(entry)
 
-    # guides → manifest guides (+ legend entries from series labels)
+    # organize the scaffold guides per axis (+ legend entries) for the parts tree
+    axes_parts, legend_entries, figure_title = _organize_guides(guides)
+
+    # guides → manifest guides (axis refs + legend with per-entry svg ids)
     guide_entries = []
     legend_present = any(g.role == "legend" for g in guides)
     for g in guides:
         if g.role == "axis":
-            guide_entries.append(
-                {"id": g.gid, "svgId": g.gid, "role": "axis", "axis": g.axis}
-            )
+            guide_entries.append({"id": g.gid, "svgId": g.gid, "role": "axis", "axis": g.axis})
     if legend_present:
-        guide_entries.append(
-            {
-                "id": "legend",
-                "svgId": "legend",
-                "role": "legend",
-                "entries": [
-                    {"series": s["id"]} for s in series_entries if s.get("label")
-                ],
-            }
-        )
+        labeled = [s for s in series_entries if s.get("label")]
+        entries = []
+        for k, s in enumerate(labeled):
+            e = {"series": s["id"]}
+            ent = legend_entries.get(k, {})
+            if ent.get("swatch"):
+                e["swatch"] = ent["swatch"]
+            if ent.get("label"):
+                e["label"] = ent["label"]
+            entries.append(e)
+        guide_entries.append({"id": "legend", "svgId": "legend", "role": "legend", "entries": entries})
 
     overlay_entries = []
     for m in overlays:
@@ -110,7 +125,9 @@ def build_manifest(
                 oe[key] = m.data[key]
         overlay_entries.append(oe)
 
-    parts = _build_parts_tree(series_entries, guide_entries, overlay_entries, legend_present)
+    parts = _build_parts_tree(
+        series_entries, axes_parts, legend_entries, figure_title, overlay_entries, legend_present
+    )
     build = _build_order(series_entries, guide_entries, overlay_entries, reg)
 
     return {
@@ -133,25 +150,100 @@ def build_manifest(
     }
 
 
-def _build_parts_tree(series_entries, guide_entries, overlay_entries, legend_present) -> dict:
+def _organize_guides(guides):
+    """Bucket the flat GuideTag list into per-axis parts + legend entries + the figure title."""
+    axes: dict = {}
+    legend_entries: dict = {}
+    figure_title = None
+    for g in guides:
+        if g.role == "axis":
+            axes.setdefault(g.axis, {})["gid"] = g.gid
+        elif g.role == "axis-title":
+            axes.setdefault(g.axis, {})["title"] = g.gid
+        elif g.role == "tick-label":
+            axes.setdefault(g.axis, {}).setdefault("ticklabels", []).append(g.gid)
+        elif g.role == "tick":
+            axes.setdefault(g.axis, {}).setdefault("ticks", []).append(g.gid)
+        elif g.role == "gridline":
+            axes.setdefault(g.axis, {}).setdefault("gridlines", []).append(g.gid)
+        elif g.role == "spine":
+            axes.setdefault(g.axis, {}).setdefault("spines", []).append(g.gid)
+        elif g.role == "legend-swatch":
+            legend_entries.setdefault(g.index, {})["swatch"] = g.gid
+        elif g.role == "legend-label":
+            legend_entries.setdefault(g.index, {})["label"] = g.gid
+        elif g.role == "title":
+            figure_title = g.gid
+    return axes, legend_entries, figure_title
+
+
+def _group(gid: str, group_role: str, members: list) -> dict:
+    """A manifest-only node grouping sibling leaves so a consumer can act on all at once."""
+    return {"id": gid, "role": "group", "groupRole": group_role, "members": list(members)}
+
+
+def _build_parts_tree(
+    series_entries, axes_parts, legend_entries, figure_title, overlay_entries, legend_present
+) -> dict:
     plot_children = []
-    for g in guide_entries:
-        if g["role"] == "axis":
-            plot_children.append({"ref": g["svgId"]})
-    for s in series_entries:
+
+    # axes → real <g id="axis.x"> nodes, each with spine + grouped ticks/labels/gridlines + title
+    for which in ("x", "y"):
+        ap = axes_parts.get(which)
+        if not ap:
+            continue
         kids = []
-        for key in ("line", "points", "area", "errorbar", "box"):
-            if key in s["svg"]:
-                kids.append({"ref": s["svg"][key]})
-        if "bars" in s["svg"]:
-            kids.extend({"ref": b} for b in s["svg"]["bars"])
+        for sp in ap.get("spines", []):
+            kids.append({"ref": sp})
+        if ap.get("ticks"):
+            kids.append(_group(f"axis.{which}.ticks", "tick", ap["ticks"]))
+        if ap.get("ticklabels"):
+            kids.append(_group(f"axis.{which}.tick-labels", "tick-label", ap["ticklabels"]))
+        if ap.get("gridlines"):
+            kids.append(_group(f"axis.{which}.gridlines", "gridline", ap["gridlines"]))
+        if ap.get("title"):
+            kids.append({"ref": ap["title"]})
+        plot_children.append(
+            {"id": ap.get("gid", f"axis.{which}"), "role": "axis", "axis": which, "children": kids}
+        )
+
+    # series → line + grouped points/bars + ANY other tagged role. The generic
+    # tail covers area/errorbar/box AND custom plot kinds (x-violin, x-heatmap-cell,
+    # x-stem, x-trajectory, x-contour, …) so every drawn series part is addressable
+    # and no series becomes a childless phantom node.
+    for s in series_entries:
+        svg = s["svg"]
+        kids = []
+        if "line" in svg:
+            kids.append({"ref": svg["line"]})
+        if "points" in svg:
+            members = [p["svgId"] for p in s.get("points", [])]
+            kids.append(_group(svg["points"], "point", members) if members else {"ref": svg["points"]})
+        if svg.get("bars"):
+            kids.append(_group(f'{s["id"]}.bars', "bar", svg["bars"]))
+        for role, val in svg.items():
+            if role in ("line", "points", "bars"):
+                continue
+            kids.append(_group(f'{s["id"]}.{role}', role, val) if isinstance(val, list) else {"ref": val})
         plot_children.append({"id": s["id"], "role": "series", "children": kids})
+
     for o in overlay_entries:
         plot_children.append({"ref": o["svgId"]})
 
     figure_children = [{"id": "plot-area", "role": "plot-area", "children": plot_children}]
     if legend_present:
-        figure_children.append({"ref": "legend"})
+        leg_kids = []
+        for k in sorted(legend_entries):
+            ent = legend_entries[k]
+            ek = []
+            if ent.get("swatch"):
+                ek.append({"ref": ent["swatch"]})
+            if ent.get("label"):
+                ek.append({"ref": ent["label"]})
+            leg_kids.append({"id": f"legend.entry.{k}", "role": "legend-entry", "children": ek})
+        figure_children.append({"id": "legend", "role": "legend", "children": leg_kids})
+    if figure_title:
+        figure_children.append({"ref": figure_title})
     return {"id": "figure", "role": "figure", "children": figure_children}
 
 

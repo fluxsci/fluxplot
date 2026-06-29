@@ -23,9 +23,15 @@ from .api import (  # noqa: E402,F401
     save,
 )
 
+from . import style  # noqa: E402,F401  (house plotting style — fx.use_light(), fx.FLEXOKI, …)
+from .style import use_light, use_dark  # noqa: E402,F401  (re-exported for convenience)
+
 __all__ = [
     "__version__",
     "SPEC_VERSION",
+    "style",
+    "use_light",
+    "use_dark",
     "line",
     "scatter",
     "bar",

@@ -19,7 +19,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = ["pytest>=7", "cmasher"]
+# Perceptually-uniform continuous colormaps for fluxplot.style (cmr.* defaults). The
+# style module degrades gracefully to Flexoki-flavoured maps if this isn't installed.
+style = ["cmasher"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fluxplot"]

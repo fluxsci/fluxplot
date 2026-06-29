@@ -41,6 +41,8 @@ CORE_ROLES = frozenset(
         "legend-entry",
         "legend-swatch",
         "legend-label",
+        # a manifest-only container that groups sibling parts (e.g. "all x tick labels")
+        "group",
     }
 )
 

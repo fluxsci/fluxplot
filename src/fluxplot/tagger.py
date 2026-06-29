@@ -119,8 +119,11 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
     guides: list[GuideTag] = []
 
     for which, mpl_axis in (("x", ax.xaxis), ("y", ax.yaxis)):
-        axis_gid = _ids.axis_id(which)
-        guides.append(GuideTag(gid=alloc.take(axis_gid), role="axis", axis=which))
+        # the WHOLE axis as a real <g id="axis.x"> wrapper, so the manifest's axis ref
+        # resolves and "hide the entire X axis" targets one element.
+        axis_gid = alloc.take(_ids.axis_id(which))
+        mpl_axis.set_gid(axis_gid)
+        guides.append(GuideTag(gid=axis_gid, role="axis", axis=which))
 
         title_gid = alloc.take(_ids.axis_id(which, "title"))
         mpl_axis.label.set_gid(title_gid)
@@ -131,17 +134,60 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
         labels = ax.get_xticklabels() if which == "x" else ax.get_yticklabels()
         for k, lbl in enumerate(labels):
             t = lbl.get_text()
-            if not t:
+            if not t or not lbl.get_visible():
                 continue
             g = alloc.take(_ids.axis_id(which, "ticklabel", k))
             lbl.set_gid(g)
-            guides.append(GuideTag(gid=g, role="tick-label", axis=which, text=t))
+            guides.append(GuideTag(gid=g, role="tick-label", axis=which, text=t, index=k))
+
+        # tick marks (the little dashes) — keep the enumerate index even when the
+        # boundary ticks get culled at render, so ids stay stable & meaningful.
+        for k, tick in enumerate(mpl_axis.get_major_ticks()):
+            line = getattr(tick, "tick1line", None)
+            if line is None or not line.get_visible():
+                continue
+            g = alloc.take(_ids.axis_id(which, "tick", k))
+            line.set_gid(g)
+            guides.append(GuideTag(gid=g, role="tick", axis=which, index=k))
+
+        # gridlines
+        for k, gl in enumerate(mpl_axis.get_gridlines()):
+            if not gl.get_visible():
+                continue
+            g = alloc.take(_ids.axis_id(which, "gridline", k))
+            gl.set_gid(g)
+            guides.append(GuideTag(gid=g, role="gridline", axis=which, index=k))
+
+    # spines (bottom/top → x, left/right → y; despined/polar sides are skipped)
+    for side in ("bottom", "left", "top", "right"):
+        try:
+            sp = ax.spines[side]
+        except (KeyError, TypeError):
+            continue
+        if not sp.get_visible():
+            continue
+        which = "x" if side in ("bottom", "top") else "y"
+        g = alloc.take(_ids.axis_id(which, "spine"))
+        sp.set_gid(g)
+        guides.append(GuideTag(gid=g, role="spine", axis=which, text=side))
 
     legend = ax.get_legend()
     if legend is not None:
         g = alloc.take("legend")
         legend.set_gid(g)
         guides.append(GuideTag(gid=g, role="legend"))
+        # per-entry swatch + label (entry k ↔ the k-th labeled series, in order)
+        for k, txt in enumerate(legend.get_texts()):
+            lg = alloc.take(_ids.join("legend", "entry", k, "label"))
+            txt.set_gid(lg)
+            guides.append(GuideTag(gid=lg, role="legend-label", index=k, text=txt.get_text()))
+        for k, h in enumerate(getattr(legend, "legend_handles", None) or []):
+            try:
+                sg = alloc.take(_ids.join("legend", "entry", k, "swatch"))
+                h.set_gid(sg)
+                guides.append(GuideTag(gid=sg, role="legend-swatch", index=k))
+            except Exception:
+                pass
 
     title = ax.title
     if title is not None and title.get_text():

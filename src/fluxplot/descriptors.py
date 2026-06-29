@@ -40,3 +40,5 @@ class GuideTag:
     role: str
     axis: Optional[str] = None  # "x" / "y" for axis-scoped guides
     text: Optional[str] = None  # for axis-title / tick-label text content
+    index: Optional[int] = None  # per-index guides (gridline/tick/ticklabel/legend-entry)
+    series: Optional[str] = None  # series this guide belongs to (legend swatch/label)
