@@ -93,8 +93,8 @@ def build_manifest(
             entry["points"] = points
         series_entries.append(entry)
 
-    # organize the scaffold guides per axis (+ legend entries) for the parts tree
-    axes_parts, legend_entries, figure_title = _organize_guides(guides)
+    # organize the scaffold guides per axis (+ legend entries + titles + swept text)
+    axes_parts, legend_entries, figure_titles, scaffold_annotations = _organize_guides(guides)
 
     # guides → manifest guides (axis refs + legend with per-entry svg ids)
     guide_entries = []
@@ -120,15 +120,21 @@ def build_manifest(
         oe = {"id": m.gid, "svgId": m.gid, "role": m.role}
         if m.name is not None:
             oe["name"] = m.name
-        for key in ("label", "between", "p"):
+        for key in ("label", "between", "p", "text"):  # carry the annotation text too
             if key in m.data:
                 oe[key] = m.data[key]
         overlay_entries.append(oe)
+    # swept free text → annotation overlays (addressable + animatable like fp.annotation)
+    for a in scaffold_annotations:
+        oe = {"id": a["id"], "svgId": a["id"], "role": "annotation"}
+        if a.get("text"):
+            oe["text"] = a["text"]
+        overlay_entries.append(oe)
 
     parts = _build_parts_tree(
-        series_entries, axes_parts, legend_entries, figure_title, overlay_entries, legend_present
+        series_entries, axes_parts, legend_entries, figure_titles, overlay_entries, legend_present
     )
-    build = _build_order(series_entries, guide_entries, overlay_entries, reg)
+    build = _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles)
 
     return {
         "spec": "fluxplot/manifest",
@@ -154,7 +160,8 @@ def _organize_guides(guides):
     """Bucket the flat GuideTag list into per-axis parts + legend entries + the figure title."""
     axes: dict = {}
     legend_entries: dict = {}
-    figure_title = None
+    figure_titles: list = []  # left/center/right + suptitle can coexist (no last-wins)
+    annotations: list = []  # swept free text → addressable annotation overlays
     for g in guides:
         if g.role == "axis":
             axes.setdefault(g.axis, {})["gid"] = g.gid
@@ -173,8 +180,10 @@ def _organize_guides(guides):
         elif g.role == "legend-label":
             legend_entries.setdefault(g.index, {})["label"] = g.gid
         elif g.role == "title":
-            figure_title = g.gid
-    return axes, legend_entries, figure_title
+            figure_titles.append(g.gid)
+        elif g.role == "annotation":
+            annotations.append({"id": g.gid, "text": g.text})
+    return axes, legend_entries, figure_titles, annotations
 
 
 def _group(gid: str, group_role: str, members: list) -> dict:
@@ -183,7 +192,7 @@ def _group(gid: str, group_role: str, members: list) -> dict:
 
 
 def _build_parts_tree(
-    series_entries, axes_parts, legend_entries, figure_title, overlay_entries, legend_present
+    series_entries, axes_parts, legend_entries, figure_titles, overlay_entries, legend_present
 ) -> dict:
     plot_children = []
 
@@ -242,16 +251,17 @@ def _build_parts_tree(
                 ek.append({"ref": ent["label"]})
             leg_kids.append({"id": f"legend.entry.{k}", "role": "legend-entry", "children": ek})
         figure_children.append({"id": "legend", "role": "legend", "children": leg_kids})
-    if figure_title:
-        figure_children.append({"ref": figure_title})
+    for t in figure_titles:
+        figure_children.append({"ref": t})
     return {"id": "figure", "role": "figure", "children": figure_children}
 
 
-def _build_order(series_entries, guide_entries, overlay_entries, reg) -> dict:
+def _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles=()) -> dict:
     order = []
     for g in guide_entries:
         if g["role"] == "axis":
             order.append(g["svgId"])
+    order.extend(figure_titles)  # titles reveal with the axes (phase 0)
     order.append("gridlines")
     for s in series_entries:
         if "line" in s["svg"]:

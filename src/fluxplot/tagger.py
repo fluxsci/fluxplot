@@ -189,10 +189,33 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
             except Exception:
                 pass
 
-    title = ax.title
-    if title is not None and title.get_text():
-        g = alloc.take("title")
-        title.set_gid(g)
-        guides.append(GuideTag(gid=g, role="title", text=title.get_text()))
+    # Titles: the house style writes a LEFT title (matplotlib's ax._left_title), so
+    # inspecting only ax.title (center) misses it. Tag every title slot that carries
+    # text — left / center / right + the figure suptitle. The get_gid() guard stops
+    # the shared suptitle being re-tagged once per axes; alloc.take dedups the rest.
+    for t in (
+        getattr(ax, "_left_title", None),
+        ax.title,
+        getattr(ax, "_right_title", None),
+        getattr(ax.figure, "_suptitle", None),
+    ):
+        if t is not None and t.get_text().strip() and not t.get_gid():
+            g = alloc.take("figure.title")
+            t.set_gid(g)
+            guides.append(GuideTag(gid=g, role="title", text=t.get_text()))
+
+    # Free-text sweep: any remaining un-tagged text artist (equation boxes, data /
+    # value labels, callouts dropped with raw ax.text / ax.annotate) becomes an
+    # addressable annotation, so nothing escapes the scene graph as an anonymous
+    # text_N. Artists already tagged (titles above, fp.annotation/fp.tag overlays
+    # resolved earlier) carry a gid and are skipped.
+    k = 0
+    for t in list(ax.texts) + list(ax.figure.texts):
+        if not t.get_text().strip() or t.get_gid():
+            continue
+        g = alloc.take(_ids.join("annotation", k))
+        t.set_gid(g)
+        guides.append(GuideTag(gid=g, role="annotation", text=t.get_text()))
+        k += 1
 
     return guides

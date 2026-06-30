@@ -189,12 +189,19 @@ def despine(ax, top=True, right=True, left=False, bottom=False) -> None:
 
 
 def title(ax, main, sub=None) -> None:
-    """A left-aligned title with an optional muted subtitle line."""
+    """A left-aligned title with an optional muted subtitle line.
+
+    The main title (a left title) is autotagged ``title`` by :func:`fluxplot.save`;
+    the subtitle is tagged ``subtitle`` so it is addressable in the scene graph.
+    """
     if sub:
         ax.set_title(f"{main}\n", loc="left")
-        ax.annotate(
+        ann = ax.annotate(
             sub, xy=(0, 1.0), xycoords="axes fraction", xytext=(0, 10), textcoords="offset points",
             ha="left", va="bottom", fontsize=10.5, color=FLEXOKI["base500"],
         )
+        from . import api as _api  # lazy: style is imported during api's __init__
+
+        _api.tag(ann, role="subtitle", name="figure", text=sub)
     else:
         ax.set_title(main, loc="left")

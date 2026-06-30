@@ -15,6 +15,7 @@ CORE_ROLES = frozenset(
         "legend",
         "colorbar",
         "title",
+        "subtitle",
         # scaffold / guides
         "axis",
         "spine",
@@ -31,12 +32,21 @@ CORE_ROLES = frozenset(
         "area",
         "errorbar",
         "box",
+        "violin",
+        "contour",
+        # composite sub-parts (box / violin / errorbar internals)
+        "whisker",
+        "cap",
+        "flier",
+        "median",
+        "segment",
         # overlays
         "annotation",
         "reference-line",
         "highlight-region",
         "significance-bracket",
         "label",
+        "caption",
         # legend internals
         "legend-entry",
         "legend-swatch",

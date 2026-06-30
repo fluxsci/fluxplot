@@ -30,6 +30,11 @@ def _list(a):
     return None if a is None else list(a)
 
 
+def _is_colorbar_axes(ax) -> bool:
+    """True if this Axes is a colorbar (added by fig.colorbar), not the plot area."""
+    return getattr(ax, "_colorbar", None) is not None or ax.get_label() == "<colorbar>"
+
+
 # ---------------------------------------------------------------------------
 # convenience helpers (auto-tagging) — each returns the real matplotlib artist(s)
 # ---------------------------------------------------------------------------
@@ -62,8 +67,12 @@ def bar(ax, x, height, *, series, label=None, **kw):
 def errorbar(ax, x, y, *, series, yerr=None, label=None, **kw):
     reg = _tagger.registry_for(ax.figure)
     container = ax.errorbar(x, y, yerr=yerr, label=label, **kw)
-    _data_line, _caps, barlinecols = container
-    reg.add(Mark(role="errorbar", series=series, kind="errorbar", x=_list(x), y=_list(y), label=label, artists=list(barlinecols), data={"yerr": _list(yerr)}))
+    data_line, caps, barlinecols = container
+    # Tag the WHOLE container: the central marker/data line + the cap lines + the
+    # error bars. Previously only barlinecols was kept, so the central line and the
+    # caps escaped the scene graph entirely.
+    artists = ([data_line] if data_line is not None else []) + list(caps) + list(barlinecols)
+    reg.add(Mark(role="errorbar", series=series, kind="errorbar", x=_list(x), y=_list(y), label=label, artists=artists, data={"yerr": _list(yerr)}))
     return container
 
 
@@ -194,15 +203,19 @@ def save(fig, path, *, recipe=None, addressable_points=None, style_classes=False
     # 1. deterministic gids on the user-tagged marks
     _tagger.resolve_gids(reg, alloc)
 
-    # 2. finalize layout (so ticks/labels exist + transforms are final), then auto-tag scaffold
+    # 2. finalize layout (so ticks/labels exist + transforms are final), then auto-tag scaffold.
+    # Colorbar axes (fig.colorbar adds a second Axes) are NOT the plot area: scaffolding them
+    # produced duplicate "plot-area" capture entries and collided axis ids (axis.x-2/y-2). Skip
+    # them here so the primary plot stays the single, clean plot-area.
     fig.canvas.draw()
+    plot_axes = [ax for ax in fig.axes if not _is_colorbar_axes(ax)]
     guides = []
-    for ax in fig.axes:
+    for ax in plot_axes:
         guides.extend(_tagger.autotag_scaffold(ax, alloc))
 
     # 3. capture the data↔SVG mapping (after layout is final)
     axes_capture = []
-    for ax in fig.axes:
+    for ax in plot_axes:
         cap = {"id": "plot-area", "svgId": "plot-area"}
         cap.update(_capture.capture_axes(ax, fig))
         axes_capture.append(cap)
