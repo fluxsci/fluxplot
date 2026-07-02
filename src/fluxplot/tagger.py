@@ -218,4 +218,34 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
         guides.append(GuideTag(gid=g, role="annotation", text=t.get_text()))
         k += 1
 
+    # Orphan-artist sweep: the mirror of the free-text sweep for non-text primitives. Raw
+    # ax.plot() lines, ax.add_collection()/scatter collections and ax.add_patch() patches that
+    # the user never routed through an fp.* helper end up as bare <g id="line2d_N"> — no
+    # data-role, absent from the manifest, so Flux can't mask/animate them. Series & overlay
+    # artists were gid'd earlier by resolve_gids (which runs before this), so a leftover gid is
+    # the exact "already tagged, skip me" signal the text sweep relies on. We assign extra.line.N
+    # / extra.collection.N / extra.patch.N and role "extra". The axes' own background patch is
+    # mpl scaffolding, not user content — exclude it (spines/ticks/gridlines live in the axis
+    # containers, not these lists, so they never appear here).
+    _sweep_extra(ax, alloc, guides)
+
     return guides
+
+
+def _sweep_extra(ax, alloc: "_ids.IdAllocator", guides: list) -> None:
+    background = getattr(ax, "patch", None)
+    for kind, artists in (
+        ("line", list(ax.lines) + list(ax.figure.lines)),
+        ("collection", list(ax.collections)),
+        ("patch", list(ax.patches) + list(ax.figure.patches)),
+    ):
+        n = 0
+        for art in artists:
+            if art is background:
+                continue
+            if not art.get_visible() or art.get_gid():
+                continue
+            g = alloc.take(_ids.join("extra", kind, n))
+            art.set_gid(g)
+            guides.append(GuideTag(gid=g, role="extra", index=n))
+            n += 1

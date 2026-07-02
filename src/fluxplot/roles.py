@@ -47,6 +47,8 @@ CORE_ROLES = frozenset(
         "significance-bracket",
         "label",
         "caption",
+        # untagged user-drawn artists swept into addressable "extra" content
+        "extra",
         # legend internals
         "legend-entry",
         "legend-swatch",

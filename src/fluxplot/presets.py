@@ -23,6 +23,7 @@ ROLE_PRESETS = {
     "annotation": {"animation": "fade-rise", "delayMs": 150, "durationMs": 300},
     "reference-line": {"animation": "draw-on", "durationMs": 400},
     "significance-bracket": {"animation": "fade-rise", "delayMs": 200, "durationMs": 300},
+    "extra": {"animation": "fade-in", "durationMs": 400},
 }
 
 

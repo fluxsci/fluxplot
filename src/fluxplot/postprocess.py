@@ -17,6 +17,7 @@ from lxml import etree
 from .descriptors import Mark
 
 SVG = "http://www.w3.org/2000/svg"
+XLINK = "http://www.w3.org/1999/xlink"
 
 
 def _fmt(v) -> str:
@@ -73,6 +74,11 @@ def postprocess(svg_bytes: bytes, reg, guides, plot_type: str):
         el = id_map.get(g.gid)
         if el is not None:
             _set(el, data_role=g.role, data_axis=g.axis, data_index=g.index, data_series=g.series)
+
+    # 6. dereference tick <use> → real <path> so Flux's draw-on preset can measure/animate
+    # them (a <use> has no measurable path length). Strictly scoped to data-role="tick"
+    # groups; point <use> elements (which animate via opacity/transform) are untouched.
+    _deref_ticks(root)
 
     # The set of ids that actually survived into the SVG (computed AFTER injection
     # so per-point <use> ids are included). matplotlib culls boundary ticks/
@@ -145,6 +151,105 @@ def _inject_overlay(m: Mark, id_map) -> None:
         lab = id_map.get(label_gid)
         if lab is not None:
             _set(lab, data_role="label", data_name=m.name)
+
+
+def _href(el):
+    """Read an SVG reference from either ``xlink:href`` or a plain ``href`` attribute."""
+    return el.get(f"{{{XLINK}}}href") or el.get("href")
+
+
+def _parse_style(s: str | None) -> dict:
+    out: dict = {}
+    if not s:
+        return out
+    for decl in s.split(";"):
+        decl = decl.strip()
+        if not decl:
+            continue
+        key, _, val = decl.partition(":")
+        key = key.strip()
+        if key:
+            out[key] = val.strip()
+    return out
+
+
+def _merge_style(target_style: str | None, use_style: str | None) -> str | None:
+    """Merge the referenced path's style *under* the ``<use>``'s own style (use wins).
+
+    Deterministic: target declarations first (insertion order), then any the use adds/overrides.
+    """
+    merged = _parse_style(target_style)
+    merged.update(_parse_style(use_style))
+    if not merged:
+        return None
+    return "; ".join(f"{k}: {v}" for k, v in merged.items())
+
+
+def _deref_ticks(root) -> None:
+    """Replace every ``<use>`` inside a ``data-role="tick"`` group with an inlined ``<path>``.
+
+    matplotlib renders a tick as ``<g data-role="tick"><g><use href="#markerPath"/></g></g>`` where
+    only the first tick of an axis carries the shared ``<defs><path>``. A ``<use>`` has no measurable
+    geometry, so Flux's draw-on (stroke-dashoffset over path length) can't animate it. We resolve the
+    referenced path, inline it (folding the use's x/y offset into a ``translate`` transform and merging
+    styles, use wins), unwrap the now-bare anonymous ``<g>``, and drop any tick-local ``<defs>`` whose
+    path id is no longer referenced anywhere in the document.
+    """
+    # Document-wide map of path id → element (the target may live in a *different* tick's defs).
+    path_by_id = {p.get("id"): p for p in root.iter(f"{{{SVG}}}path") if p.get("id")}
+
+    tick_groups = [el for el in root.iter() if el.get("data-role") == "tick"]
+
+    for tg in tick_groups:
+        for use in list(tg.iter(f"{{{SVG}}}use")):
+            href = _href(use)
+            if not href or not href.startswith("#"):
+                continue
+            target = path_by_id.get(href[1:])
+            if target is None:
+                continue
+            new = etree.Element(f"{{{SVG}}}path")
+            new.set("d", target.get("d", ""))
+            transforms = []
+            if use.get("transform"):
+                transforms.append(use.get("transform"))
+            x, y = use.get("x"), use.get("y")
+            if x is not None or y is not None:
+                transforms.append(f"translate({x or 0} {y or 0})")
+            if transforms:
+                new.set("transform", " ".join(transforms))
+            style = _merge_style(target.get("style"), use.get("style"))
+            if style:
+                new.set("style", style)
+            parent = use.getparent()
+            idx = parent.index(use)
+            parent.remove(use)
+            parent.insert(idx, new)
+            # Unwrap an anonymous <g> wrapper with no attributes and no other children.
+            if parent.tag == f"{{{SVG}}}g" and not parent.attrib and len(parent) == 1:
+                gp = parent.getparent()
+                if gp is not None:
+                    gidx = gp.index(parent)
+                    gp.remove(parent)
+                    gp.insert(gidx, new)
+
+    # Drop tick-local <defs> paths that nothing references anymore (careful: a <use> elsewhere
+    # in the document — e.g. a point cloud — must keep its defs).
+    referenced = set()
+    for use in root.iter(f"{{{SVG}}}use"):
+        href = _href(use)
+        if href and href.startswith("#"):
+            referenced.add(href[1:])
+    for tg in tick_groups:
+        for defs in list(tg.iter(f"{{{SVG}}}defs")):
+            for p in list(defs):
+                pid = p.get("id")
+                if p.tag == f"{{{SVG}}}path" and pid is not None and pid not in referenced:
+                    defs.remove(p)
+            if len(defs) == 0:
+                dp = defs.getparent()
+                if dp is not None:
+                    dp.remove(defs)
 
 
 def _serialize(root) -> bytes:

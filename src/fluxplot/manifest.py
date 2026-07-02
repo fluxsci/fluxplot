@@ -93,8 +93,8 @@ def build_manifest(
             entry["points"] = points
         series_entries.append(entry)
 
-    # organize the scaffold guides per axis (+ legend entries + titles + swept text)
-    axes_parts, legend_entries, figure_titles, scaffold_annotations = _organize_guides(guides)
+    # organize the scaffold guides per axis (+ legend entries + titles + swept text/artists)
+    axes_parts, legend_entries, figure_titles, scaffold_annotations, extras = _organize_guides(guides)
 
     # guides → manifest guides (axis refs + legend with per-entry svg ids)
     guide_entries = []
@@ -131,10 +131,16 @@ def build_manifest(
             oe["text"] = a["text"]
         overlay_entries.append(oe)
 
+    # swept untagged artists (raw ax.plot lines / collections / patches) → "extra" overlays.
+    # Kept separate from overlay_entries so they group under a single "extras" node in the parts
+    # tree (rather than each becoming a loose ref) while still appearing in the manifest overlays.
+    extra_entries = [{"id": e["id"], "svgId": e["id"], "role": "extra"} for e in extras]
+
     parts = _build_parts_tree(
-        series_entries, axes_parts, legend_entries, figure_titles, overlay_entries, legend_present
+        series_entries, axes_parts, legend_entries, figure_titles, overlay_entries,
+        legend_present, extra_entries,
     )
-    build = _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles)
+    build = _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles, extra_entries)
 
     return {
         "spec": "fluxplot/manifest",
@@ -150,7 +156,7 @@ def build_manifest(
         "axes": axes_capture,
         "series": series_entries,
         "guides": guide_entries,
-        "overlays": overlay_entries,
+        "overlays": overlay_entries + extra_entries,
         "parts": parts,
         "build": build,
     }
@@ -162,6 +168,7 @@ def _organize_guides(guides):
     legend_entries: dict = {}
     figure_titles: list = []  # left/center/right + suptitle can coexist (no last-wins)
     annotations: list = []  # swept free text → addressable annotation overlays
+    extras: list = []  # swept untagged artists → addressable "extra" content
     for g in guides:
         if g.role == "axis":
             axes.setdefault(g.axis, {})["gid"] = g.gid
@@ -183,7 +190,9 @@ def _organize_guides(guides):
             figure_titles.append(g.gid)
         elif g.role == "annotation":
             annotations.append({"id": g.gid, "text": g.text})
-    return axes, legend_entries, figure_titles, annotations
+        elif g.role == "extra":
+            extras.append({"id": g.gid})
+    return axes, legend_entries, figure_titles, annotations, extras
 
 
 def _group(gid: str, group_role: str, members: list) -> dict:
@@ -192,7 +201,8 @@ def _group(gid: str, group_role: str, members: list) -> dict:
 
 
 def _build_parts_tree(
-    series_entries, axes_parts, legend_entries, figure_titles, overlay_entries, legend_present
+    series_entries, axes_parts, legend_entries, figure_titles, overlay_entries, legend_present,
+    extra_entries=(),
 ) -> dict:
     plot_children = []
 
@@ -239,6 +249,10 @@ def _build_parts_tree(
     for o in overlay_entries:
         plot_children.append({"ref": o["svgId"]})
 
+    # untagged user-drawn artists → one "extras" group so a consumer can act on all at once
+    if extra_entries:
+        plot_children.append(_group("extras", "extra", [e["svgId"] for e in extra_entries]))
+
     figure_children = [{"id": "plot-area", "role": "plot-area", "children": plot_children}]
     if legend_present:
         leg_kids = []
@@ -256,7 +270,7 @@ def _build_parts_tree(
     return {"id": "figure", "role": "figure", "children": figure_children}
 
 
-def _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles=()) -> dict:
+def _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles=(), extra_entries=()) -> dict:
     order = []
     for g in guide_entries:
         if g["role"] == "axis":
@@ -278,6 +292,10 @@ def _build_order(series_entries, guide_entries, overlay_entries, reg, figure_tit
         order.append("legend")
     for o in overlay_entries:
         order.append(o["svgId"])
+    for e in extra_entries:
+        order.append(e["svgId"])
 
     roles_present = {m.role for m in reg.marks} | {"axis", "gridline"}
+    if extra_entries:
+        roles_present.add("extra")
     return {"order": order, "presets": _presets.presets_for(sorted(roles_present))}
