@@ -10,7 +10,7 @@ from __future__ import annotations
 import weakref
 
 from . import ids as _ids
-from .descriptors import GuideTag, Mark
+from .descriptors import GuideTag, Mark, artist_kind
 
 _REGISTRIES: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
 
@@ -247,5 +247,6 @@ def _sweep_extra(ax, alloc: "_ids.IdAllocator", guides: list) -> None:
                 continue
             g = alloc.take(_ids.join("extra", kind, n))
             art.set_gid(g)
-            guides.append(GuideTag(gid=g, role="extra", index=n))
+            # "extra" has no static kind (role is heterogeneous) — infer from the artist
+            guides.append(GuideTag(gid=g, role="extra", index=n, kind=artist_kind(art)))
             n += 1

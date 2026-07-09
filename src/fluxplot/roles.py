@@ -59,6 +59,63 @@ CORE_ROLES = frozenset(
 )
 
 
+# Data-kind hints (text | line | shape | container) per core role — authored truth for
+# consumers (Flux's part editors pick the property set by kind: a tick-label edits like a
+# text object, a gridline like a line, …). Deliberate omission: "extra" is heterogeneous
+# (a swept artist can be a line, a collection or a patch), so its kind is inferred from
+# the concrete artist at sweep time (see ``descriptors.artist_kind``). Unknown / ``x-``
+# roles are likewise inferred per-artist where possible, else the hint is omitted.
+KIND_BY_ROLE = {
+    # containers
+    "figure": "container",
+    "panel": "container",
+    "plot-area": "container",
+    "legend": "container",
+    "colorbar": "container",
+    "axis": "container",
+    "series": "container",
+    "group": "container",
+    "legend-entry": "container",
+    # text
+    "title": "text",
+    "subtitle": "text",
+    "tick-label": "text",
+    "axis-title": "text",
+    "legend-label": "text",
+    "annotation": "text",
+    "label": "text",
+    "caption": "text",
+    # line
+    "line": "line",
+    "spine": "line",
+    "tick": "line",
+    "gridline": "line",
+    "reference-line": "line",
+    "errorbar": "line",
+    "whisker": "line",
+    "cap": "line",
+    "median": "line",
+    "segment": "line",
+    "significance-bracket": "line",
+    # shape
+    "area": "shape",
+    "bar": "shape",
+    "point": "shape",
+    "box": "shape",
+    "violin": "shape",
+    "contour": "shape",
+    "flier": "shape",
+    "background": "shape",
+    "highlight-region": "shape",
+    "legend-swatch": "shape",
+}
+
+
+def kind_for_role(role: str):
+    """The data-kind hint for a role, or ``None`` when the role carries no static kind."""
+    return KIND_BY_ROLE.get(role)
+
+
 def is_core(role: str) -> bool:
     return role in CORE_ROLES
 

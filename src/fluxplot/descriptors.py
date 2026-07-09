@@ -42,3 +42,41 @@ class GuideTag:
     text: Optional[str] = None  # for axis-title / tick-label text content
     index: Optional[int] = None  # per-index guides (gridline/tick/ticklabel/legend-entry)
     series: Optional[str] = None  # series this guide belongs to (legend swatch/label)
+    kind: Optional[str] = None  # data-kind hint (text|line|shape|container); auto-derived from role
+
+    def __post_init__(self) -> None:
+        if self.kind is None:
+            from . import roles as _roles
+
+            self.kind = _roles.kind_for_role(self.role)
+
+
+def artist_kind(artist) -> Optional[str]:
+    """Best-effort data-kind (text | line | shape) from a matplotlib artist's class.
+
+    Used for marks whose role carries no static kind (``x-`` extension roles from
+    :func:`fluxplot.tag`, the heterogeneous ``extra`` sweep). Containers / uninferable
+    artists return ``None`` — the hint is then simply omitted (additive contract).
+    """
+    from matplotlib.collections import Collection, LineCollection
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    from matplotlib.text import Text
+
+    if isinstance(artist, Text):
+        return "text"
+    if isinstance(artist, (Line2D, LineCollection)):
+        return "line"
+    if isinstance(artist, (Patch, Collection)):
+        return "shape"
+    return None
+
+
+def mark_kind(mark: "Mark") -> Optional[str]:
+    """Data-kind hint for a Mark: the role's static kind, else inferred from its artist."""
+    from . import roles as _roles
+
+    k = _roles.kind_for_role(mark.role)
+    if k is not None:
+        return k
+    return artist_kind(mark.artists[0]) if mark.artists else None

@@ -14,7 +14,8 @@ from __future__ import annotations
 
 from lxml import etree
 
-from .descriptors import Mark
+from .descriptors import Mark, mark_kind
+from .roles import kind_for_role
 
 SVG = "http://www.w3.org/2000/svg"
 XLINK = "http://www.w3.org/1999/xlink"
@@ -63,17 +64,28 @@ def postprocess(svg_bytes: bytes, reg, guides, plot_type: str):
         elif m.role == "bar":
             _inject_indexed(m, id_map, role="bar")
         elif m.series is not None:
-            el = id_map.get(m.gid)
-            if el is not None:
-                _set(el, data_role=m.role, data_series=m.series)
+            # every member (a composite like errorbar renders the centre line + caps +
+            # bar segments as numbered siblings) carries role/series/kind, not just the first
+            kind = mark_kind(m)
+            for gid in m.member_gids or ([m.gid] if m.gid else []):
+                el = id_map.get(gid)
+                if el is not None:
+                    _set(el, data_role=m.role, data_series=m.series, data_kind=kind)
         else:
             _inject_overlay(m, id_map)
 
-    # 5. inject data-role on scaffold/guides
+    # 5. inject data-role (+ data-kind hint) on scaffold/guides
     for g in guides:
         el = id_map.get(g.gid)
         if el is not None:
-            _set(el, data_role=g.role, data_axis=g.axis, data_index=g.index, data_series=g.series)
+            _set(
+                el,
+                data_role=g.role,
+                data_axis=g.axis,
+                data_index=g.index,
+                data_series=g.series,
+                data_kind=g.kind,
+            )
 
     # 6. dereference tick <use> → real <path> so Flux's draw-on preset can measure/animate
     # them (a <use> has no measurable path length). Strictly scoped to data-role="tick"
@@ -95,6 +107,7 @@ def _rename(id_map, old, new, role) -> None:
     if el is not None:
         el.set("id", new)
         el.set("data-role", role)
+        _set(el, data_kind=kind_for_role(role))
         id_map[new] = el
 
 
@@ -102,7 +115,8 @@ def _inject_points(m: Mark, id_map, warnings) -> None:
     group = id_map.get(m.gid)
     if group is None:
         return
-    _set(group, data_series=m.series)
+    # the group's kind mirrors its members (edit the group ⇒ restyle every point)
+    _set(group, data_series=m.series, data_kind=kind_for_role("point"))
     uses = list(group.iter(f"{{{SVG}}}use"))
     n = len(m.member_gids)
     if len(uses) != n:
@@ -122,6 +136,7 @@ def _inject_points(m: Mark, id_map, warnings) -> None:
             data_index=k,
             data_x=xs[k],
             data_y=ys[k],
+            data_kind=kind_for_role("point"),
         )
 
 
@@ -139,18 +154,19 @@ def _inject_indexed(m: Mark, id_map, role: str) -> None:
             data_index=k,
             data_x=xs[k] if k < len(xs) else None,
             data_y=ys[k] if k < len(ys) else None,
+            data_kind=kind_for_role(role),
         )
 
 
 def _inject_overlay(m: Mark, id_map) -> None:
     el = id_map.get(m.gid)
     if el is not None:
-        _set(el, data_role=m.role, data_name=m.name)
+        _set(el, data_role=m.role, data_name=m.name, data_kind=mark_kind(m))
     label_gid = m.data.get("label_gid")
     if label_gid is not None:
         lab = id_map.get(label_gid)
         if lab is not None:
-            _set(lab, data_role="label", data_name=m.name)
+            _set(lab, data_role="label", data_name=m.name, data_kind=kind_for_role("label"))
 
 
 def _href(el):
