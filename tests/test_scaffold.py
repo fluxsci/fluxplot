@@ -72,3 +72,48 @@ def test_legend_entries_in_tree(tmp_path):
     entry = find(legend, "legend-entry")
     assert entry is not None and entry["id"] == "legend.entry.0"
     plt.close(fig)
+
+
+def test_polar_scaffold_tagged(tmp_path):
+    """Polar axes key their spines polar/start/end/inner — the rectangular side list
+    silently dropped them all. The outer circle must be a tagged spine, and the theta/r
+    tick labels + gridlines must tag exactly like their rectangular counterparts."""
+    import re
+
+    import numpy as np
+
+    theta = np.linspace(0, 2 * np.pi, 60)
+    fig, ax = plt.subplots(subplot_kw={"projection": "polar"})
+    fp.line(ax, theta, 1 + 0.3 * np.sin(3 * theta), series="orbit")
+
+    res = fp.save(fig, str(tmp_path / "polar.svg"))
+    svg = open(res.svg).read()
+    ids = set(re.findall(r'\bid="([^"]+)"', svg))
+    plt.close(fig)
+
+    # the outer 'polar' circle runs along theta → the x-axis spine
+    assert "axis.x.spine" in ids, "polar outer-circle spine untagged"
+    assert 'data-role="spine"' in svg
+    # theta (x) and r (y) scaffold: real axis wrappers + tick labels + gridlines
+    assert "axis.x" in ids and "axis.y" in ids
+    assert any(i.startswith("axis.x.ticklabel.") for i in ids)
+    assert any(i.startswith("axis.y.ticklabel.") for i in ids)
+    assert any(i.startswith("axis.x.gridline.") for i in ids)
+    assert any(i.startswith("axis.y.gridline.") for i in ids)
+    assert "orbit.line" in ids
+
+    # manifest: the spine is a member of the x axis node, and nothing dangles
+    man = json.load(open(res.manifest))
+
+    def refs(node, out):
+        if "ref" in node:
+            out.add(node["ref"])
+        out.update(node.get("members", []))
+        for c in node.get("children", []):
+            refs(c, out)
+        return out
+
+    referenced = refs(man["parts"], set())
+    assert "axis.x.spine" in referenced
+    dangling = sorted(r for r in referenced if r not in ids)
+    assert not dangling, f"polar manifest references missing ids: {dangling}"

@@ -158,15 +158,23 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
             gl.set_gid(g)
             guides.append(GuideTag(gid=g, role="gridline", axis=which, index=k))
 
-    # spines (bottom/top → x, left/right → y; despined/polar sides are skipped)
-    for side in ("bottom", "left", "top", "right"):
+    # spines. Rectangular axes key them bottom/left/top/right; polar axes key them
+    # polar/start/end/inner (so the old side list silently dropped every polar spine).
+    # Axis assignment follows the along-direction convention (a bottom spine runs along
+    # x → axis "x"): the outer "polar" circle and the "inner" circle run along theta → x;
+    # the "start"/"end" wedge edges run along r → y. Invisible/absent sides are skipped;
+    # the spine's own key travels as `text`, exactly like the rectangular sides do.
+    if getattr(ax, "name", None) == "polar":
+        sides = (("polar", "x"), ("inner", "x"), ("start", "y"), ("end", "y"))
+    else:
+        sides = (("bottom", "x"), ("left", "y"), ("top", "x"), ("right", "y"))
+    for side, which in sides:
         try:
             sp = ax.spines[side]
         except (KeyError, TypeError):
             continue
         if not sp.get_visible():
             continue
-        which = "x" if side in ("bottom", "top") else "y"
         g = alloc.take(_ids.axis_id(which, "spine"))
         sp.set_gid(g)
         guides.append(GuideTag(gid=g, role="spine", axis=which, text=side))
