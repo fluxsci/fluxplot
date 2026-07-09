@@ -301,7 +301,7 @@ def _validate(manifest_obj, recipe_obj) -> None:
     jsonschema.validate(recipe_obj, rschema)
 
 
-def save(fig, path, *, recipe=None, addressable_points=None, style_classes=False, validate=True, _now=None) -> SaveResult:
+def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
     """Emit ``<path>.svg`` + ``<path>.fluxplot.json`` + ``<path>.recipe.json`` for ``fig``."""
     base, _ext = os.path.splitext(path)
     plot_name = os.path.basename(base)

@@ -26,14 +26,26 @@ pipeline. This records what shipped and what is deliberately deferred.
   colorbar/errorbar cases. This is the class of test that would have caught the
   escapes originally.
 
+## Done (figure-v1 P10 run, 2026-07-09)
+
+- **data-kind hints** — `roles.KIND_BY_ROLE` (text|line|shape|container) injected as
+  `data-kind` alongside every `data-role`, mirrored as `kind` on manifest parts nodes +
+  overlay entries; x-/extra kinds inferred per-artist (`descriptors.artist_kind`).
+- **Errorbar composite sub-parts (from P1 below)** — series `svg.errorbars[]` +
+  per-series `<series>.errorbars` group node in `parts`; every member in `build.order`.
+- **Polar spine tagging** — `polar`/`start`/`end`/`inner` spines tagged (the rectangular
+  side list silently dropped them); polar example pair in the notebook.
+- **Gallery integrity sweep (the P3 QA item)** — `test_semantic_integrity.py` is
+  parametrized over `examples/basic_example_output/*.fluxplot.json`.
+- **Dead `save()` params removed (from P3)** — `addressable_points` / `style_classes`.
+
 ## Deferred backlog (prioritized)
 
-### P1 — composite sub-parts (Effort M)
-`fp.errorbar` caps are now tagged but land as sibling ids (`e.errorbar`,
-`e.errorbar.1`, …) rather than one grouped node in `parts`. Box/violin internals
-(whisker/cap/flier/median, violin IQR/min–max) and `contourf` bands are still
-tagged as a single mark. Want: helpers/patterns that emit the sub-parts under a
-group node so each is addressable in the X-ray.
+### P1 — composite sub-parts (Effort M) — errorbar SHIPPED, rest open
+Box/violin internals (whisker/cap/flier/median, violin IQR/min–max) and `contourf`
+bands are still tagged as a single mark. Want: helpers/patterns that emit the
+sub-parts under a group node so each is addressable in the X-ray (the errorbar
+grouping in `manifest.py` is the pattern to follow).
 
 ### P1 — `guides[]` completeness (Effort S/M)
 `manifest.guides[]` emits only axis + legend (`manifest.py` `_organize_guides`/
@@ -55,8 +67,9 @@ because parts covers addressing; revisit if a consumer relies on `guides[]`.
   `SPEC_VERSION` 0.2.0; JSON Schema is loose.
 
 ### P3
-- Dead `save()` params `addressable_points` / `style_classes` (never implemented).
-- Categorical / time-axis capture.
+- Categorical / time-axis capture. Polar axes capture anchors but they are degenerate
+  (theta 0/2π and the r endpoints can share an svg coordinate — the 2-anchor affine
+  contract cannot represent a polar transform); scaffold/parts addressing is unaffected,
+  data-space morph for polar would need its own capture shape.
 - Swallowed exceptions in legend-swatch tagging (`tagger.py`).
-- QA: wire `tests/test_semantic_integrity.py`'s sweep into `run_all.py` for the
-  example gallery; align the example venv (3.12) with the package (3.13).
+- QA: align the example venv (3.12) with the package (3.13).

@@ -308,7 +308,7 @@ fp.tag_seaborn(ax)                              # → {"parietal": ["line","area
 **Export:**
 
 ```python
-fp.save(fig, path, *, recipe=None, addressable_points=None, validate=True)
+fp.save(fig, path, *, recipe=None, validate=True)
 ```
 
 `save` auto-tags the axes/legend/title for you, so the *only* thing you normally add to a matplotlib
