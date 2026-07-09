@@ -79,6 +79,10 @@ def build_manifest(
                     svg["bars"] = bars
             elif _keep(m.gid):
                 svg[m.role] = m.gid
+        # Escape-hatch series (fp.tag) carry no helper kind; fall back to the first
+        # tagged role so `kind` is always a string (Flux's validator rejects null).
+        if kind is None:
+            kind = marks[0].role
         entry = {
             "id": _ids.series_root(series),
             "name": str(series),

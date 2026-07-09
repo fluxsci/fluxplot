@@ -295,6 +295,16 @@ sc = ax.scatter(x, y)
 fp.tag_points(sc, series="treatment")          # make an existing collection addressable per-point
 ```
 
+**Seaborn in one line** — seaborn is matplotlib underneath, so `fp.tag_seaborn` inspects what a
+seaborn axes-level call drew (`lineplot`/`scatterplot`/`barplot`/`histplot`/`kdeplot`/`regplot`) and
+names it — mean lines → `line`, CI bands → `area`, points → per-point `point`, bars → `bar` (+ their
+`errorbar`) — one series per hue level (from the legend, or pass `series=[...]`):
+
+```python
+sns.lineplot(data=fmri, x="timepoint", y="signal", hue="region", ax=ax)
+fp.tag_seaborn(ax)                              # → {"parietal": ["line","area"], "frontal": [...]}
+```
+
 **Export:**
 
 ```python

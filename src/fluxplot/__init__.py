@@ -17,21 +17,26 @@ from .api import (  # noqa: E402,F401
     area,
     tag,
     tag_points,
+    tag_seaborn,
     significance_bracket,
     reference_line,
     annotation,
     save,
 )
 
+from . import colors  # noqa: E402,F401  (canonical palette/colormaps — colors.green400, colors.maps.emerald, …)
 from . import style  # noqa: E402,F401  (house plotting style — fx.use_light(), fx.FLEXOKI, …)
 from .style import use_light, use_dark  # noqa: E402,F401  (re-exported for convenience)
+from .recipe import params  # noqa: E402,F401  (overridable tunables for rerun-plot/Regenerate)
 
 __all__ = [
     "__version__",
     "SPEC_VERSION",
+    "colors",
     "style",
     "use_light",
     "use_dark",
+    "params",
     "line",
     "scatter",
     "bar",
@@ -39,6 +44,7 @@ __all__ = [
     "area",
     "tag",
     "tag_points",
+    "tag_seaborn",
     "significance_bracket",
     "reference_line",
     "annotation",

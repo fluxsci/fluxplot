@@ -3,11 +3,18 @@
 The recipe is the **provenance surface**, deliberately separate from the deterministic manifest:
 timestamps and content hashes (which vary run-to-run) live here, so the SVG + manifest stay
 byte-stable for morph/diff while provenance stays honest.
+
+When the caller records the producing ``script``, the recipe also carries a small **re-run block**
+(``command``/``args``/``cwd``/``output``) so Flux's ``rerun-plot`` (and the in-app *Regenerate*
+button) can reproduce the plot. Those paths are written **relative** so the recipe survives the
+project being moved or copied as a whole; only the interpreter (``command``) is absolute, and it is
+overridable via ``recipe["command"]``.
 """
 from __future__ import annotations
 
 import hashlib
 import os
+import sys
 from datetime import datetime, timezone
 
 
@@ -46,6 +53,7 @@ def build_recipe(
     manifest_filename: str,
     spec_version: str,
     base_dir: str | None = None,
+    recipe_dir: str | None = None,
     now: str | None = None,
 ) -> dict:
     recipe = recipe or {}
@@ -61,6 +69,45 @@ def build_recipe(
         "inputs": [_hash_input(i, base_dir) for i in inputs],
         "env": None,  # v0: full environment capture deferred (spec §11.3)
     }
-    if recipe.get("command"):
+
+    # Re-run block — what flux-core's runRecipe needs to reproduce the plot. It resolves
+    # `cwd` and `output` against the recipe's OWN directory, runs `command args` (appending
+    # params as `--key value` and exporting them as $FLUX_PARAMS), so the script re-emits the
+    # SVG in place. Emitted only when we know which script produced the plot. Paths are written
+    # relative (to the recipe dir / the run cwd) for portability; the interpreter is absolute
+    # and overridable via recipe["command"].
+    script = out["script"]
+    if script and script.get("path") and recipe_dir is not None:
+        cwd_now = os.getcwd()
+        script_abs = os.path.abspath(script["path"])
+        svg_abs = os.path.join(recipe_dir, svg_filename)
+        out["command"] = recipe.get("command") or sys.executable or "python"
+        out["args"] = [os.path.relpath(script_abs, cwd_now)]
+        out["cwd"] = os.path.relpath(cwd_now, recipe_dir)
+        out["output"] = os.path.relpath(svg_abs, recipe_dir)
+    elif recipe.get("command"):  # explicit command without a script — pass through (back-compat)
         out["command"] = recipe["command"]
+    return out
+
+
+def params(defaults: dict | None = None) -> dict:
+    """Merge ``defaults`` with any ``FLUX_PARAMS`` (JSON) provided in the environment.
+
+    Read tunables through this so ``flux rerun-plot <recipe> --key value`` (and the in-app
+    *Regenerate* button, which set ``$FLUX_PARAMS``) can re-run the script with overrides::
+
+        import fluxplot as fp
+        p = fp.params({"test": "t-test", "smooth": False})
+        if p["test"] == "mann-whitney":
+            ...
+    """
+    import json as _json
+
+    out = dict(defaults or {})
+    raw = os.environ.get("FLUX_PARAMS")
+    if raw:
+        try:
+            out.update(_json.loads(raw))
+        except Exception:
+            pass
     return out

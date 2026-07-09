@@ -7,4 +7,7 @@ build/
 dist/
 # example/test outputs
 examples/out/
+examples/sizing/
+examples/basic_example_output/
 tests/_tmp/
+

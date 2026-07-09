@@ -107,6 +107,120 @@ def tag_points(points, *, series, x=None, y=None):
     return points
 
 
+def tag_seaborn(ax, *, series=None):
+    """Auto-tag the artists a seaborn axes-level plot drew on ``ax`` — one call, done.
+
+    Call it right after the seaborn call (and before raw-matplotlib additions you tag
+    yourself). Series names come from ``series=[...]`` if given, else the legend's labels
+    (seaborn writes them in hue order), else the y-axis label. Per series it names:
+
+    - data-carrying lines           → role ``line``      (``lineplot`` means, ``kdeplot``, ``regplot`` fits)
+    - fill-between bands            → role ``area``      (confidence / error bands)
+    - scatter collections           → role ``point``     (``scatterplot`` / ``regplot`` — per-point addressable)
+    - bar containers                → role ``bar``       (``barplot`` / ``countplot`` / ``histplot``)
+    - vertical error-bar segments   → role ``errorbar``  (joined to their bar by x position)
+
+    Seaborn's empty legend-proxy lines are removed (they draw nothing; the legend keeps its
+    own handles). Artists already tagged are skipped, so this composes with the ``fp.*``
+    helpers and :func:`tag`. Anything it cannot *confidently* pair with a series name is
+    left alone — ``save()``'s orphan sweep still makes it addressable as ``extra.*``.
+
+    Returns ``{series_name: [roles tagged]}`` so you can see exactly what got named.
+
+    Known limits (by construction, not laziness): ``scatterplot(hue=...)`` draws ALL hue
+    groups as ONE collection, so per-hue identity is not recoverable from the artists —
+    the points become a single per-point-addressable group named after the y-label.
+    Composite per-category plots (``boxplot``, ``violinplot``) should be tagged
+    explicitly with :func:`tag` (see the box plot example in ``examples/``).
+    """
+    from matplotlib.collections import PathCollection, PolyCollection
+    from matplotlib.container import BarContainer
+
+    reg = _tagger.registry_for(ax.figure)
+    already = {id(a) for m in reg.marks for a in m.artists}
+
+    # seaborn appends empty proxy lines used only to build its legend — drop them so the
+    # orphan sweep doesn't dutifully tag invisible leftovers.
+    for ln in [ln for ln in ax.lines if len(ln.get_xdata()) == 0]:
+        ln.remove()
+
+    legend = ax.get_legend()
+    if series is not None:
+        names = [str(s) for s in series]
+    elif legend is not None and legend.get_texts():
+        names = [t.get_text() for t in legend.get_texts()]
+    else:
+        names = [ax.get_ylabel() or "data"]
+
+    tagged: dict = {}
+
+    def _record(name, role):
+        tagged.setdefault(str(name), []).append(role)
+
+    def _is_segment(ln):  # a 2-point vertical segment is an error bar, not a data curve
+        x = ln.get_xdata()
+        return len(x) == 2 and float(x[0]) == float(x[1])
+
+    # data curves (one per hue level) → line
+    curves = [ln for ln in ax.lines if id(ln) not in already and len(ln.get_xdata()) and not _is_segment(ln)]
+    if curves and len(curves) == len(names):
+        for name, ln in zip(names, curves):
+            gx, gy = ln.get_data()
+            reg.add(Mark(role="line", series=name, kind="line", x=_list(gx), y=_list(gy), artists=[ln]))
+            _record(name, "line")
+
+    # fill-between bands (one per hue level) → area
+    bands = [c for c in ax.collections if id(c) not in already and isinstance(c, PolyCollection)]
+    if bands and len(bands) == len(names):
+        for name, band in zip(names, bands):
+            reg.add(Mark(role="area", series=name, kind="area", artists=[band]))
+            _record(name, "area")
+
+    # scatter collections → point (per-point addressable, with data values from the offsets)
+    pts = [
+        c for c in ax.collections
+        if id(c) not in already and isinstance(c, PathCollection) and not isinstance(c, PolyCollection)
+    ]
+    if pts and len(pts) == len(names):
+        pairs = list(zip(names, pts))
+    elif len(pts) == 1:  # scatterplot(hue=) fuses all hues into one collection
+        pairs = [(ax.get_ylabel() or "points", pts[0])]
+    else:
+        pairs = []
+    for name, coll in pairs:
+        off = coll.get_offsets()
+        x, y = [float(v) for v in off[:, 0]], [float(v) for v in off[:, 1]]
+        reg.add(Mark(role="point", series=name, kind="scatter", x=x, y=y, artists=[coll], indexed=True))
+        _record(name, "point")
+
+    # bar containers (one per hue level) → bar, with bar centers/heights as the data
+    bars = [c for c in getattr(ax, "containers", []) if isinstance(c, BarContainer)]
+    bar_centers: list = []  # (name, {x center}) for the error-bar join below
+    if bars and len(bars) == len(names):
+        for name, cont in zip(names, bars):
+            patches = [p for p in cont.patches if id(p) not in already]
+            if not patches:
+                continue
+            cx = [float(p.get_x() + p.get_width() / 2.0) for p in patches]
+            cy = [float(p.get_height()) for p in patches]
+            reg.add(Mark(role="bar", series=name, kind="bar", x=cx, y=cy, artists=patches, indexed=True))
+            _record(name, "bar")
+            bar_centers.append((name, {round(v, 9) for v in cx}))
+
+    # seaborn draws bar errors as loose 2-point vertical lines — join each to its bar
+    # by x position (an exact join on coordinates seaborn itself set, not a guess).
+    segs = [ln for ln in ax.lines if id(ln) not in already and len(ln.get_xdata()) and _is_segment(ln)]
+    for ln in segs:
+        x0 = round(float(ln.get_xdata()[0]), 9)
+        for name, centers in bar_centers:
+            if x0 in centers:
+                reg.add(Mark(role="errorbar", series=name, kind="errorbar", artists=[ln]))
+                _record(name, "errorbar")
+                break
+
+    return tagged
+
+
 # ---------------------------------------------------------------------------
 # first-class overlays
 # ---------------------------------------------------------------------------
@@ -237,7 +351,8 @@ def save(fig, path, *, recipe=None, addressable_points=None, style_classes=False
     )
     rec = _recipe.build_recipe(
         recipe, plot_name=plot_name, svg_filename=svg_filename,
-        manifest_filename=manifest_filename, spec_version=SPEC_VERSION, now=_now,
+        manifest_filename=manifest_filename, spec_version=SPEC_VERSION,
+        recipe_dir=os.path.dirname(os.path.abspath(svg_path)), now=_now,
     )
     if validate:
         _validate(man, rec)
