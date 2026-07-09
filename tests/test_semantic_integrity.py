@@ -145,3 +145,63 @@ def test_errorbar_central_line_is_tagged(tmp_path):
     man, ids = _assert_integrity(res)
     e = next(s for s in man["series"] if s["id"] == "e")
     assert e["svg"].get("errorbar") in ids
+
+
+def _parts_by_key(man):
+    out = {}
+
+    def walk(node):
+        out[node.get("id") or node.get("ref")] = node
+        for c in node.get("children", []):
+            walk(c)
+
+    walk(man["parts"])
+    return out
+
+
+def test_errorbar_members_grouped(tmp_path):
+    """The composite's numbered siblings (caps + bar segments) must be first-class:
+    svg.errorbars lists every member and the parts tree groups them per series —
+    previously they were orphans only Flux's orphan-defense could reach."""
+    fig, ax = plt.subplots(figsize=(5, 3))
+    # the notebook's "Bar chart with error bars" pattern (mpl_bars_FLUXPLOT)
+    fp.bar(ax, [0, 1, 2], [4.2, 6.8, 5.5], series="viability")
+    fp.errorbar(ax, [0, 1, 2], [4.2, 6.8, 5.5], series="viability",
+                yerr=[0.4, 0.6, 0.5], fmt="none", capsize=3)
+    res = fp.save(fig, str(tmp_path / "bars.svg"))
+    plt.close(fig)
+    man, ids = _assert_integrity(res)
+
+    s = next(e for e in man["series"] if e["id"] == "viability")
+    members = s["svg"].get("errorbars")
+    assert members and len(members) >= 2, "expected the composite's sibling gids"
+    assert s["svg"]["errorbar"] in members, "the primary ref is one of the members"
+    assert all(m in ids for m in members)
+
+    parts = _parts_by_key(man)
+    grp = parts.get("viability.errorbars")
+    assert grp is not None, "per-series errorbars group node missing from the parts tree"
+    assert grp["role"] == "group" and grp["groupRole"] == "errorbar"
+    assert grp["members"] == members
+    assert grp.get("kind") == "line"
+    # the old lone {"ref": errorbar} sibling must not duplicate the group's coverage
+    assert s["svg"]["errorbar"] not in parts or parts[s["svg"]["errorbar"]] is grp or \
+        "ref" not in parts.get(s["svg"]["errorbar"], {}), "duplicate errorbar ref in tree"
+    # every member is in the build order (revealed like bars)
+    order = man["build"]["order"]
+    assert all(m in order for m in members)
+
+
+def test_errorbar_multi_mark_series_all_members(tmp_path):
+    """Several errorbar marks on ONE series (the seaborn join emits one mark per segment)
+    accumulate into a single errorbars list instead of last-mark-wins."""
+    fig, ax = plt.subplots(figsize=(4, 3))
+    for x in (0, 1, 2):
+        (seg,) = ax.plot([x, x], [1.0, 2.0])
+        fp.tag(seg, role="errorbar", series="joined")
+    res = fp.save(fig, str(tmp_path / "multi.svg"))
+    plt.close(fig)
+    man, ids = _assert_integrity(res)
+    s = next(e for e in man["series"] if e["id"] == "joined")
+    assert len(s["svg"]["errorbars"]) == 3
+    assert s["svg"]["errorbar"] == s["svg"]["errorbars"][0], "primary ref = first mark's gid"

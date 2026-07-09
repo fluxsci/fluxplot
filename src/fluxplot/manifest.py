@@ -57,6 +57,10 @@ def build_manifest(
         label = None
         roles = sorted({m.role for m in marks})
         kinds: dict = {}
+        # an errorbar is a composite (centre line + caps + bar segments render as numbered
+        # sibling groups) — collect EVERY member across the series' errorbar marks so each
+        # whisker/cap is addressable, not just the first gid.
+        errorbar_members: list = []
         for m in marks:
             kind = kind or m.kind
             label = label or m.label
@@ -86,8 +90,14 @@ def build_manifest(
                 bars = [g for g in m.member_gids if _keep(g)]
                 if bars:
                     svg["bars"] = bars
+            elif m.role == "errorbar":
+                if _keep(m.gid) and "errorbar" not in svg:
+                    svg["errorbar"] = m.gid  # primary ref stays (compat); first mark wins
+                errorbar_members.extend(g for g in m.member_gids if _keep(g))
             elif _keep(m.gid):
                 svg[m.role] = m.gid
+        if errorbar_members:
+            svg["errorbars"] = errorbar_members
         # Escape-hatch series (fp.tag) carry no helper kind; fall back to the first
         # tagged role so `kind` is always a string (Flux's validator rejects null).
         if kind is None:
@@ -290,9 +300,14 @@ def _build_parts_tree(
             )
         if svg.get("bars"):
             kids.append(_group(f'{s["id"]}.bars', "bar", svg["bars"]))
+        if svg.get("errorbars"):
+            # one group node per series: centre line + caps + bar segments, each addressable
+            kids.append(_group(f'{s["id"]}.errorbars', "errorbar", svg["errorbars"]))
         for role, val in svg.items():
-            if role in ("line", "points", "bars"):
+            if role in ("line", "points", "bars", "errorbars"):
                 continue
+            if role == "errorbar" and svg.get("errorbars"):
+                continue  # already covered by the errorbars group (avoid a duplicate ref)
             k = kinds.get(role, _roles.kind_for_role(role))
             if isinstance(val, list):
                 grp = _group(f'{s["id"]}.{role}', role, val)
@@ -349,7 +364,9 @@ def _build_order(series_entries, guide_entries, overlay_entries, reg, figure_tit
         if "bars" in s["svg"]:
             order.extend(s["svg"]["bars"])
         for key in ("area", "errorbar", "box"):
-            if key in s["svg"]:
+            if key == "errorbar" and s["svg"].get("errorbars"):
+                order.extend(s["svg"]["errorbars"])  # reveal every sub-part, like bars
+            elif key in s["svg"]:
                 order.append(s["svg"][key])
     if any(g["role"] == "legend" for g in guide_entries):
         order.append("legend")
