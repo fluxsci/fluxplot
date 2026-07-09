@@ -8,9 +8,11 @@ overlays, build.order) and asserts each resolves to a real ``id="…"`` in the S
 """
 import json
 import re
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 import fluxplot as fp
 from fluxplot import style as st
@@ -205,3 +207,27 @@ def test_errorbar_multi_mark_series_all_members(tmp_path):
     s = next(e for e in man["series"] if e["id"] == "joined")
     assert len(s["svg"]["errorbars"]) == 3
     assert s["svg"]["errorbar"] == s["svg"]["errorbars"][0], "primary ref = first mark's gid"
+
+
+# ---------------------------------------------------------------------------
+# Gallery sweep: the committed example outputs are themselves under the integrity
+# gate, so regenerating examples/basic_examples.ipynb re-validates every emitted
+# manifest against its SVG (this is what would catch a notebook/output drift).
+# ---------------------------------------------------------------------------
+_GALLERY = Path(__file__).resolve().parent.parent / "examples" / "basic_example_output"
+_GALLERY_MANIFESTS = sorted(_GALLERY.glob("*.fluxplot.json"))
+
+
+@pytest.mark.parametrize(
+    "manifest_path", _GALLERY_MANIFESTS,
+    ids=lambda p: p.name.replace(".fluxplot.json", ""),
+)
+def test_gallery_integrity(manifest_path):
+    man = json.load(open(manifest_path))
+    svg_path = manifest_path.with_name(man["svg"])
+    assert svg_path.exists(), f"manifest names a missing SVG: {man['svg']}"
+    ids = _svg_ids(svg_path.read_text())
+    dangling = sorted(r for r in _referenced_ids(man) if r not in ids)
+    assert not dangling, (
+        f"{manifest_path.name}: manifest references ids absent from the SVG: {dangling}"
+    )
