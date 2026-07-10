@@ -7,27 +7,33 @@ A thin, additive semantic-tagging layer over matplotlib. Plot in real matplotlib
 See ``Flux_SemanticSVG_Spec.md`` for the conceptual spec.
 """
 
-from .version import SPEC_VERSION, __version__  # noqa: F401
-
+from . import (
+    colors,  # noqa: E402,F401  (canonical palette/colormaps — colors.green400, colors.maps.emerald, …)
+    style,  # noqa: E402,F401  (house plotting style — fx.use_light(), fx.FLEXOKI, …)
+)
 from .api import (  # noqa: E402,F401
-    line,
-    scatter,
+    annotation,
+    area,
     bar,
     errorbar,
-    area,
+    line,
+    reference_line,
+    save,
+    scatter,
+    significance_bracket,
     tag,
     tag_points,
     tag_seaborn,
-    significance_bracket,
-    reference_line,
-    annotation,
-    save,
 )
-
-from . import colors  # noqa: E402,F401  (canonical palette/colormaps — colors.green400, colors.maps.emerald, …)
-from . import style  # noqa: E402,F401  (house plotting style — fx.use_light(), fx.FLEXOKI, …)
-from .style import use_light, use_dark  # noqa: E402,F401  (re-exported for convenience)
-from .recipe import params  # noqa: E402,F401  (overridable tunables for rerun-plot/Regenerate)
+from .recipe import (
+    params,  # noqa: E402,F401  (overridable tunables for rerun-plot/Regenerate)
+)
+from .style import (  # noqa: E402,F401  (re-exported for convenience)
+    use_dark,
+    use_light,
+    use_paper,
+)
+from .version import SPEC_VERSION, __version__  # noqa: F401
 
 __all__ = [
     "__version__",
@@ -36,6 +42,7 @@ __all__ = [
     "style",
     "use_light",
     "use_dark",
+    "use_paper",
     "params",
     "line",
     "scatter",

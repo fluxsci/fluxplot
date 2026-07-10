@@ -22,9 +22,19 @@ def test_colormaps_are_colormaps_and_registered():
 
 def test_use_light_sets_paper_and_light_cycle():
     fx.use_light()
+    # use_light defaults to PURE WHITE (journal compliance, 2026-07); the warm
+    # Flexoki-paper look lives in use_paper() now.
+    assert mcolors.to_hex(mpl.rcParams["axes.facecolor"]).lower() == "#ffffff"
+    first = next(iter(mpl.rcParams["axes.prop_cycle"]))["color"]
+    assert mcolors.to_hex(first).lower() == fx.FLEXOKI["blue"].lower()
+
+
+def test_use_paper_sets_flexoki_paper():
+    fx.use_paper()
     assert mcolors.to_hex(mpl.rcParams["axes.facecolor"]).lower() == fx.FLEXOKI["paper"].lower()
     first = next(iter(mpl.rcParams["axes.prop_cycle"]))["color"]
     assert mcolors.to_hex(first).lower() == fx.FLEXOKI["blue"].lower()
+    fx.use_light()  # restore the default for any later tests
 
 
 def test_use_dark_sets_dark_cycle():

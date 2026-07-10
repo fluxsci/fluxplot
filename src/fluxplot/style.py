@@ -38,7 +38,8 @@ from __future__ import annotations
 
 import matplotlib as mpl
 
-from .colors import flex as _flex, maps as _maps
+from .colors import flex as _flex
+from .colors import maps as _maps
 
 __all__ = [
     "FLEXOKI",
@@ -66,14 +67,26 @@ __all__ = [
 # "paper" background; 400-weight ("*2") on dark. Retune in fluxplot.colors.
 # ---------------------------------------------------------------------------
 _BASE_LEVELS = (50, 100, 150, 200, 300, 400, 500, 600, 700, 800, 850, 900, 950)
-_ACCENTS = ("red", "orange", "yellow", "olive", "green", "cyan", "blue", "purple", "magenta")
+_ACCENTS = (
+    "red",
+    "orange",
+    "yellow",
+    "olive",
+    "green",
+    "cyan",
+    "blue",
+    "purple",
+    "magenta",
+)
 
 FLEXOKI = {"paper": _flex.paper, "black": _flex.black}
 for _lvl in _BASE_LEVELS:
     FLEXOKI[f"base{_lvl}"] = _flex.get(f"base-{_lvl}")["hex"]
 for _name in _ACCENTS:
     FLEXOKI[_name] = _flex.get(f"{_name}-600")["hex"]  # primary, for light backgrounds
-    FLEXOKI[f"{_name}2"] = _flex.get(f"{_name}-400")["hex"]  # lighter, for dark backgrounds
+    FLEXOKI[f"{_name}2"] = _flex.get(f"{_name}-400")[
+        "hex"
+    ]  # lighter, for dark backgrounds
 
 # Categorical cycles — a distinct, harmonious hue order. The active theme installs
 # one as matplotlib's prop_cycle, so un-coloured series are assigned from it.
@@ -148,10 +161,10 @@ def _base_rc(ink, muted, grid, paper, serif):
         "font.sans-serif": SANS_STACK,
         "font.serif": SERIF_STACK,
         "font.size": 6,  # 6pt as default
-        "axes.titlesize": 8,  # 8pt font for axes titles
+        "axes.titlesize": 6,  # 6pt font for axes titles
         "axes.titleweight": "medium",
         "axes.titlepad": 12,
-        "axes.labelsize": 8,  # 8pt font for axes labels
+        "axes.labelsize": 6,  # 6pt font for axes labels
         "axes.labelpad": 6,
         "axes.labelcolor": ink,
         "text.color": ink,
@@ -194,6 +207,18 @@ def _base_rc(ink, muted, grid, paper, serif):
 
 
 def use_light(
+    ink: str = FLEXOKI["black"],
+    muted: str = FLEXOKI["base700"],
+    grid: bool = False,
+    paper: str = "#FFFFFF",  # default needs to be pure white to comply with journals...
+    serif: bool = False,
+) -> None:
+    """Apply the paper-background theme (the default look). Call before creating figures."""
+    mpl.rcParams.update(_base_rc(ink, muted, grid, paper, serif))
+    mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_LIGHT)
+
+
+def use_paper(
     ink: str = FLEXOKI["black"],
     muted: str = FLEXOKI["base700"],
     grid: bool = True,
