@@ -155,6 +155,28 @@ SERIF_STACK = [
 ]
 
 
+def _title_weight(serif: bool) -> str:
+    """The heaviest honest title weight: ``"medium"`` only when the family
+    matplotlib will actually resolve (the first installed face in the stack)
+    ships a 500 weight — otherwise ``"normal"``. Requesting an absent weight
+    made findfont print ``Failed to find font weight medium, now using 400.``
+    once per process (noise that buried real failures in long batch runs)
+    while rendering the exact same 400 anyway."""
+    from matplotlib import font_manager as _fm
+
+    stack = SERIF_STACK if serif else SANS_STACK
+    available: dict[str, set] = {}
+    for f in _fm.fontManager.ttflist:
+        available.setdefault(f.name.lower(), set()).add(f.weight)
+    for fam in stack:
+        weights = available.get(fam.lower())
+        if weights is None:
+            continue
+        has_medium = any(w == "medium" or (isinstance(w, (int, float)) and 450 <= w <= 550) for w in weights)
+        return "medium" if has_medium else "normal"
+    return "normal"
+
+
 def _base_rc(ink, muted, grid, paper, serif):
     return {
         "font.family": "serif" if serif else "sans-serif",
@@ -162,7 +184,7 @@ def _base_rc(ink, muted, grid, paper, serif):
         "font.serif": SERIF_STACK,
         "font.size": 6,  # 6pt as default
         "axes.titlesize": 6,  # 6pt font for axes titles
-        "axes.titleweight": "medium",
+        "axes.titleweight": _title_weight(serif),
         "axes.titlepad": 12,
         "axes.labelsize": 6,  # 6pt font for axes labels
         "axes.labelpad": 6,

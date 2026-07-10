@@ -7,10 +7,13 @@ deterministically → inject ``data-*`` → emit manifest + recipe.
 """
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import json
 import os
 import stat
+import sys
+import warnings
 from dataclasses import dataclass, field
 
 import matplotlib
@@ -381,6 +384,43 @@ class SaveResult:
     manifest: str
     recipe: str
     warnings: list = field(default_factory=list)
+    #: True when FLUXPLOT_ONLY filtered this plot out — nothing was written.
+    skipped: bool = False
+
+
+def _warn_log_zero_anchors(plot_axes, plot_name: str) -> list:
+    """Warn — at generation time, where the fix belongs — when a bar/rect on a
+    log-scaled axis extends to data ≤ 0. matplotlib serializes that anchor as a
+    huge off-canvas SVG coordinate (−50k…−200k in a ~400-unit canvas): the plot
+    renders standalone, but downstream compositors/rasterizers can crash on it
+    (flux `validate-plot` now rejects it). The remedy is one line in the plot
+    script: anchor at a positive value (barh: left=1, bar: bottom=1)."""
+    from matplotlib.patches import Rectangle
+
+    out = []
+    for ax in plot_axes:
+        logx = ax.get_xscale() == "log"
+        logy = ax.get_yscale() == "log"
+        if not (logx or logy):
+            continue
+        bad = 0
+        for pt in ax.patches:
+            if not isinstance(pt, Rectangle):
+                continue
+            if logx and min(pt.get_x(), pt.get_x() + pt.get_width()) <= 0:
+                bad += 1
+            elif logy and min(pt.get_y(), pt.get_y() + pt.get_height()) <= 0:
+                bad += 1
+        if bad:
+            msg = (
+                f"{plot_name}: {bad} bar(s)/rect(s) on a log-scaled axis extend to data <= 0; "
+                "matplotlib serializes those anchors as huge off-canvas coordinates that can "
+                "crash downstream renderers. Anchor at a positive value instead "
+                "(barh: left=1, width=count-1; bar: bottom=1, height=count-1)."
+            )
+            warnings.warn(msg, UserWarning, stacklevel=3)
+            out.append(msg)
+    return out
 
 
 def _infer_plot_type(reg) -> str:
@@ -446,6 +486,12 @@ def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
     - ``False`` — explicitly suppress discovery (notebooks, generated figures, privacy).
     - ``dict`` — explicit fields (``script``/``command``/``params``/``inputs``) always win;
       an inferred script only fills a missing ``script``.
+
+    **Targeted reruns** (``FLUXPLOT_ONLY``): a figure-level script that saves
+    several plots can be re-run for ONE of them — set ``FLUXPLOT_ONLY`` to a
+    comma-separated list of plot names (fnmatch patterns work: ``fig2*``) and
+    every non-matching ``save`` becomes a no-op (nothing written, siblings
+    untouched on disk). ``flux rerun-plot <recipe> --only`` sets this for you.
     """
     base, _ext = os.path.splitext(path)
     plot_name = os.path.basename(base)
@@ -454,6 +500,16 @@ def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
     recipe_path = base + ".recipe.json"
     svg_filename = os.path.basename(svg_path)
     manifest_filename = os.path.basename(manifest_path)
+
+    only = os.environ.get("FLUXPLOT_ONLY", "").strip()
+    if only:
+        pats = [p.strip() for p in only.split(",") if p.strip()]
+        if pats and not any(fnmatch.fnmatchcase(plot_name, p) for p in pats):
+            print(f"fluxplot: skipped '{plot_name}' (FLUXPLOT_ONLY={only})", file=sys.stderr)
+            return SaveResult(
+                svg=svg_path, manifest=manifest_path, recipe=recipe_path,
+                warnings=[f"skipped by FLUXPLOT_ONLY={only}"], skipped=True,
+            )
 
     reg = _tagger.registry_for(fig)
     alloc = _ids.IdAllocator()
@@ -471,6 +527,7 @@ def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
     # them here so the primary plot stays the single, clean plot-area.
     fig.canvas.draw()
     plot_axes = [ax for ax in fig.axes if not _is_colorbar_axes(ax)]
+    geometry_warnings = _warn_log_zero_anchors(plot_axes, plot_name)
     guides = []
     for ax in plot_axes:
         guides.extend(_tagger.autotag_scaffold(ax, alloc))
@@ -487,8 +544,8 @@ def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
 
     # 5. inject data-* + canonicalize
     plot_type = _infer_plot_type(reg)
-    out_svg, warnings, present = _postprocess.postprocess(svg_bytes, reg, guides, plot_type)
-    warnings = promo_warnings + warnings
+    out_svg, post_warnings, present = _postprocess.postprocess(svg_bytes, reg, guides, plot_type)
+    all_warnings = promo_warnings + geometry_warnings + post_warnings
 
     # 6. assemble manifest + recipe. Drop scaffold guides matplotlib culled at draw
     # (boundary ticks/gridlines, empty axis titles) so the manifest references only
@@ -519,4 +576,4 @@ def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
         ]
     )
 
-    return SaveResult(svg=svg_path, manifest=manifest_path, recipe=recipe_path, warnings=warnings)
+    return SaveResult(svg=svg_path, manifest=manifest_path, recipe=recipe_path, warnings=all_warnings)

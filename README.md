@@ -335,6 +335,38 @@ sns.lineplot(data=fmri, x="timepoint", y="signal", hue="region", ax=ax)
 fp.tag_seaborn(ax)                              # → {"parietal": ["line","area"], "frontal": [...]}
 ```
 
+**Recipes for artists without a first-class helper** — `fp.tag` covers all of them; these are the
+patterns that come up constantly in practice (copy them verbatim). Unknown roles like `x-heatmap`
+degrade gracefully: they still get stable ids, a `data-role`, and a manifest entry.
+
+```python
+# Stackplot — one PolyCollection per layer, tagged as areas:
+polys = ax.stackplot(x, series_a, series_b, labels=["A", "B"])
+for poly, name in zip(polys, ["a", "b"]):
+    fp.tag(poly, role="area", series=name)
+
+# Heatmap (imshow or pcolormesh) — the whole image is one addressable mark:
+im = ax.imshow(matrix, aspect="auto", cmap=fx.SEQUENTIAL)
+fp.tag(im, role="x-heatmap", series="counts-by-decade")
+
+# Hexbin — the PolyCollection is one mark (per-hex addressing isn't meaningful):
+hb = ax.hexbin(w, h, gridsize=58, xscale="log", yscale="log", bins="log", mincnt=1)
+fp.tag(hb, role="x-hexbin", series="artwork-density")
+
+# Ridgeline (a fill_between + outline per row):
+for i, (name, dens) in enumerate(rows):
+    band = ax.fill_between(grid, offset(i), offset(i) + dens, alpha=0.8)
+    fp.tag(band, role="area", series=f"ridge-{name}")
+
+# Horizontal bars on a LOG x-axis — never anchor at 0 (log(0) serializes as a
+# huge off-canvas coordinate; fp.save warns and flux validate-plot rejects it).
+# Draw from 1 so the geometry is finite and the length still encodes count:
+bars = ax.barh(ypos, counts - 1, left=1)
+for i, p in enumerate(bars.patches):
+    fp.tag(p, role="bar", series="classification-count", index=i)
+ax.set_xscale("log")
+```
+
 **Export:**
 
 ```python
@@ -343,6 +375,11 @@ fp.save(fig, path, *, recipe=None, validate=True)
 
 `save` auto-tags the axes/legend/title for you, so the *only* thing you normally add to a matplotlib
 script is a `series=` on your plotting calls.
+
+A **figure-level script** that `fp.save`s several plots stays fully rerunnable per-plot: with
+`FLUXPLOT_ONLY=<name[,name…]>` in the environment (fnmatch patterns work), every non-matching
+`save` becomes a no-op — nothing written, sibling triplets untouched on disk. `flux rerun-plot
+<recipe> --only` sets it for you, so one script per figure and per-panel regeneration coexist.
 
 ---
 
