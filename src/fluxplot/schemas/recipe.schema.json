@@ -19,6 +19,28 @@
     "script": { "type": ["object", "null"] },
     "params": { "type": "object" },
     "command": { "type": "string" },
+    "args": { "type": "array", "items": { "type": "string" } },
+    "cwd": { "type": "string" },
+    "output": { "type": "string" },
+    "provenance": {
+      "type": "object",
+      "required": ["scriptDiscovery"],
+      "properties": {
+        "scriptDiscovery": { "enum": ["automatic", "explicit", "unavailable", "suppressed"] },
+        "scriptSha256": { "type": "string" },
+        "python": { "type": "string" },
+        "platform": { "type": "string" },
+        "packages": { "type": "object", "additionalProperties": { "type": "string" } },
+        "git": {
+          "type": "object",
+          "required": ["commit"],
+          "properties": {
+            "commit": { "type": "string" },
+            "dirty": { "type": "boolean" }
+          }
+        }
+      }
+    },
     "inputs": {
       "type": "array",
       "items": {

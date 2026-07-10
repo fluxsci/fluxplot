@@ -32,11 +32,24 @@ def test_recipe_rerun_block_resolves_correctly(tmp_path, growth_fig):
     assert rec["output"] == "g.svg"  # the common case is just the basename
 
 
-def test_no_script_means_no_rerun_block(tmp_path, growth_fig):
-    res = fp.save(growth_fig, str(tmp_path / "g.svg"))  # no recipe/script recorded
+def test_recipe_false_suppresses_rerun_block(tmp_path, growth_fig):
+    """recipe=False explicitly opts out of automatic discovery → valid, non-rerunnable recipe."""
+    res = fp.save(growth_fig, str(tmp_path / "g.svg"), recipe=False)
     rec = json.load(open(res.recipe))
+    assert rec["script"] is None
     assert "command" not in rec
     assert "args" not in rec
+    assert "provenance" not in rec
+
+
+def test_default_save_discovers_calling_script(tmp_path, growth_fig):
+    """Plain fp.save (no recipe kwarg) auto-discovers the calling .py — here, this test file."""
+    res = fp.save(growth_fig, str(tmp_path / "g.svg"))
+    rec = json.load(open(res.recipe))
+    assert rec["provenance"]["scriptDiscovery"] == "automatic"
+    assert os.path.samefile(rec["script"]["path"], __file__)
+    assert rec["command"] and rec["args"]
+    assert rec["inputs"] == []  # inputs are never guessed
 
 
 def test_params_merges_flux_params(monkeypatch):
