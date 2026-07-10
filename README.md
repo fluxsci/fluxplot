@@ -69,12 +69,17 @@ ax.set_xlabel("Time (h)"); ax.set_ylabel("OD600"); ax.set_yscale("log"); ax.lege
 fp.significance_bracket(ax, x0=20, x1=24, y=2.0, label="**",
                         between=("control", "treatment"), p=0.003)
 
-fp.save(fig, "plots/growth.svg",
-        recipe=dict(script=__file__, params={"test": "t-test"}, inputs=["data/growth.csv"]))
+fp.save(fig, "plots/growth.svg")
 ```
 
 You write **ordinary matplotlib** — `fp.line` is `ax.plot` with a `series=` name attached. `fp.save`
-then produces three files:
+then produces three files. The recipe is rerunnable with zero ceremony: when called from a `.py`
+script, `save` discovers the producing script automatically (deterministic, conservative rules —
+never notebook history, never a guess) and records how it was discovered
+(`provenance.scriptDiscovery`: `automatic` / `explicit` / `unavailable`). Pass
+`recipe=dict(script=..., params={...}, inputs=[...])` to record parameters and input hashes —
+explicit fields always win — or `recipe=False` to suppress discovery entirely (notebooks,
+privacy-sensitive callers). Inputs are **never** discovered automatically.
 
 ```
 plots/growth.svg            ← the semantic SVG (renders & edits like any vector, but every part is named)
@@ -148,8 +153,16 @@ holds:
 This is the file an agent or Flux Slide reads *first* — it's where the *meaning* lives.
 
 ### `growth.recipe.json` — the provenance
-The script, the parameters, and references (+ hashes) of the input data. Enough to **re-run the plot
-here** — which is what makes "rerun Figure 6d with a Mann-Whitney test" a real operation.
+The script (auto-discovered, or recorded explicitly), the parameters, references (+ hashes) of the
+input data, and a `provenance` block (script hash, interpreter, package versions, git state when
+available). Enough to **re-run the plot here** — which is what makes "rerun Figure 6d with a
+Mann-Whitney test" a real operation. All host-varying material lives here, never in the SVG/manifest.
+
+### Consistency between the three files
+The manifest records `artifact.svgSha256` — the checksum of the final SVG bytes. `save` stages all
+three files and commits them with atomic per-file renames (SVG → manifest → recipe), so a watcher
+never sees a partially written file, and a stale SVG/manifest pair is *detectable* via the checksum
+rather than silently misinterpreted.
 
 **Why split SVG and manifest?** Because they answer different questions in the representation each is
 good at. The SVG answers *"how does it look and which part is which?"* — that belongs in a vector
@@ -253,7 +266,8 @@ Vega-Lite): a plot is *data → marks + scales + guides + annotations*. FluxPlot
 
 - **Containers:** `figure`, `panel`, `plot-area`, `legend`, `colorbar`, `title`
 - **Scaffold / guides:** `axis`, `spine`, `tick`, `tick-label`, `axis-title`, `gridline`, `background`
-- **Data marks:** `series`, `line`, `point`, `bar`, `area`, `errorbar`, `box`
+- **Data marks:** `series`, `line`, `point`, `bar`, `area`, `errorbar`, `box`, `violin`
+- **Composite sub-parts:** `whisker`, `cap`, `flier`, `median`, `mean`, `segment`
 - **Overlays:** `annotation`, `reference-line`, `highlight-region`, `significance-bracket`, `label`
 
 Science is unbounded (heatmaps, networks, brain maps), so the vocabulary is a **versioned core plus a
@@ -275,7 +289,23 @@ fp.scatter(ax, x, y, *, series, label=None, **mpl_kwargs)
 fp.bar(ax, x, height, *, series, **mpl_kwargs)
 fp.errorbar(ax, x, y, *, series, yerr=None, **mpl_kwargs)
 fp.area(ax, x, y1, y2=0, *, series, **mpl_kwargs)
+fp.box(ax, values, *, series, label=None, include_values=False, **mpl_kwargs)     # one box per call
+fp.violin(ax, values, *, series, label=None, include_values=False, **mpl_kwargs)  # one violin per call
+fp.hist(ax, values, *, series, bins=None, label=None, include_values=False, **mpl_kwargs)
 ```
+
+`fp.box`/`fp.violin`/`fp.hist` wrap matplotlib's documented return structures, so every statistic
+is individually addressable and grouped per series (`control.whiskers`, `control.medians`, …).
+`fp.hist` records the exact `binEdges`/`counts` in the manifest's `distribution` payload; raw
+sample values are recorded only with `include_values=True` (samples can be large or sensitive).
+
+**Labels are identity** — a *conventional* labeled plot needs no helpers at all. At save time,
+raw artists carrying a public label (`ax.plot(..., label="Control")`, labeled `scatter`/`bar`/
+`fill_between`) are promoted to named series with their exact artist data, marked in the manifest
+with `capture: {identity: artist-label, data: artist}`. Nothing is ever guessed: private/absent
+labels stay addressable as `extra.*`, duplicated labels decline with one actionable warning, and
+role meaning (threshold? fit? band?) is never inferred from geometry or style — use the explicit
+overlays for that.
 
 **First-class overlays** (deliberately included because they're ubiquitous in science):
 
