@@ -53,6 +53,14 @@
           "svg": { "type": "object" },
           "data": { "type": "object" },
           "label": { "type": "string" },
+          "capture": {
+            "type": "object",
+            "properties": {
+              "identity": { "type": "string" },
+              "data": { "type": "string" }
+            }
+          },
+          "distribution": { "type": "object" },
           "points": {
             "type": "array",
             "items": {

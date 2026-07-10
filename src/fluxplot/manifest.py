@@ -114,6 +114,11 @@ def build_manifest(
             entry["label"] = label
         if points:
             entry["points"] = points
+        # additive provenance for auto-promoted series: how identity/data were captured
+        # (identity=artist-label, data=artist — see autotag.py)
+        cap = next((m.data["capture"] for m in marks if m.data.get("capture")), None)
+        if cap:
+            entry["capture"] = cap
         series_entries.append(entry)
         series_kinds[entry["id"]] = kinds
 

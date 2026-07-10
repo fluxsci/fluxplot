@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 import matplotlib
 
+from . import autotag as _autotag
 from . import canonical_json as _cjson
 from . import capture as _capture
 from . import ids as _ids
@@ -22,17 +23,13 @@ from . import recipe as _recipe
 from . import render as _render
 from . import roles as _roles
 from . import tagger as _tagger
+from .autotag import is_colorbar_axes as _is_colorbar_axes
 from .descriptors import Mark
 from .version import SPEC_VERSION, __version__
 
 
 def _list(a):
     return None if a is None else list(a)
-
-
-def _is_colorbar_axes(ax) -> bool:
-    """True if this Axes is a colorbar (added by fig.colorbar), not the plot area."""
-    return getattr(ax, "_colorbar", None) is not None or ax.get_label() == "<colorbar>"
 
 
 # ---------------------------------------------------------------------------
@@ -86,23 +83,32 @@ def area(ax, x, y1, y2=0, *, series, label=None, **kw):
 # ---------------------------------------------------------------------------
 # escape hatch — tag arbitrary raw matplotlib artists
 # ---------------------------------------------------------------------------
-def tag(artist, *, role, series=None, index=None, name=None, **identity):
-    """Tag any raw matplotlib artist with a semantic role + identity."""
+def tag(artist, *, role, series=None, index=None, name=None, x=None, y=None, **identity):
+    """Tag any raw matplotlib artist with a semantic role + identity.
+
+    ``x``/``y`` capture the mark's data coordinates. When omitted, they are read from the
+    artist itself for supported types (``Line2D`` data, scatter offsets — the same exact
+    adapters save-time promotion uses); otherwise they stay honestly absent rather than
+    making an invalid spatial claim.
+    """
     reg = _tagger.registry_for(_tagger.fig_of(artist))
+    if x is None and y is None:
+        x, y = _autotag.extract_xy(artist)
     data = dict(identity)
     if index is not None:
         data["index"] = index
-    reg.add(Mark(role=_roles.validate(role), series=series, name=name, artists=[artist], data=data, indexed=index is not None))
+    reg.add(
+        Mark(role=_roles.validate(role), series=series, name=name, x=_list(x), y=_list(y),
+             artists=[artist], data=data, indexed=index is not None)
+    )
     return artist
 
 
 def tag_points(points, *, series, x=None, y=None):
     """Tag an existing markers ``Line2D`` / ``PathCollection`` as an addressable point group."""
     reg = _tagger.registry_for(_tagger.fig_of(points))
-    if (x is None or y is None) and hasattr(points, "get_data"):
-        gx, gy = points.get_data()
-        x = _list(gx) if x is None else x
-        y = _list(gy) if y is None else y
+    if x is None and y is None:
+        x, y = _autotag.extract_xy(points)  # Line2D data or exact finite scatter offsets
     reg.add(Mark(role="point", series=series, kind="scatter", x=_list(x), y=_list(y), artists=[points], indexed=True))
     return points
 
@@ -302,7 +308,16 @@ def _validate(manifest_obj, recipe_obj) -> None:
 
 
 def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
-    """Emit ``<path>.svg`` + ``<path>.fluxplot.json`` + ``<path>.recipe.json`` for ``fig``."""
+    """Emit ``<path>.svg`` + ``<path>.fluxplot.json`` + ``<path>.recipe.json`` for ``fig``.
+
+    ``recipe`` controls the provenance sidecar:
+
+    - ``None`` (default) — automatic: the producing script is discovered from the running
+      interpreter when that is safe and exact, making the recipe rerunnable with zero ceremony.
+    - ``False`` — explicitly suppress discovery (notebooks, generated figures, privacy).
+    - ``dict`` — explicit fields (``script``/``command``/``params``/``inputs``) always win;
+      an inferred script only fills a missing ``script``.
+    """
     base, _ext = os.path.splitext(path)
     plot_name = os.path.basename(base)
     svg_path = base + ".svg"
@@ -313,6 +328,10 @@ def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
 
     reg = _tagger.registry_for(fig)
     alloc = _ids.IdAllocator()
+
+    # 0. promote safe labeled raw artists (identity = the user's own public labels; exact
+    # artist data only — see autotag.py). Anything ambiguous stays for the extra.* sweep.
+    promo_warnings = _autotag.promote_labeled(fig, reg)
 
     # 1. deterministic gids on the user-tagged marks
     _tagger.resolve_gids(reg, alloc)
@@ -340,6 +359,7 @@ def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
     # 5. inject data-* + canonicalize
     plot_type = _infer_plot_type(reg)
     out_svg, warnings, present = _postprocess.postprocess(svg_bytes, reg, guides, plot_type)
+    warnings = promo_warnings + warnings
 
     # 6. assemble manifest + recipe. Drop scaffold guides matplotlib culled at draw
     # (boundary ticks/gridlines, empty axis titles) so the manifest references only
