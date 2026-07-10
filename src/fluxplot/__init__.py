@@ -15,7 +15,9 @@ from .api import (  # noqa: E402,F401
     annotation,
     area,
     bar,
+    box,
     errorbar,
+    hist,
     line,
     reference_line,
     save,
@@ -24,6 +26,7 @@ from .api import (  # noqa: E402,F401
     tag,
     tag_points,
     tag_seaborn,
+    violin,
 )
 from .recipe import (
     params,  # noqa: E402,F401  (overridable tunables for rerun-plot/Regenerate)
@@ -49,6 +52,9 @@ __all__ = [
     "bar",
     "errorbar",
     "area",
+    "box",
+    "violin",
+    "hist",
     "tag",
     "tag_points",
     "tag_seaborn",

@@ -39,6 +39,7 @@ CORE_ROLES = frozenset(
         "cap",
         "flier",
         "median",
+        "mean",
         "segment",
         # overlays
         "annotation",
@@ -95,6 +96,7 @@ KIND_BY_ROLE = {
     "whisker": "line",
     "cap": "line",
     "median": "line",
+    "mean": "line",
     "segment": "line",
     "significance-bracket": "line",
     # shape

@@ -80,6 +80,102 @@ def area(ax, x, y1, y2=0, *, series, label=None, **kw):
     return poly
 
 
+def box(ax, values, *, series, label=None, include_values=False, **kw):
+    """One box-and-whisker group as ONE semantic series with addressable statistics.
+
+    Wraps ``Axes.boxplot`` for a single dataset. The documented return-dict pieces — box body,
+    whiskers, caps, median, fliers (and mean when shown) — become tagged sub-parts grouped per
+    series (``<series>.whiskers``, ``<series>.caps``, …). Multiple groups = multiple calls with
+    distinct ``series`` names. Raw sample values are recorded only with ``include_values=True``
+    (samples can be large or sensitive). Returns matplotlib's boxplot dict unchanged.
+    """
+    reg = _tagger.registry_for(ax.figure)
+    bp = ax.boxplot(values, **kw)
+    if len(bp["boxes"]) != 1:
+        raise ValueError(
+            "fp.box tags one box per call — pass a single dataset, and call fp.box once per "
+            "group with a distinct stable series= name"
+        )
+    body = bp["boxes"][0]
+    if label:
+        body.set_label(label)
+    data = {"distribution": {"values": [float(v) for v in values]}} if include_values else {}
+    reg.add(Mark(role="box", series=series, kind="box", label=label, artists=[body], data=data))
+    for role, key in (
+        ("whisker", "whiskers"), ("cap", "caps"), ("median", "medians"),
+        ("flier", "fliers"), ("mean", "means"),
+    ):
+        artists = [a for a in bp.get(key, []) if a is not None]
+        if artists:  # options that were off create no dead parts
+            reg.add(Mark(role=role, series=series, kind="box", artists=artists))
+    return bp
+
+
+def violin(ax, values, *, series, label=None, include_values=False, **kw):
+    """One violin as ONE semantic series with addressable statistics.
+
+    Wraps ``Axes.violinplot`` for a single dataset: the body plus whatever the call returned
+    (extrema bar, min/max caps, median/mean/quantile lines) each become tagged sub-parts —
+    absent options create no dead parts. Multiple groups = multiple calls with distinct
+    ``series`` names. Raw sample values are recorded only with ``include_values=True``.
+    Returns matplotlib's violinplot dict unchanged.
+    """
+    reg = _tagger.registry_for(ax.figure)
+    vp = ax.violinplot(values, **kw)
+    bodies = vp.get("bodies") or []
+    if len(bodies) != 1:
+        raise ValueError(
+            "fp.violin tags one violin per call — pass a single dataset, and call fp.violin "
+            "once per group with a distinct stable series= name"
+        )
+    body = bodies[0]
+    if label:
+        body.set_label(label)
+    data = {"distribution": {"values": [float(v) for v in values]}} if include_values else {}
+    reg.add(Mark(role="violin", series=series, kind="violin", label=label, artists=[body], data=data))
+    caps = [vp[k] for k in ("cmins", "cmaxes") if vp.get(k) is not None]
+    if caps:
+        reg.add(Mark(role="cap", series=series, kind="violin", artists=caps))
+    for role, key in (
+        ("whisker", "cbars"), ("median", "cmedians"), ("mean", "cmeans"), ("segment", "cquantiles"),
+    ):
+        art = vp.get(key)
+        if art is not None:
+            reg.add(Mark(role=role, series=series, kind="violin", artists=[art]))
+    return vp
+
+
+def hist(ax, values, *, series, bins=None, label=None, include_values=False, **kw):
+    """A histogram as an indexed bar series with its exact distribution recorded.
+
+    Wraps ``Axes.hist`` (single dataset, default bar histtype). The returned patches become
+    per-index addressable bars; the manifest additionally carries the exact ``binEdges`` and
+    ``counts`` in an additive ``distribution`` payload. Bar heights are never presented as the
+    original observations — pass ``include_values=True`` to record the source values (they can
+    be large or sensitive). Returns matplotlib's ``(counts, edges, patches)`` unchanged.
+    """
+    from matplotlib.container import BarContainer
+
+    reg = _tagger.registry_for(ax.figure)
+    counts, edges, patches = ax.hist(values, bins=bins, label=label, **kw)
+    if not isinstance(patches, BarContainer):
+        raise ValueError(
+            "fp.hist tags one dataset with the default bar histtype — multiple datasets or "
+            "histtype='step' have no exact per-bar contract; call fp.hist once per series"
+        )
+    edges_f = [float(e) for e in edges]
+    counts_f = [float(c) for c in counts]
+    centers = [(edges_f[k] + edges_f[k + 1]) / 2.0 for k in range(len(counts_f))]
+    dist = {"binEdges": edges_f, "counts": counts_f}
+    if include_values:
+        dist["values"] = [float(v) for v in values]
+    reg.add(
+        Mark(role="bar", series=series, kind="bar", x=centers, y=counts_f, label=label,
+             artists=list(patches.patches), indexed=True, data={"distribution": dist})
+    )
+    return counts, edges, patches
+
+
 # ---------------------------------------------------------------------------
 # escape hatch — tag arbitrary raw matplotlib artists
 # ---------------------------------------------------------------------------
@@ -287,7 +383,7 @@ class SaveResult:
 
 def _infer_plot_type(reg) -> str:
     kinds = [m.kind for m in reg.marks if m.kind]
-    for k in ("line", "scatter", "bar", "errorbar", "area"):
+    for k in ("line", "scatter", "bar", "errorbar", "area", "box", "violin"):
         if k in kinds:
             return k
     return "plot"

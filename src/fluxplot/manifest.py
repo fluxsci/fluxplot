@@ -16,6 +16,21 @@ def _floats(seq):
     return [float(v) for v in seq] if seq is not None else None
 
 
+# Composite sub-part roles → the plural series-svg key listing every member. An errorbar/box/
+# violin renders its statistics as numbered sibling groups; collecting EVERY member across the
+# series' marks makes each whisker/cap/median addressable (the shipped errorbar pattern,
+# generalized per plan §4). The singular key keeps the first gid as the primary ref (compat).
+COMPOSITE_ROLES = {
+    "errorbar": "errorbars",
+    "whisker": "whiskers",
+    "cap": "caps",
+    "median": "medians",
+    "flier": "fliers",
+    "mean": "means",
+    "segment": "segments",
+}
+
+
 def build_manifest(
     fig,
     reg,
@@ -57,10 +72,7 @@ def build_manifest(
         label = None
         roles = sorted({m.role for m in marks})
         kinds: dict = {}
-        # an errorbar is a composite (centre line + caps + bar segments render as numbered
-        # sibling groups) — collect EVERY member across the series' errorbar marks so each
-        # whisker/cap is addressable, not just the first gid.
-        errorbar_members: list = []
+        composite_members: dict[str, list] = {}
         for m in marks:
             kind = kind or m.kind
             label = label or m.label
@@ -90,14 +102,17 @@ def build_manifest(
                 bars = [g for g in m.member_gids if _keep(g)]
                 if bars:
                     svg["bars"] = bars
-            elif m.role == "errorbar":
-                if _keep(m.gid) and "errorbar" not in svg:
-                    svg["errorbar"] = m.gid  # primary ref stays (compat); first mark wins
-                errorbar_members.extend(g for g in m.member_gids if _keep(g))
+            elif m.role in COMPOSITE_ROLES:
+                if _keep(m.gid) and m.role not in svg:
+                    svg[m.role] = m.gid  # primary ref stays (compat); first mark wins
+                composite_members.setdefault(m.role, []).extend(
+                    g for g in m.member_gids if _keep(g)
+                )
             elif _keep(m.gid):
                 svg[m.role] = m.gid
-        if errorbar_members:
-            svg["errorbars"] = errorbar_members
+        for crole, members in composite_members.items():
+            if members:
+                svg[COMPOSITE_ROLES[crole]] = members
         # Escape-hatch series (fp.tag) carry no helper kind; fall back to the first
         # tagged role so `kind` is always a string (Flux's validator rejects null).
         if kind is None:
@@ -119,6 +134,11 @@ def build_manifest(
         cap = next((m.data["capture"] for m in marks if m.data.get("capture")), None)
         if cap:
             entry["capture"] = cap
+        # additive exact-distribution payload (fp.hist bin edges/counts; opt-in raw values) —
+        # deliberately separate from data{x,y}: bar heights are not original observations
+        dist = next((m.data["distribution"] for m in marks if m.data.get("distribution")), None)
+        if dist:
+            entry["distribution"] = dist
         series_entries.append(entry)
         series_kinds[entry["id"]] = kinds
 
@@ -305,14 +325,17 @@ def _build_parts_tree(
             )
         if svg.get("bars"):
             kids.append(_group(f'{s["id"]}.bars', "bar", svg["bars"]))
-        if svg.get("errorbars"):
-            # one group node per series: centre line + caps + bar segments, each addressable
-            kids.append(_group(f'{s["id"]}.errorbars', "errorbar", svg["errorbars"]))
+        # one group node per composite role (errorbars/whiskers/caps/medians/fliers/means/
+        # segments): every statistic addressable individually AND as a group
+        for crole, plural in COMPOSITE_ROLES.items():
+            if svg.get(plural):
+                kids.append(_group(f'{s["id"]}.{plural}', crole, svg[plural]))
+        plurals = set(COMPOSITE_ROLES.values())
         for role, val in svg.items():
-            if role in ("line", "points", "bars", "errorbars"):
+            if role in ("line", "points", "bars") or role in plurals:
                 continue
-            if role == "errorbar" and svg.get("errorbars"):
-                continue  # already covered by the errorbars group (avoid a duplicate ref)
+            if role in COMPOSITE_ROLES and svg.get(COMPOSITE_ROLES[role]):
+                continue  # already covered by its composite group (avoid a duplicate ref)
             k = kinds.get(role, _roles.kind_for_role(role))
             if isinstance(val, list):
                 grp = _group(f'{s["id"]}.{role}', role, val)
@@ -368,9 +391,11 @@ def _build_order(series_entries, guide_entries, overlay_entries, reg, figure_tit
             order.append(s["svg"]["points"])
         if "bars" in s["svg"]:
             order.extend(s["svg"]["bars"])
-        for key in ("area", "errorbar", "box"):
-            if key == "errorbar" and s["svg"].get("errorbars"):
-                order.extend(s["svg"]["errorbars"])  # reveal every sub-part, like bars
+        # bodies first, then composite statistics — every sub-part reveals, like bars
+        for key in ("area", "box", "violin", "errorbar", "whisker", "cap", "median", "flier", "mean", "segment"):
+            plural = COMPOSITE_ROLES.get(key)
+            if plural and s["svg"].get(plural):
+                order.extend(s["svg"][plural])
             elif key in s["svg"]:
                 order.append(s["svg"][key])
     if any(g["role"] == "legend" for g in guide_entries):
