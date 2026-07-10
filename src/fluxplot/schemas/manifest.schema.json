@@ -17,6 +17,12 @@
     },
     "plotType": { "type": "string" },
     "svg": { "type": "string" },
+    "artifact": {
+      "type": "object",
+      "properties": {
+        "svgSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
     "size": {
       "type": "object",
       "required": ["width", "height", "unit"],

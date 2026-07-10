@@ -7,8 +7,10 @@ deterministically → inject ``data-*`` → emit manifest + recipe.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import stat
 from dataclasses import dataclass, field
 
 import matplotlib
@@ -403,6 +405,37 @@ def _validate(manifest_obj, recipe_obj) -> None:
     jsonschema.validate(recipe_obj, rschema)
 
 
+def _write_staged(files) -> None:
+    """Write the sidecar triplet safely: stage EVERY file under a unique temporary name in its
+    destination directory (flush + fsync), then commit each with ``os.replace`` in the given
+    dependency order. A failure while staging leaves the destination completely untouched, and
+    a watcher can never observe a partially written individual file. The three replacements are
+    still not globally atomic — the manifest's ``artifact.svgSha256`` is the cross-file commit
+    marker a consumer verifies (plan §5). Existing destination permissions are preserved.
+    """
+    staged: list[tuple[str, str]] = []
+    try:
+        for path, data in files:
+            tmp = f"{path}.{os.getpid()}.staging"
+            with open(tmp, "wb") as f:
+                f.write(data)
+                f.flush()
+                os.fsync(f.fileno())
+            try:
+                os.chmod(tmp, stat.S_IMODE(os.stat(path).st_mode))
+            except OSError:
+                pass  # new file → default creation mode
+            staged.append((tmp, path))
+        for tmp, path in staged:
+            os.replace(tmp, path)
+    finally:
+        for tmp, _ in staged:  # clean whatever a failure left behind (replaced tmps are gone)
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+
 def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
     """Emit ``<path>.svg`` + ``<path>.fluxplot.json`` + ``<path>.recipe.json`` for ``fig``.
 
@@ -464,6 +497,7 @@ def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
     man = _manifest.build_manifest(
         fig, reg, kept_guides, axes_capture, plot_type, svg_filename,
         SPEC_VERSION, __version__, matplotlib.__version__, present=present,
+        svg_sha256=hashlib.sha256(out_svg).hexdigest(),
     )
     rec = _recipe.build_recipe(
         recipe, plot_name=plot_name, svg_filename=svg_filename,
@@ -473,14 +507,16 @@ def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
     if validate:
         _validate(man, rec)
 
-    # 7. write all three
+    # 7. stage all three, then commit in dependency order (SVG → manifest → recipe): the
+    # manifest checksum is the commit marker a consumer verifies against the SVG it sees.
     out_dir = os.path.dirname(os.path.abspath(svg_path))
     os.makedirs(out_dir, exist_ok=True)
-    with open(svg_path, "wb") as f:
-        f.write(out_svg)
-    with open(manifest_path, "w", encoding="utf-8") as f:
-        f.write(_cjson.dumps(man))
-    with open(recipe_path, "w", encoding="utf-8") as f:
-        f.write(_cjson.dumps(rec))
+    _write_staged(
+        [
+            (svg_path, out_svg),
+            (manifest_path, _cjson.dumps(man).encode("utf-8")),
+            (recipe_path, _cjson.dumps(rec).encode("utf-8")),
+        ]
+    )
 
     return SaveResult(svg=svg_path, manifest=manifest_path, recipe=recipe_path, warnings=warnings)

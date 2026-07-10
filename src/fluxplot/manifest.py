@@ -42,6 +42,7 @@ def build_manifest(
     fluxplot_version: str,
     mpl_version: str,
     present: set | None = None,
+    svg_sha256: str | None = None,
 ) -> dict:
     vbw, vbh = svg_viewbox(fig)
 
@@ -199,7 +200,7 @@ def build_manifest(
     )
     build = _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles, extra_entries)
 
-    return {
+    out = {
         "spec": "fluxplot/manifest",
         "schemaVersion": spec_version,
         "generator": {
@@ -217,6 +218,12 @@ def build_manifest(
         "parts": parts,
         "build": build,
     }
+    if svg_sha256 is not None:
+        # checksum of the FINAL postprocessed SVG bytes: deterministic (the SVG is
+        # byte-stable) and acyclic (the SVG does not contain the manifest). Consumers use it
+        # to detect a stale/mismatched sidecar pair instead of silently degrading (plan §5).
+        out["artifact"] = {"svgSha256": svg_sha256}
+    return out
 
 
 def _organize_guides(guides):
