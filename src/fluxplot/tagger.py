@@ -19,8 +19,21 @@ class Registry:
     def __init__(self) -> None:
         self.marks: list[Mark] = []
         self._overlay_counts: dict[str, int] = {}
+        self._series_slugs: dict[str, str] = {}
 
     def add(self, mark: Mark) -> Mark:
+        # Two DIFFERENT series names normalizing to one slug would silently produce
+        # order-dependent "-2" ids — a safety net, not durable identity (plan §7). Fail at
+        # registration, where the traceback points at the user's own call site.
+        if mark.series is not None:
+            slug = _ids.series_root(mark.series)
+            first = self._series_slugs.setdefault(slug, str(mark.series))
+            if first != str(mark.series):
+                raise ValueError(
+                    f"series name {str(mark.series)!r} collides with {first!r}: both normalize "
+                    f"to the id {slug!r} (ids are slugified: lowercase, spaces/underscores "
+                    "become '-'). Give each series a stable, distinct name."
+                )
         self.marks.append(mark)
         return mark
 

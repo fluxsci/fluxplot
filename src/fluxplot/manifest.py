@@ -153,11 +153,22 @@ def build_manifest(
         if g.role == "axis":
             guide_entries.append({"id": g.gid, "svgId": g.gid, "role": "axis", "axis": g.axis})
     if legend_present:
-        labeled = [s for s in series_entries if s.get("label")]
+        # entry ↔ series joined by exact, UNIQUE label text — positional order is not
+        # identity (plan §7). An entry whose text matches no series label (or an ambiguous
+        # duplicated label) keeps its swatch/label as addressable guides, with no series claim.
+        by_label: dict[str, list] = {}
+        for s in series_entries:
+            if s.get("label"):
+                by_label.setdefault(s["label"], []).append(s["id"])
         entries = []
-        for k, s in enumerate(labeled):
-            e = {"series": s["id"]}
-            ent = legend_entries.get(k, {})
+        for k in sorted(legend_entries):
+            ent = legend_entries[k]
+            e = {}
+            matches = by_label.get(ent.get("text"), [])
+            if len(matches) == 1:
+                e["series"] = matches[0]
+            if ent.get("text"):
+                e["text"] = ent["text"]
             if ent.get("swatch"):
                 e["swatch"] = ent["swatch"]
             if ent.get("label"):
@@ -250,6 +261,7 @@ def _organize_guides(guides):
             legend_entries.setdefault(g.index, {})["swatch"] = g.gid
         elif g.role == "legend-label":
             legend_entries.setdefault(g.index, {})["label"] = g.gid
+            legend_entries[g.index]["text"] = g.text
         elif g.role == "title":
             figure_titles.append(g.gid)
         elif g.role == "annotation":
