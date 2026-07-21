@@ -205,6 +205,40 @@ data order. FluxPlot's post-pass enumerates those `<use>` children and stamps ea
 the count stops matching the data, FluxPlot detects the mismatch and keeps the group addressable
 rather than mislabel indices.)
 
+### Heavy layers are rasterized by default
+An artist becomes as many SVG nodes as it draws primitives. A `LineCollection` built from per-edge
+segments — the ordinary way to draw an SWC reconstruction or a graph — emits **one `<path>` per
+segment**, and a `scatter` emits **one `<use>` per point**. At real data scale that is 10⁴–10⁵ nodes
+in a single panel, and consumers inline that markup as live DOM, where it is ruinous. (Measured: a
+14-panel figure carrying three neuron reconstructions and 8.7k-point scatters reached 260,907 nodes
+and ~390 ms per pan frame — about 2.5 fps.)
+
+So `fp.save` rasterizes any artist over `raster_threshold` primitives (default 800) into a single
+embedded `<image>` at `raster_dpi` (default 600), and says so:
+
+```
+fluxplot: 'medoid' — rasterized 2 heavy layer(s) at 600 dpi: axon.x-morphology (72,586 primitives),
+dendrite.x-morphology (4,199 primitives). Axes, ticks, labels and legend stay vector.
+Pass force_vectors=True to keep everything as vectors.
+```
+
+**Only the heavy layer is rasterized.** Axes, spines, ticks, tick labels, the legend, annotations and
+every lighter series stay fully vector and fully editable — this is matplotlib's own `set_rasterized`
+applied per artist, which is what journals expect for dense scatter and line art anyway. The
+rasterized layer **keeps its id, its `data-role`/`data-series` and its manifest entry**, so it stays
+addressable as a whole; only *per-point* ids are unavailable, because a rasterized cloud has no
+per-point nodes. `SaveResult.rasterized` lists what was rasterized and the manifest marks those
+entries `"rasterized": true`.
+
+On a real morphology panel: **13.42 MB / 76,852 nodes → 0.06 MB / 67 nodes**, rendering
+pixel-indistinguishable (mean channel difference 0.11/255).
+
+Opt out with `fp.save(..., force_vectors=True)` or `FLUXPLOT_FORCE_VECTORS=1`; the heavy layers are
+then still reported, as a warning naming them and their node cost. A per-artist
+`set_rasterized(False)` does **not** override the default — that is matplotlib's factory setting
+rather than a considered choice, and silently emitting an unusable SVG is the failure this exists to
+prevent. `force_vectors` is how you say you meant it.
+
 ### Determinism — the same plot always produces the same bytes
 This is non-negotiable, because **morphing, diffing, and regeneration all break if ids or structure
 wobble between runs.** FluxPlot pins the sources of nondeterminism:

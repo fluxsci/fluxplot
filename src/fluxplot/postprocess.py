@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from lxml import etree
 
+from . import raster as _raster
 from .descriptors import Mark, mark_kind
 from .roles import kind_for_role
 
@@ -36,8 +37,8 @@ def _set(el, **attrs) -> None:
         el.set(k.replace("_", "-"), _fmt(v))
 
 
-def postprocess(svg_bytes: bytes, reg, guides, plot_type: str):
-    """Return ``(processed_svg_bytes, warnings)``."""
+def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=()):
+    """Return ``(processed_svg_bytes, warnings, present)``."""
     parser = etree.XMLParser(remove_blank_text=True)
     root = etree.fromstring(svg_bytes, parser)
     warnings: list[str] = []
@@ -46,6 +47,11 @@ def postprocess(svg_bytes: bytes, reg, guides, plot_type: str):
     etree.strip_tags(root, etree.Comment)
     for md in root.findall(f"{{{SVG}}}metadata"):
         md.getparent().remove(md)
+
+    # 1b. give rasterized layers their gids back BEFORE anything joins on ids — matplotlib
+    # drops the gid when it rasterizes an artist (see raster.py), and every step below is an
+    # exact join on the ids we authored.
+    _raster.reattach(root, raster_items, warnings)
 
     id_map = {el.get("id"): el for el in root.iter() if el.get("id")}
 
@@ -117,6 +123,12 @@ def _inject_points(m: Mark, id_map, warnings) -> None:
         return
     # the group's kind mirrors its members (edit the group ⇒ restyle every point)
     _set(group, data_series=m.series, data_kind=kind_for_role("point"))
+    if group.get("data-rasterized") == "1":
+        # A rasterized point cloud IS one <image> — there are no per-point <use> nodes to
+        # split, and that is the intended outcome, not a shortfall. The series stays
+        # addressable as a whole; no warning (see raster.py).
+        _set(group, data_role="point")
+        return
     uses = list(group.iter(f"{{{SVG}}}use"))
     n = len(m.member_gids)
     if len(uses) != n:

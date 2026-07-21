@@ -51,6 +51,43 @@ Axis titles / tick labels / legend text stay editable, restyleable, addressable.
 `hashsalt=None`, clip/marker/`<defs>` ids are salted by a fresh uuid4 each run → output differs.
 Also set `metadata={'Date': None}` and strip `Creator`/comment in post-process.
 
+## 6. Rasterized artists — `set_rasterized(True)` (verified on matplotlib 3.11.0)
+The mechanics behind auto-rasterization (`raster.py`). Three behaviours FluxPlot depends on, each a
+silent-breakage risk if matplotlib changes it — `tests/test_rasterize.py` pins all three.
+
+**6a. Rasterization DROPS the artist's gid.** `MixedModeRenderer.stop_rasterizing` draws the
+composited buffer through a *fresh* `GraphicsContext`, so the result lands as a bare
+`<image id="image<10 hex>">` with no wrapping `<g id="…">` — the gid we set is simply gone:
+```
+set_gid("axon.line") + set_rasterized(True)  →  <image id="image034ae1cbfd" …/>    ← gid lost
+```
+`raster.reattach` puts it back after render, matching auto-id `<image>` elements to the rasterized
+artists **in document order**. That is only sound because every *other* image-emitting artist
+carries a gid by then (an `imshow` puts its gid straight on the `<image>`, and
+`tagger._sweep_extra` names untagged ones), so a generated id can only be one of ours. On any count
+mismatch we warn and keep matplotlib's ids rather than risk mislabelling a layer.
+
+**6b. Consecutive rasterized artists MERGE into one `<image>` — unless `suppressComposite`.**
+`Artist.allow_rasterization` only ends a raster run when a *non*-rasterized artist is drawn, so
+adjacent rasterized layers flatten together and every layer but the first loses its identity
+(an axon and a dendrite become one element). `fig.suppressComposite = True` makes matplotlib stop
+and restart rasterizing around each artist ("restart rasterizing to prevent merging"). Measured,
+same-zorder rasterized layers:
+
+| layers | default | `suppressComposite = True` |
+|---|---|---|
+| 2 | 1 image | 2 images |
+| 3 | 1 image | 3 images |
+| 4 | 1 image | 4 images |
+
+FluxPlot sets it **only when something is rasterized**, so ordinary saves keep matplotlib's default
+compositing and stay byte-identical.
+
+**6c. `savefig(dpi=…)` affects rasterized artists ONLY.** SVG user space is points (`print_svg` sets
+`figure.dpi = 72` and hands the caller's dpi to the raster half), so vector geometry is
+dpi-invariant: a non-rasterized figure renders **byte-identical** at dpi 100 and 600. That is what
+makes it safe to raise dpi purely to give rasterized layers enough pixels.
+
 ## Internal references that the GUI must re-prefix when inlining
 `<use xlink:href="#m…">` ↔ `<path id="m…">` (defs), and `clip-path="url(#p…)"` ↔ `<clipPath id="p…">`.
 Per-instance id prefixing in the app must rewrite both sides to keep them paired.

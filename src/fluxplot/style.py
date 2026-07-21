@@ -172,13 +172,18 @@ def _title_weight(serif: bool) -> str:
         weights = available.get(fam.lower())
         if weights is None:
             continue
-        has_medium = any(w == "medium" or (isinstance(w, (int, float)) and 450 <= w <= 550) for w in weights)
+        has_medium = any(
+            w == "medium" or (isinstance(w, (int, float)) and 450 <= w <= 550)
+            for w in weights
+        )
         return "medium" if has_medium else "normal"
     return "normal"
 
 
 def _base_rc(ink, muted, grid, paper, serif):
     return {
+        "axes.spines.top": False,
+        "axes.spines.right": False,
         "font.family": "serif" if serif else "sans-serif",
         "font.sans-serif": SANS_STACK,
         "font.serif": SERIF_STACK,
@@ -221,6 +226,7 @@ def _base_rc(ink, muted, grid, paper, serif):
         "lines.markeredgewidth": 0.0,
         "lines.dash_capstyle": "round",
         "patch.linewidth": 0.0,
+        "figure.figsize": (2, 2),  # default size when figsize isn't given
         "figure.dpi": 100,
         "savefig.dpi": 300,
         "figure.constrained_layout.use": True,

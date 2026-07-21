@@ -43,8 +43,13 @@ def build_manifest(
     mpl_version: str,
     present: set | None = None,
     svg_sha256: str | None = None,
+    rasterized: set | None = None,
 ) -> dict:
     vbw, vbh = svg_viewbox(fig)
+    # gids rendered as a single embedded <image> instead of vector primitives (raster.py).
+    # Additive: consumers that ignore it are unaffected; those that read it know why a
+    # point cloud has no per-point ids and can label the layer honestly.
+    rasterized = rasterized or set()
 
     # `present` = the gids that actually survived into the SVG (matplotlib culls
     # boundary ticks and renders point clouds as collections where per-point ids
@@ -130,6 +135,8 @@ def build_manifest(
             entry["label"] = label
         if points:
             entry["points"] = points
+        if any(g in rasterized for g in svg.values() if isinstance(g, str)):
+            entry["rasterized"] = True
         # additive provenance for auto-promoted series: how identity/data were captured
         # (identity=artist-label, data=artist — see autotag.py)
         cap = next((m.data["capture"] for m in marks if m.data.get("capture")), None)
@@ -187,6 +194,8 @@ def build_manifest(
         for key in ("label", "between", "p", "text"):  # carry the annotation text too
             if key in m.data:
                 oe[key] = m.data[key]
+        if m.gid in rasterized:
+            oe["rasterized"] = True
         overlay_entries.append(oe)
     # swept free text → annotation overlays (addressable + animatable like fp.annotation)
     for a in scaffold_annotations:
@@ -203,6 +212,8 @@ def build_manifest(
         ee = {"id": e["id"], "svgId": e["id"], "role": "extra"}
         if e.get("kind"):
             ee["kind"] = e["kind"]
+        if e["id"] in rasterized:
+            ee["rasterized"] = True
         extra_entries.append(ee)
 
     parts = _build_parts_tree(

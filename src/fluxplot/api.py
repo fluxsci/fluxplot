@@ -24,6 +24,7 @@ from . import capture as _capture
 from . import ids as _ids
 from . import manifest as _manifest
 from . import postprocess as _postprocess
+from . import raster as _raster
 from . import recipe as _recipe
 from . import render as _render
 from . import roles as _roles
@@ -35,6 +36,11 @@ from .version import SPEC_VERSION, __version__
 
 def _list(a):
     return None if a is None else list(a)
+
+
+def _env_flag(name: str) -> bool:
+    """A truthy environment switch: anything but unset/empty/0/false/no/off."""
+    return os.environ.get(name, "").strip().lower() not in ("", "0", "false", "no", "off")
 
 
 # ---------------------------------------------------------------------------
@@ -386,6 +392,10 @@ class SaveResult:
     warnings: list = field(default_factory=list)
     #: True when FLUXPLOT_ONLY filtered this plot out — nothing was written.
     skipped: bool = False
+    #: gids of the layers auto-rasterized on the way out (see ``raster.py``). Empty on an
+    #: ordinary save; empty too under ``force_vectors=True``, where the heavy layers are
+    #: instead reported through :attr:`warnings`.
+    rasterized: list = field(default_factory=list)
 
 
 def _warn_log_zero_anchors(plot_axes, plot_name: str) -> list:
@@ -476,7 +486,17 @@ def _write_staged(files) -> None:
                 pass
 
 
-def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
+def save(
+    fig,
+    path,
+    *,
+    recipe=None,
+    validate=True,
+    force_vectors=False,
+    raster_threshold=None,
+    raster_dpi=None,
+    _now=None,
+) -> SaveResult:
     """Emit ``<path>.svg`` + ``<path>.fluxplot.json`` + ``<path>.recipe.json`` for ``fig``.
 
     ``recipe`` controls the provenance sidecar:
@@ -487,12 +507,33 @@ def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
     - ``dict`` — explicit fields (``script``/``command``/``params``/``inputs``) always win;
       an inferred script only fills a missing ``script``.
 
+    **Heavy layers are rasterized by default.** An artist that draws more than
+    ``raster_threshold`` primitives (default 800) — a ``LineCollection`` of per-edge
+    segments, a 10k-point ``scatter`` — would otherwise become that many live SVG nodes and
+    make any editor that inlines the plot unusable. Such layers are rendered to a single
+    embedded ``<image>`` at ``raster_dpi`` (default 600) while axes, ticks, tick labels,
+    legend, annotations and every lighter artist stay fully vector, and ``save`` says on
+    stderr exactly what it rasterized. The layers keep their ids, ``data-role``/``data-series``
+    and manifest entries, so they remain addressable as a whole; only *per-point* ids are
+    unavailable (a rasterized cloud has no per-point nodes). ``SaveResult.rasterized`` lists
+    what was rasterized.
+
+    Set ``force_vectors=True`` (or the ``FLUXPLOT_FORCE_VECTORS`` environment variable) to
+    keep everything vector — a per-artist ``set_rasterized(False)`` does *not* override the
+    safety default, because that is matplotlib's silent factory setting rather than a
+    considered choice. Under ``force_vectors`` the heavy layers are still reported, as a
+    warning naming them and their node cost.
+
     **Targeted reruns** (``FLUXPLOT_ONLY``): a figure-level script that saves
     several plots can be re-run for ONE of them — set ``FLUXPLOT_ONLY`` to a
     comma-separated list of plot names (fnmatch patterns work: ``fig2*``) and
     every non-matching ``save`` becomes a no-op (nothing written, siblings
     untouched on disk). ``flux rerun-plot <recipe> --only`` sets this for you.
     """
+    keep_vectors = bool(force_vectors) or _env_flag("FLUXPLOT_FORCE_VECTORS")
+    threshold = _raster.DEFAULT_THRESHOLD if raster_threshold is None else int(raster_threshold)
+    raster_dpi = _raster.DEFAULT_DPI if raster_dpi is None else int(raster_dpi)
+
     base, _ext = os.path.splitext(path)
     plot_name = os.path.basename(base)
     svg_path = base + ".svg"
@@ -539,22 +580,46 @@ def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
         cap.update(_capture.capture_axes(ax, fig))
         axes_capture.append(cap)
 
+    # 3b. auto-rasterize pathologically heavy layers — the safety default. A LineCollection of
+    # per-edge segments or a 10k-point scatter becomes one <image> instead of 10^4-10^5 SVG
+    # nodes, while axes/ticks/labels/legend stay vector (see raster.py). Planned AFTER the
+    # scaffold sweep so untagged-but-heavy artists are named first, and applied around the
+    # render only — the user's figure is handed back exactly as they built it.
+    heavy = _raster.plan(fig, threshold)
+    raster_items = [] if keep_vectors else heavy
+    raster_warnings = []
+    if heavy:
+        note = _raster.describe(
+            heavy, plot_name=plot_name, dpi=raster_dpi, rasterized=not keep_vectors
+        )
+        raster_warnings.append(note)
+        print(note, file=sys.stderr)
+
     # 4. render deterministically (hashsalt derived from the plot name)
-    svg_bytes = _render.render_svg(fig, hashsalt=plot_name or "fluxplot")
+    with _raster.rasterizing(fig, raster_items):
+        svg_bytes = _render.render_svg(
+            fig,
+            hashsalt=plot_name or "fluxplot",
+            dpi=raster_dpi if raster_items else None,
+        )
 
     # 5. inject data-* + canonicalize
     plot_type = _infer_plot_type(reg)
-    out_svg, post_warnings, present = _postprocess.postprocess(svg_bytes, reg, guides, plot_type)
-    all_warnings = promo_warnings + geometry_warnings + post_warnings
+    out_svg, post_warnings, present = _postprocess.postprocess(
+        svg_bytes, reg, guides, plot_type, raster_items=raster_items
+    )
+    all_warnings = promo_warnings + geometry_warnings + raster_warnings + post_warnings
 
     # 6. assemble manifest + recipe. Drop scaffold guides matplotlib culled at draw
     # (boundary ticks/gridlines, empty axis titles) so the manifest references only
     # parts that exist in the SVG — keeps the parts tree / group members honest.
     kept_guides = [g for g in guides if g.gid in present]
+    rasterized_gids = {it.gid for it in raster_items if it.gid}
     man = _manifest.build_manifest(
         fig, reg, kept_guides, axes_capture, plot_type, svg_filename,
         SPEC_VERSION, __version__, matplotlib.__version__, present=present,
         svg_sha256=hashlib.sha256(out_svg).hexdigest(),
+        rasterized=rasterized_gids,
     )
     rec = _recipe.build_recipe(
         recipe, plot_name=plot_name, svg_filename=svg_filename,
@@ -576,4 +641,10 @@ def save(fig, path, *, recipe=None, validate=True, _now=None) -> SaveResult:
         ]
     )
 
-    return SaveResult(svg=svg_path, manifest=manifest_path, recipe=recipe_path, warnings=all_warnings)
+    return SaveResult(
+        svg=svg_path,
+        manifest=manifest_path,
+        recipe=recipe_path,
+        warnings=all_warnings,
+        rasterized=sorted(rasterized_gids),
+    )

@@ -259,6 +259,11 @@ def _sweep_extra(ax, alloc: "_ids.IdAllocator", guides: list) -> None:
         ("line", list(ax.lines) + list(ax.figure.lines)),
         ("collection", list(ax.collections)),
         ("patch", list(ax.patches) + list(ax.figure.patches)),
+        # Images (raw ax.imshow) complete the sweep. Beyond consistency this is load-bearing
+        # for auto-rasterization: it guarantees every image-emitting artist carries a gid, so
+        # an <image> left with matplotlib's generated id is, by construction, one that
+        # rasterization produced — which is how raster.reattach identifies them.
+        ("image", list(ax.images) + list(ax.figure.images)),
     ):
         n = 0
         for art in artists:
