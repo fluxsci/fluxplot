@@ -159,7 +159,13 @@ def plan(fig, threshold: int = DEFAULT_THRESHOLD) -> list:
         except Exception:
             continue
         n = primitive_count(artist)
-        if n > threshold:
+        # An artist the CALLER already flagged rasterized is planned too, however few primitives it
+        # has. matplotlib will emit an <image> for it either way, and reattach matches images to
+        # planned artists by count and document order — so an unplanned one shifts the whole match
+        # and, on a disagreement, costs EVERY layer in the figure its gid. The commonest case is a
+        # colorbar: its solids are rasterized by default, are far below any heaviness threshold, and
+        # would otherwise silently orphan the plot they belong to.
+        if n > threshold or bool(artist.get_rasterized()):
             items.append(
                 RasterItem(
                     artist=artist,

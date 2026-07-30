@@ -380,19 +380,17 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
         return coll
 
     # ---- missing data: its own part, never a data value ------------------------------------
+    # Drawn LAST, after the data parts. Splitting a map into one collection per part means
+    # matplotlib paints them in sequence, and back-face culling only removes geometry facing away
+    # from the camera — it cannot resolve occlusion WITHIN the visible half. On a folded surface the
+    # no-data region (a mesh's medial wall) is concave, so data faces lying behind it are still
+    # front-facing and, drawn afterwards, would bleed colour into it. Painting the no-data region
+    # last restores the correct appearance: it is a contiguous surface region, so anything the data
+    # parts would have drawn over it is by construction behind it. (On a near-convex mesh this is a
+    # no-op, which is why the artefact only appears once a less-inflated surface is used.)
     parts_missing_colour = [None]
     miss_shade = parts_shade.pop("missing", None)
-    miss_fc = missing_color
-    if shading and miss_shade:
-        miss_fc = _shade_rgba(to_rgba(missing_color), np.concatenate(miss_shade))
-    coll = _add("missing", parts.pop("missing", []), facecolor=miss_fc)
-    if coll is not None:
-        parts_missing_colour[0] = missing_color
-    if coll is not None:
-        reg.add(Mark(role="surface-missing", series=series, name="missing", kind="surface",
-                     artists=[coll],
-                     data={"surface": {"part": "missing", "color": missing_color,
-                                       "meaning": "medial wall / non-cortex / sentinel — not a value"}}))
+    miss_polys = parts.pop("missing", [])
 
     style_common = {
         "views": list(views), "hemispheres": list(hemispheres),
@@ -472,8 +470,12 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
             # disagree, leaving EVERY layer of this plot with matplotlib's auto ids. The whole map
             # then arrives unclassified. Keeping the bar vector costs a few hundred quads, keeps the
             # counts honest, and makes the colorbar itself editable rather than a picture of a ramp.
+            # Leave the bar RASTERIZED (matplotlib's default). Drawn as vector it is a strip of
+            # ~256 quads whose seams read as banding, so the ramp stops looking continuous; as one
+            # image it is smooth. This is safe because raster.plan() honours artists already flagged
+            # rasterized, so the colorbar is planned, its gid survives, and it stays addressable.
             if cb.solids is not None:
-                cb.solids.set_rasterized(False)
+                cb.solids.set_edgecolor("face")
             if cbar_ticks is not None:
                 cb.set_ticks(list(cbar_ticks))
             if cbar_label:
@@ -490,6 +492,17 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
                  data={"surface": dict(summary, nVertices=int(all_vals.size),
                                        nMissing=int((~np.isfinite(all_vals)).sum()),
                                        panes=[f"{h}-{v}" for h, v in panes])}))
+
+    miss_fc = missing_color
+    if shading and miss_shade:
+        miss_fc = _shade_rgba(to_rgba(missing_color), np.concatenate(miss_shade))
+    coll = _add("missing", miss_polys, facecolor=miss_fc)
+    if coll is not None:
+        parts_missing_colour[0] = missing_color
+        reg.add(Mark(role="surface-missing", series=series, name="missing", kind="surface",
+                     artists=[coll],
+                     data={"surface": {"part": "missing", "color": missing_color,
+                                       "meaning": "medial wall / non-cortex / sentinel — not a value"}}))
 
     # ---- category legend --------------------------------------------------------------------
     # A categorical map without a key is unreadable, so label maps get one by default; a continuous
