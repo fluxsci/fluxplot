@@ -301,7 +301,7 @@ Vega-Lite): a plot is *data → marks + scales + guides + annotations*. FluxPlot
 - **Containers:** `figure`, `panel`, `plot-area`, `legend`, `colorbar`, `title`
 - **Scaffold / guides:** `axis`, `spine`, `tick`, `tick-label`, `axis-title`, `gridline`, `background`
 - **Data marks:** `series`, `line`, `point`, `bar`, `area`, `errorbar`, `box`, `violin`
-- **Composite sub-parts:** `whisker`, `cap`, `flier`, `median`, `mean`, `segment`
+- **Composite sub-parts:** `whisker`, `cap`, `flier`, `median`, `mean`, `segment`, `regions`
 - **Overlays:** `annotation`, `reference-line`, `highlight-region`, `significance-bracket`, `label`
 
 Science is unbounded (heatmaps, networks, brain maps), so the vocabulary is a **versioned core plus a
@@ -332,6 +332,26 @@ fp.hist(ax, values, *, series, bins=None, label=None, include_values=False, **mp
 is individually addressable and grouped per series (`control.whiskers`, `control.medians`, …).
 `fp.hist` records the exact `binEdges`/`counts` in the manifest's `distribution` payload; raw
 sample values are recorded only with `include_values=True` (samples can be large or sensitive).
+
+**Surface maps** — a value per mesh vertex, drawn as a set of views and kept addressable:
+
+```python
+fp.surface(ax, values, *, series, surfaces, kind="categorical"|"continuous", ...)
+```
+
+`surfaces` is a `{hemisphere: (vertices, faces)}` mapping, or paths to GIFTI files (read with
+`nibabel`, an optional dependency). `values` is one value per vertex. A categorical map draws **one
+collection per category**, so every region becomes a separately addressable, separately recolourable
+part (`blocks.regions`, or `blocks.<category>` by name) with a matching legend key; a continuous map
+draws one field plus a colorbar, and the manifest records the complete value→colour contract —
+`cmap`, `color_range`, the category→colour table, and which vertices were treated as missing. Views
+(`lateral`, `medial`, …) and hemispheres are laid out side by side inside the one axes.
+
+Vertices with no data are an explicit `missing` part rather than a value, so an on-mesh zero stays
+distinguishable from absent data and sentinel codes grey out instead of becoming a spurious category.
+Rendering is orthographic with back-face culling — a fold cannot paint over the surface in front of
+it — with optional Lambertian `shading` for relief; a face straddling a boundary takes the majority
+label rather than being dropped.
 
 **Labels are identity** — a *conventional* labeled plot needs no helpers at all. At save time,
 raw artists carrying a public label (`ax.plot(..., label="Control")`, labeled `scatter`/`bar`/
