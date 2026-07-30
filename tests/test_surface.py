@@ -253,3 +253,26 @@ def test_boundary_faces_take_the_majority_label_not_missing(mesh, tmp_path):
                       [0, 1, 3]])     # touches a missing vertex -> missing
     out = _face_labels(values, faces)
     assert out[0] == 0.0 and out[1] == 1.0 and np.isnan(out[2])
+
+
+def test_colorbar_does_not_orphan_the_whole_plot(mesh, tmp_path):
+    """A colorbar must not cost the map its ids.
+
+    Matplotlib rasterizes a colorbar's solids by default, which emits an <image> the rasterisation
+    planner never planned. reattach matches images to planned artists by count and refuses to guess
+    when they disagree — so a single unplanned image silently strips EVERY layer of its gid and the
+    map arrives unclassified (no svg refs at all). This is the regression guard.
+    """
+    n = mesh["left"][0].shape[0]
+    vals = {"left": np.linspace(0, 10, n), "right": np.linspace(0, 10, n)}
+    fig, ax = plt.subplots()
+    fp.surface(ax, vals, series="field", surfaces=mesh, kind="continuous",
+               cmap="viridis", colorbar=True, cbar_label="units")
+    man, svg = _manifest(fig, tmp_path, "cbid")
+    refs = man["series"][0]["svg"]
+    assert refs, "a colorbar must not leave the series with no svg refs"
+    assert refs.get("surface-field") == "field.field"
+    assert refs.get("surface-colorbar") == "field.colorbar"
+    for gid in refs.values():
+        assert f'id="{gid}"' in svg, f"{gid} must exist in the SVG to be addressable"
+    plt.close(fig)

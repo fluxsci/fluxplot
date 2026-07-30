@@ -127,6 +127,35 @@ def _front_facing(verts, faces, sign_x):
     return sign_x * normals[:, 0] > 0
 
 
+def _face_shading(verts, faces, sign_x, light, strength):
+    """Per-face diffuse intensity in (0, 1] from the surface normals.
+
+    A flat-coloured mesh carries no relief: without an illumination term every face of a fold is the
+    same colour, so sulci and gyri are invisible however unsmoothed the geometry is. Lambert shading
+    restores the form — a face turned away from the light darkens — and it is purely geometric, so it
+    changes lightness only, never which value mapped to which hue.
+
+    ``light`` is given in the VIEW frame (x toward the camera, y right, z up) and is flipped with the
+    camera so both hemispheres are lit from the same side of the page.
+    """
+    tri = verts[faces]
+    n = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
+    n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
+    L = np.asarray(light, dtype=float)
+    L = L / max(np.linalg.norm(L), 1e-12)
+    ndotl = np.abs(n[:, 0] * L[0] * sign_x + n[:, 1] * L[1] + n[:, 2] * L[2])
+    return 1.0 - float(strength) * (1.0 - np.clip(ndotl, 0.0, 1.0))
+
+
+def _shade_rgba(colours, intensity):
+    """Multiply RGB by a per-face intensity, leaving alpha alone."""
+    rgba = np.array(colours, dtype=float, copy=True)
+    if rgba.ndim == 1:
+        rgba = np.tile(rgba, (intensity.size, 1))
+    rgba[:, :3] *= intensity[:, None]
+    return np.clip(rgba, 0.0, 1.0)
+
+
 def _face_values(values, faces):
     """Per-face value = mean of its vertices; a face touching missing data is itself missing.
 
@@ -185,7 +214,7 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
             cmap=None, color_range=None, percentile=None, views=("lateral", "medial"),
             hemispheres=("left", "right"), missing_below=None, missing_values=(),
             missing_color="#D8D8D8", gap=0.06, edgecolor="none", linewidth=0.0,
-            antialiased=False, colorbar=False, cbar_label=None, cbar_ticks=None, legend=None,
+            shading=0.0, light=(0.35, -0.25, 0.90), antialiased=False, colorbar=False, cbar_label=None, cbar_ticks=None, legend=None,
             legend_missing=False, legend_kw=None, label=None):
     """Draw a per-vertex surface map as named, addressable parts.
 
@@ -219,6 +248,13 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
     colorbar, cbar_label, cbar_ticks
         Add a colorbar for continuous maps as its own addressable part. ``cbar_ticks`` pins the tick
         positions (e.g. to keep them at round numbers) instead of leaving them to matplotlib.
+    shading, light
+        Diffuse shading strength in [0, 1] (0 = flat colour, the default). A flat-coloured mesh shows
+        no relief no matter how folded the geometry is — there is no illumination model — so sulci and
+        gyri are invisible even on an unsmoothed surface. With ``shading > 0`` each face is darkened by
+        ``1 - shading*(1 - n·L)``, where ``n`` is its unit normal and ``L`` the light direction (given
+        in the *view* frame: x toward the camera, y right, z up). ~0.4 gives readable folding without
+        distorting the colour mapping; the value→hue relation is untouched, only its lightness.
     legend, legend_missing, legend_kw
         Draw a category legend. Defaults to ``True`` for label maps (a categorical map without a key
         is unreadable) and ``False`` for continuous ones (the colorbar *is* the key). The legend is a
@@ -230,7 +266,7 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
     Returns the list of matplotlib collections drawn (in draw order).
     """
     from matplotlib.collections import PolyCollection
-    from matplotlib.colors import Normalize, to_hex
+    from matplotlib.colors import Normalize, to_hex, to_rgba
 
     from . import tagger as _tagger
     from .descriptors import Mark
@@ -259,8 +295,17 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
 
     all_vals = np.concatenate([vals[h] for h in hemispheres])
     finite = all_vals[np.isfinite(all_vals)]
+    # An all-missing map is legitimate, not an error: rendering one hemisphere of a
+    # single-hemisphere result gives a view whose every vertex is the sentinel. Draw the grey
+    # surface and skip the colour mapping. Only "auto" has to give up, since with no finite value
+    # there is nothing from which to infer label-vs-continuous.
     if finite.size == 0:
-        raise ValueError("every vertex is missing — nothing to draw")
+        if kind == "auto":
+            raise ValueError(
+                "every vertex is missing and kind='auto' cannot infer label vs continuous — "
+                "pass kind= explicitly if an all-missing map is intended")
+        warnings.warn("surface(): every vertex is missing; drawing the surface as no-data",
+                      stacklevel=2)
 
     if kind == "auto":
         uniq = np.unique(finite)
@@ -280,7 +325,7 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
 
     # ---- assemble faces, grouped by the part they belong to --------------------------------
     # parts: name -> list of (polygon vertex arrays); continuous also collects per-face values.
-    parts, part_vals = {}, {}
+    parts, part_vals, parts_shade = {}, {}, {}
     for i, (h, view) in enumerate(panes):
         verts, faces = geom[h]
         xy, depth, sign_x = _project(verts, h, view)
@@ -288,21 +333,31 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
         xy[:, 0] += i * pitch - xy[:, 0].mean()
         xy[:, 1] -= xy[:, 1].mean()
 
-        vis = faces[_front_facing(verts, faces, sign_x)]        # only the half facing the camera
+        front = _front_facing(verts, faces, sign_x)
+        vis = faces[front]                                       # only the half facing the camera
+        shade_v = _face_shading(verts, vis, sign_x, light, shading) if shading else None
         fv = _face_labels(vals[h], vis) if kind == "label" else _face_values(vals[h], vis)
         order = np.argsort(depth[vis].mean(axis=1))             # painter's algorithm: far → near
         polys = xy[vis[order]]
         fv = fv[order]
+        shade_o = shade_v[order] if shade_v is not None else None
 
         missing = ~np.isfinite(fv)
         parts.setdefault("missing", []).append(polys[missing])
+        if shade_o is not None:
+            parts_shade.setdefault("missing", []).append(shade_o[missing])
         if kind == "label":
             for code in np.unique(fv[~missing]):
                 name = (categories or {}).get(int(code), f"category-{int(code)}")
-                parts.setdefault(name, []).append(polys[fv == code])
+                sel = fv == code
+                parts.setdefault(name, []).append(polys[sel])
+                if shade_o is not None:
+                    parts_shade.setdefault(name, []).append(shade_o[sel])
         else:
             parts.setdefault("field", []).append(polys[~missing])
             part_vals.setdefault("field", []).append(fv[~missing])
+            if shade_o is not None:
+                parts_shade.setdefault("field", []).append(shade_o[~missing])
 
     reg = _tagger.registry_for(ax.figure)
     drawn = []
@@ -326,7 +381,11 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
 
     # ---- missing data: its own part, never a data value ------------------------------------
     parts_missing_colour = [None]
-    coll = _add("missing", parts.pop("missing", []), facecolor=missing_color)
+    miss_shade = parts_shade.pop("missing", None)
+    miss_fc = missing_color
+    if shading and miss_shade:
+        miss_fc = _shade_rgba(to_rgba(missing_color), np.concatenate(miss_shade))
+    coll = _add("missing", parts.pop("missing", []), facecolor=miss_fc)
     if coll is not None:
         parts_missing_colour[0] = missing_color
     if coll is not None:
@@ -360,7 +419,12 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
             resolved[name] = colour
             # The artist carries the category name as its matplotlib label, so a plain ax.legend()
             # builds a real legend that the scaffold auto-tagger names like any other plot's.
-            coll = _add(name, parts[name], facecolor=colour, label=name)
+            if shading:
+                sh = np.concatenate(parts_shade[name]) if parts_shade.get(name) else None
+                fc = _shade_rgba(to_rgba(colour), sh) if sh is not None and sh.size else colour
+            else:
+                fc = colour
+            coll = _add(name, parts[name], facecolor=fc, label=name)
             if coll is None:
                 continue
             # NB the Mark's `label` stays the series-level one: a region name is the identity of a
@@ -374,7 +438,10 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
         summary = {"kind": "label", "palette": resolved, **style_common}
     else:
         import matplotlib as mpl
-        vmin, vmax = _resolve_range(finite, color_range, percentile)
+        if finite.size == 0 and color_range is None:
+            vmin, vmax = 0.0, 1.0          # nothing to scale; the field below is empty anyway
+        else:
+            vmin, vmax = _resolve_range(finite, color_range, percentile)
         norm = Normalize(vmin=vmin, vmax=vmax)
         if cmap is None:
             cmap_obj = mpl.colormaps[mpl.rcParams["image.cmap"]]
@@ -383,7 +450,10 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
         else:
             cmap_obj = cmap
         fv = np.concatenate(part_vals["field"])
-        coll = _add("field", parts["field"], facecolor=cmap_obj(norm(fv)))
+        fcol = cmap_obj(norm(fv))
+        if shading and parts_shade.get("field"):
+            fcol = _shade_rgba(fcol, np.concatenate(parts_shade["field"]))
+        coll = _add("field", parts["field"], facecolor=fcol)
         summary = {"kind": "continuous", "cmap": getattr(cmap_obj, "name", str(cmap)),
                    "vmin": vmin, "vmax": vmax,
                    "percentile": list(percentile) if percentile else None, **style_common}
@@ -396,6 +466,14 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
                          data={"surface": dict(summary, part="field")}))
         if colorbar and coll is not None:
             cb = ax.figure.colorbar(coll, ax=ax, fraction=0.03, pad=0.02)
+            # Matplotlib rasterizes a colorbar's solids by default. That would emit an <image> the
+            # rasterisation planner never planned, and `raster.reattach` — which matches images to
+            # planned artists by count and document order — refuses to guess when the counts
+            # disagree, leaving EVERY layer of this plot with matplotlib's auto ids. The whole map
+            # then arrives unclassified. Keeping the bar vector costs a few hundred quads, keeps the
+            # counts honest, and makes the colorbar itself editable rather than a picture of a ramp.
+            if cb.solids is not None:
+                cb.solids.set_rasterized(False)
             if cbar_ticks is not None:
                 cb.set_ticks(list(cbar_ticks))
             if cbar_label:
