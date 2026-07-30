@@ -190,3 +190,66 @@ def test_flat_array_is_split_across_hemispheres(mesh, tmp_path):
     man, _ = _manifest(fig, tmp_path, "flat")
     assert set(man["series"][0]["svg"]["regions"]) == {"a.left-only", "a.right-only"}
     plt.close(fig)
+
+
+def _guides(man, role):
+    return [g for g in man["guides"] if g["role"] == role]
+
+
+def test_label_map_gets_a_legend_whose_entries_resolve_to_parts(mesh, tmp_path):
+    """The legend is a real one — same manifest shape as any other plot — and each entry points at
+    the region part it keys, so 'recolour the block this swatch names' is resolvable."""
+    fig, ax = plt.subplots()
+    fp.surface(ax, _labels(mesh), series="atlas", surfaces=mesh, kind="label",
+               categories={0: "frontal", 1: "parietal", 2: "temporal"},
+               palette={"frontal": "#4C78A8", "parietal": "#F58518", "temporal": "#54A24B"})
+    man, svg = _manifest(fig, tmp_path, "leg")
+    legend = _guides(man, "legend")
+    assert legend, "a categorical map must ship a key by default"
+    entries = legend[0]["entries"]
+    assert [e["text"] for e in entries] == ["frontal", "parietal", "temporal"]
+    for e in entries:
+        assert e["part"] == f"atlas.{e['text']}"       # entry -> the addressable region
+        assert e["series"] == "atlas"
+        assert f'id="{e["swatch"]}"' in svg and f'id="{e["label"]}"' in svg
+    plt.close(fig)
+
+
+def test_region_name_does_not_become_the_series_label(mesh, tmp_path):
+    """A region names a PART; letting it become the series label would make the series masquerade
+    as its own first category and hijack the legend join."""
+    fig, ax = plt.subplots()
+    fp.surface(ax, _labels(mesh), series="atlas", surfaces=mesh, kind="label",
+               categories={0: "frontal", 1: "parietal", 2: "temporal"})
+    man, _ = _manifest(fig, tmp_path, "leglabel")
+    assert man["series"][0].get("label") is None
+    plt.close(fig)
+
+
+def test_continuous_has_no_legend_by_default_and_legend_can_be_disabled(mesh, tmp_path):
+    """The colorbar is a continuous map's key, so it gets no category legend; label maps can opt out."""
+    n = mesh["left"][0].shape[0]
+    vals = {"left": np.linspace(0, 1, n), "right": np.linspace(0, 1, n)}
+    fig, ax = plt.subplots()
+    fp.surface(ax, vals, series="f", surfaces=mesh, kind="continuous", colorbar=True)
+    man, _ = _manifest(fig, tmp_path, "nolegend")
+    assert not _guides(man, "legend")
+    plt.close(fig)
+
+    fig, ax = plt.subplots()
+    fp.surface(ax, _labels(mesh), series="a", surfaces=mesh, kind="label", legend=False)
+    man, _ = _manifest(fig, tmp_path, "legoff")
+    assert not _guides(man, "legend")
+    plt.close(fig)
+
+
+def test_boundary_faces_take_the_majority_label_not_missing(mesh, tmp_path):
+    """A face straddling two categories must be drawn as one of them — assigning it to 'missing'
+    would both mean 'no data' and etch a pale crack along every boundary."""
+    from fluxplot.surface import _face_labels
+    values = np.array([0.0, 0.0, 1.0, np.nan])
+    faces = np.array([[0, 1, 2],      # 2x label 0, 1x label 1 -> majority 0
+                      [0, 2, 2],      # 1x label 0, 2x label 1 -> majority 1
+                      [0, 1, 3]])     # touches a missing vertex -> missing
+    out = _face_labels(values, faces)
+    assert out[0] == 0.0 and out[1] == 1.0 and np.isnan(out[2])

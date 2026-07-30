@@ -189,6 +189,14 @@ def build_manifest(
         for s in series_entries:
             if s.get("label"):
                 by_label.setdefault(s["label"], []).append(s["id"])
+        # A surface map's legend keys its PARTS, not its series (all its regions live under one
+        # series), so an entry also joins on a unique part name — giving it a ref to the very
+        # element it describes, which is what makes "recolour the block this swatch names" possible.
+        by_part: dict[str, list] = {}
+        for s in series_entries:
+            for prt in (s.get("surface") or {}).get("parts", []):
+                if prt.get("part") and prt.get("ref"):
+                    by_part.setdefault(prt["part"], []).append((s["id"], prt["ref"]))
         entries = []
         for k in sorted(legend_entries):
             ent = legend_entries[k]
@@ -196,6 +204,9 @@ def build_manifest(
             matches = by_label.get(ent.get("text"), [])
             if len(matches) == 1:
                 e["series"] = matches[0]
+            part_matches = by_part.get(ent.get("text"), [])
+            if len(part_matches) == 1:
+                e["series"], e["part"] = part_matches[0]
             if ent.get("text"):
                 e["text"] = ent["text"]
             if ent.get("swatch"):

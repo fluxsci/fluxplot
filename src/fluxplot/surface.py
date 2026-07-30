@@ -140,14 +140,18 @@ def _face_values(values, faces):
 
 
 def _face_labels(values, faces):
-    """Per-face label = the label of its vertices when they agree, else missing.
+    """Per-face label = the MAJORITY label of its three vertices; missing only if a vertex is.
 
-    A face straddling a block boundary has no single honest identity, so it is left unassigned
-    rather than silently attributed to one block (which would fatten that block along every border).
+    A face straddling a boundary between two categories has to be drawn as one of them. Leaving it
+    unassigned instead would (a) draw it in the missing/no-data colour, conflating "on a border"
+    with "no data", and (b) etch a visible pale crack along every boundary — the artefact this rule
+    exists to avoid. Majority assignment is symmetric: each category gives up as many border faces
+    as it gains, so no block is systematically fattened. Three mutually distinct vertices (possible
+    only where three categories meet) fall back to the first vertex, which affects isolated faces.
     """
     tri = values[faces]
-    same = (tri[:, 0] == tri[:, 1]) & (tri[:, 1] == tri[:, 2])
-    out = np.where(same, tri[:, 0], np.nan)
+    out = np.where(tri[:, 0] == tri[:, 1], tri[:, 0],
+                   np.where(tri[:, 1] == tri[:, 2], tri[:, 1], tri[:, 0]))
     out[np.isnan(tri).any(axis=1)] = np.nan
     return out
 
@@ -181,7 +185,8 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
             cmap=None, color_range=None, percentile=None, views=("lateral", "medial"),
             hemispheres=("left", "right"), missing_below=None, missing_values=(),
             missing_color="#D8D8D8", gap=0.06, edgecolor="none", linewidth=0.0,
-            colorbar=False, cbar_label=None, label=None):
+            antialiased=False, colorbar=False, cbar_label=None, cbar_ticks=None, legend=None,
+            legend_missing=False, legend_kw=None, label=None):
     """Draw a per-vertex surface map as named, addressable parts.
 
     Parameters
@@ -211,8 +216,16 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
         ``color_range`` wins if both are given. The resolved range is recorded in the manifest.
     missing_below, missing_values
         Sentinel handling (e.g. ``missing_below=0`` turns a −1 off-hemisphere sentinel into missing).
-    colorbar
-        Add a colorbar for continuous maps as its own addressable part.
+    colorbar, cbar_label, cbar_ticks
+        Add a colorbar for continuous maps as its own addressable part. ``cbar_ticks`` pins the tick
+        positions (e.g. to keep them at round numbers) instead of leaving them to matplotlib.
+    legend, legend_missing, legend_kw
+        Draw a category legend. Defaults to ``True`` for label maps (a categorical map without a key
+        is unreadable) and ``False`` for continuous ones (the colorbar *is* the key). The legend is a
+        real matplotlib legend, so it is auto-tagged like any other plot's: the manifest gains a
+        ``legend`` guide whose entries carry the swatch/label ids and resolve to the addressable
+        region part. ``legend_missing=True`` adds an entry for the missing/no-data part;
+        ``legend_kw`` overrides placement (default: horizontal, under the map, frameless).
 
     Returns the list of matplotlib collections drawn (in draw order).
     """
@@ -299,14 +312,23 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
             len(p) for p in polys_list) else np.empty((0, 3, 2))
         if polys.shape[0] == 0:
             return None
+        # edgecolor="face" + antialiasing is the combination that renders a triangulated field
+        # cleanly: each triangle draws its own border in its OWN colour, which both closes the
+        # hairline seams between neighbours (the reason one is tempted to disable antialiasing) and
+        # keeps the silhouette and any high-contrast internal boundary smooth. With antialiasing off
+        # the artefact is invisible on a smooth field but obvious wherever adjacent faces differ
+        # sharply — i.e. exactly on categorical maps and steep gradients.
         coll = PolyCollection(list(polys), edgecolor=edgecolor, linewidth=linewidth,
-                              antialiased=False, **kw)
+                              antialiased=antialiased, **kw)
         ax.add_collection(coll)
         drawn.append(coll)
         return coll
 
     # ---- missing data: its own part, never a data value ------------------------------------
+    parts_missing_colour = [None]
     coll = _add("missing", parts.pop("missing", []), facecolor=missing_color)
+    if coll is not None:
+        parts_missing_colour[0] = missing_color
     if coll is not None:
         reg.add(Mark(role="surface-missing", series=series, name="missing", kind="surface",
                      artists=[coll],
@@ -336,9 +358,14 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
                 colour = f"C{len(resolved) % 10}"
             colour = to_hex(colour)
             resolved[name] = colour
-            coll = _add(name, parts[name], facecolor=colour)
+            # The artist carries the category name as its matplotlib label, so a plain ax.legend()
+            # builds a real legend that the scaffold auto-tagger names like any other plot's.
+            coll = _add(name, parts[name], facecolor=colour, label=name)
             if coll is None:
                 continue
+            # NB the Mark's `label` stays the series-level one: a region name is the identity of a
+            # PART, and letting it become the series label would make the series masquerade as its
+            # own first category (and would hijack the legend↔series join below).
             reg.add(Mark(role="surface-region", series=series, name=name, kind="surface",
                          label=label,
                          artists=[coll],
@@ -369,6 +396,8 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
                          data={"surface": dict(summary, part="field")}))
         if colorbar and coll is not None:
             cb = ax.figure.colorbar(coll, ax=ax, fraction=0.03, pad=0.02)
+            if cbar_ticks is not None:
+                cb.set_ticks(list(cbar_ticks))
             if cbar_label:
                 cb.set_label(cbar_label)
             reg.add(Mark(role="surface-colorbar", series=series, name="colorbar", kind="surface",
@@ -383,6 +412,26 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
                  data={"surface": dict(summary, nVertices=int(all_vals.size),
                                        nMissing=int((~np.isfinite(all_vals)).sum()),
                                        panes=[f"{h}-{v}" for h, v in panes])}))
+
+    # ---- category legend --------------------------------------------------------------------
+    # A categorical map without a key is unreadable, so label maps get one by default; a continuous
+    # map does not (its colorbar IS the key). This is a real matplotlib legend, so `autotag_scaffold`
+    # names it exactly as it does for a line or bar plot: the manifest gains a `legend` guide whose
+    # entries carry the swatch/label ids, and each entry resolves to the addressable region part.
+    if legend is None:
+        legend = (kind == "label")
+    if legend:
+        from matplotlib.patches import Patch
+        handles = [h for h in drawn if h.get_label() and not h.get_label().startswith("_")]
+        if legend_missing and parts_missing_colour[0] is not None:
+            handles.append(Patch(facecolor=parts_missing_colour[0], label="no data"))
+        if handles:
+            kw = {"loc": "lower center", "bbox_to_anchor": (0.5, -0.16),
+                  "ncol": min(len(handles), 4), "frameon": False,
+                  "handlelength": 1.1, "handleheight": 1.1, "borderpad": 0.0,
+                  "columnspacing": 1.4, "handletextpad": 0.5}
+            kw.update(legend_kw or {})
+            ax.legend(handles=handles, **kw)
 
     ax.set_xlim(-unit_w * 0.55, (len(panes) - 1) * pitch + unit_w * 0.55)  # panes centred on i*pitch
     ax.set_ylim(-unit_h * 0.55, unit_h * 0.55)
