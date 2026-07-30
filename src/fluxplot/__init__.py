@@ -31,6 +31,9 @@ from .api import (  # noqa: E402,F401
 from .recipe import (
     params,  # noqa: E402,F401  (overridable tunables for rerun-plot/Regenerate)
 )
+from .surface import (  # noqa: E402,F401
+    surface,
+)
 from .style import (  # noqa: E402,F401  (re-exported for convenience)
     use_dark,
     use_light,
@@ -40,6 +43,7 @@ from .version import SPEC_VERSION, __version__  # noqa: F401
 
 __all__ = [
     "__version__",
+    "surface",
     "SPEC_VERSION",
     "colors",
     "style",

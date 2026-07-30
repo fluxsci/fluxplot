@@ -28,6 +28,10 @@ COMPOSITE_ROLES = {
     "flier": "fliers",
     "mean": "means",
     "segment": "segments",
+    # A surface (brain) map draws one collection per category, so every region is separately
+    # addressable; ``regions`` lists them all while ``surface-region`` keeps the first as the
+    # primary ref (compat, as for the other composites).
+    "surface-region": "regions",
 }
 
 
@@ -147,6 +151,24 @@ def build_manifest(
         dist = next((m.data["distribution"] for m in marks if m.data.get("distribution")), None)
         if dist:
             entry["distribution"] = dist
+        # additive surface payload — the complete value→colour contract of a surface (brain) map.
+        # The point of the primitive is that this mapping is DATA, not baked pixels: each part is
+        # listed with its own id and style, so recolouring a region, swapping a colormap or moving a
+        # threshold is a declarative edit that re-renders deterministically.
+        surf_marks = [m for m in marks if m.data.get("surface")]
+        if surf_marks:
+            summary = next((m.data["surface"] for m in surf_marks if m.role == "surface"), {})
+            parts_payload = []
+            for m in surf_marks:
+                if m.role == "surface":
+                    continue
+                p = {k: v for k, v in m.data["surface"].items()
+                     if k not in ("views", "hemispheres", "missingRule", "missingColor")}
+                if _keep(m.gid):
+                    p["ref"] = m.gid
+                p.setdefault("part", m.name or m.role)
+                parts_payload.append(p)
+            entry["surface"] = {**summary, "parts": parts_payload}
         series_entries.append(entry)
         series_kinds[entry["id"]] = kinds
 

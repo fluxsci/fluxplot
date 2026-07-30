@@ -96,11 +96,18 @@ def _resolve_series_mark(m: Mark, alloc: "_ids.IdAllocator") -> None:
             art.set_gid(cid)
             m.member_gids.append(cid)
     else:  # line, area, errorbar, box, or a generic series role
+        # A series mark may carry an explicit ``name`` to distinguish it from its siblings — several
+        # marks of the SAME role under one series (e.g. one collection per region of a surface map).
+        # Then the name, not the role, is the meaningful id segment: ``atlas.frontal`` rather
+        # than ``atlas.surface-region-2``, so the part is addressable by what it actually is.
+        # Roles with a single mark per series (line/area/errorbar/box) never set ``name``, so their
+        # ids are unchanged.
+        seg = _ids.slugify(m.name) if m.name is not None else m.role
         for k, art in enumerate(m.artists):
             cid = (
-                alloc.take(_ids.series_id(series, m.role))
+                alloc.take(_ids.series_id(series, seg))
                 if k == 0
-                else alloc.take(_ids.series_id(series, m.role, k))
+                else alloc.take(_ids.series_id(series, seg, k))
             )
             art.set_gid(cid)
             m.member_gids.append(cid)
