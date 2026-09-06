@@ -145,7 +145,7 @@ def test_hist_distribution_matches_numpy(tmp_path):
     s = _series(man, "observations")
     dist = s["distribution"]
     assert len(dist["binEdges"]) == 21 and len(dist["counts"]) == 20
-    assert [round(float(e), 4) for e in np_edges] == dist["binEdges"]  # canonical 4-decimal JSON
+    assert [float(e) for e in np_edges] == dist["binEdges"]  # full source precision
     assert "values" not in dist  # raw observations absent by default
     assert len(s["svg"]["bars"]) == 20
     _assert_members_resolve_once(man, svg, "observations")

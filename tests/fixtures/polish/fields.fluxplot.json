@@ -1,0 +1,1393 @@
+{
+  "artifact": {
+    "svgSha256": "5da80c2c88d1a90d156148405318f91013ebc6976d1d6cf28da76f7fbed37c19"
+  },
+  "axes": [
+    {
+      "id": "panel.matrix.plot-area",
+      "panelId": "panel.matrix",
+      "pixelBox": {
+        "x0": 25.903365,
+        "x1": 130.0462253437501,
+        "y0": 18.118364999999983,
+        "y1": 152.79975999999996
+      },
+      "projection": "rectilinear",
+      "svgId": "panel.matrix.plot-area",
+      "x": {
+        "anchors": [
+          {
+            "data": 0.0,
+            "svg": 25.903365
+          },
+          {
+            "data": 3.0,
+            "svg": 130.0462253437501
+          }
+        ],
+        "domain": [
+          0.0,
+          3.0
+        ],
+        "label": "",
+        "scale": "linear",
+        "supported": true,
+        "ticks": [
+          {
+            "label": "0",
+            "value": 0.0
+          },
+          {
+            "label": "1",
+            "value": 1.0
+          },
+          {
+            "label": "2",
+            "value": 2.0
+          },
+          {
+            "label": "3",
+            "value": 3.0
+          }
+        ]
+      },
+      "y": {
+        "anchors": [
+          {
+            "data": 0.0,
+            "svg": 152.79975999999996
+          },
+          {
+            "data": 3.0,
+            "svg": 18.118364999999983
+          }
+        ],
+        "domain": [
+          0.0,
+          3.0
+        ],
+        "label": "",
+        "scale": "linear",
+        "supported": true,
+        "ticks": [
+          {
+            "label": "0.0",
+            "value": 0.0
+          },
+          {
+            "label": "0.5",
+            "value": 0.5
+          },
+          {
+            "label": "1.0",
+            "value": 1.0
+          },
+          {
+            "label": "1.5",
+            "value": 1.5
+          },
+          {
+            "label": "2.0",
+            "value": 2.0
+          },
+          {
+            "label": "2.5",
+            "value": 2.5
+          },
+          {
+            "label": "3.0",
+            "value": 3.0
+          }
+        ]
+      }
+    },
+    {
+      "id": "panel.contours.plot-area",
+      "panelId": "panel.contours",
+      "pixelBox": {
+        "x0": 210.09359937500003,
+        "x1": 314.2364597187499,
+        "y0": 18.118364999999983,
+        "y1": 152.79975999999996
+      },
+      "projection": "rectilinear",
+      "svgId": "panel.contours.plot-area",
+      "x": {
+        "anchors": [
+          {
+            "data": -2.0,
+            "svg": 210.09359937500003
+          },
+          {
+            "data": 2.0,
+            "svg": 314.2364597187499
+          }
+        ],
+        "domain": [
+          -2.0,
+          2.0
+        ],
+        "label": "",
+        "scale": "linear",
+        "supported": true,
+        "ticks": [
+          {
+            "label": "−2",
+            "value": -2.0
+          },
+          {
+            "label": "0",
+            "value": 0.0
+          },
+          {
+            "label": "2",
+            "value": 2.0
+          }
+        ]
+      },
+      "y": {
+        "anchors": [
+          {
+            "data": -2.0,
+            "svg": 152.79975999999996
+          },
+          {
+            "data": 2.0,
+            "svg": 18.11836499999996
+          }
+        ],
+        "domain": [
+          -2.0,
+          2.0
+        ],
+        "label": "",
+        "scale": "linear",
+        "supported": true,
+        "ticks": [
+          {
+            "label": "−2",
+            "value": -2.0
+          },
+          {
+            "label": "−1",
+            "value": -1.0
+          },
+          {
+            "label": "0",
+            "value": 0.0
+          },
+          {
+            "label": "1",
+            "value": 1.0
+          },
+          {
+            "label": "2",
+            "value": 2.0
+          }
+        ]
+      }
+    }
+  ],
+  "build": {
+    "order": [
+      "panel.matrix.axis.x",
+      "panel.matrix.axis.y",
+      "panel.matrix.colorbar.correlation",
+      "panel.matrix.figure.title",
+      "gridlines",
+      "panel.matrix.correlation.x-heatmap",
+      "panel.contours.axis.x",
+      "panel.contours.axis.y",
+      "panel.contours.colorbar.energy",
+      "panel.contours.figure.title",
+      "panel.contours.energy.x-contourf"
+    ],
+    "presets": {
+      "axis": {
+        "animation": "draw-on",
+        "durationMs": 400
+      },
+      "gridline": {
+        "animation": "fade-in",
+        "durationMs": 300
+      }
+    }
+  },
+  "generator": {
+    "matplotlib": "3.11.0",
+    "name": "fluxplot",
+    "version": "0.1.0"
+  },
+  "guides": [
+    {
+      "axis": "x",
+      "id": "panel.matrix.axis.x",
+      "role": "axis",
+      "svgId": "panel.matrix.axis.x"
+    },
+    {
+      "axis": "y",
+      "id": "panel.matrix.axis.y",
+      "role": "axis",
+      "svgId": "panel.matrix.axis.y"
+    },
+    {
+      "cmap": "viridis",
+      "id": "panel.matrix.colorbar.correlation",
+      "label": "Correlation",
+      "mappable": "panel.matrix.correlation.x-heatmap",
+      "normalization": {
+        "clip": false,
+        "kind": "Normalize",
+        "vmax": 1.0,
+        "vmin": 0.0
+      },
+      "orientation": "vertical",
+      "parts": [
+        {
+          "role": "colorbar-label",
+          "svgId": "panel.matrix.colorbar.correlation.label"
+        },
+        {
+          "role": "colorbar-outline",
+          "svgId": "panel.matrix.colorbar.correlation.outline"
+        },
+        {
+          "role": "colorbar-tick-label",
+          "svgId": "panel.matrix.colorbar.correlation.tick-label.0"
+        },
+        {
+          "role": "colorbar-tick-label",
+          "svgId": "panel.matrix.colorbar.correlation.tick-label.1"
+        },
+        {
+          "role": "colorbar-tick-label",
+          "svgId": "panel.matrix.colorbar.correlation.tick-label.2"
+        },
+        {
+          "role": "colorbar-tick-label",
+          "svgId": "panel.matrix.colorbar.correlation.tick-label.3"
+        },
+        {
+          "role": "colorbar-tick-label",
+          "svgId": "panel.matrix.colorbar.correlation.tick-label.4"
+        },
+        {
+          "role": "colorbar-tick-label",
+          "svgId": "panel.matrix.colorbar.correlation.tick-label.5"
+        },
+        {
+          "role": "colorbar-solids",
+          "svgId": "panel.matrix.colorbar.correlation.solids"
+        }
+      ],
+      "role": "colorbar",
+      "svgId": "panel.matrix.colorbar.correlation",
+      "ticks": [
+        0.0,
+        0.2,
+        0.4,
+        0.6000000000000001,
+        0.8,
+        1.0
+      ]
+    },
+    {
+      "axis": "x",
+      "id": "panel.contours.axis.x",
+      "role": "axis",
+      "svgId": "panel.contours.axis.x"
+    },
+    {
+      "axis": "y",
+      "id": "panel.contours.axis.y",
+      "role": "axis",
+      "svgId": "panel.contours.axis.y"
+    },
+    {
+      "cmap": "plasma",
+      "id": "panel.contours.colorbar.energy",
+      "label": "Energy",
+      "mappable": "panel.contours.energy.x-contourf",
+      "normalization": {
+        "clip": false,
+        "kind": "Normalize",
+        "vmax": 8.0,
+        "vmin": 0.0
+      },
+      "orientation": "vertical",
+      "parts": [
+        {
+          "role": "colorbar-label",
+          "svgId": "panel.contours.colorbar.energy.label"
+        },
+        {
+          "role": "colorbar-outline",
+          "svgId": "panel.contours.colorbar.energy.outline"
+        },
+        {
+          "role": "colorbar-tick-label",
+          "svgId": "panel.contours.colorbar.energy.tick-label.0"
+        },
+        {
+          "role": "colorbar-tick-label",
+          "svgId": "panel.contours.colorbar.energy.tick-label.1"
+        },
+        {
+          "role": "colorbar-tick-label",
+          "svgId": "panel.contours.colorbar.energy.tick-label.2"
+        },
+        {
+          "role": "colorbar-tick-label",
+          "svgId": "panel.contours.colorbar.energy.tick-label.3"
+        },
+        {
+          "role": "colorbar-tick-label",
+          "svgId": "panel.contours.colorbar.energy.tick-label.4"
+        },
+        {
+          "role": "colorbar-solids",
+          "svgId": "panel.contours.colorbar.energy.solids"
+        }
+      ],
+      "role": "colorbar",
+      "svgId": "panel.contours.colorbar.energy",
+      "ticks": [
+        0.0,
+        1.0,
+        3.0,
+        5.0,
+        8.0
+      ]
+    }
+  ],
+  "overlays": [],
+  "panels": [
+    {
+      "id": "panel.matrix",
+      "index": 0,
+      "label": "matrix",
+      "svgId": "panel.matrix.plot-area"
+    },
+    {
+      "id": "panel.contours",
+      "index": 1,
+      "label": "contours",
+      "svgId": "panel.contours.plot-area"
+    }
+  ],
+  "parts": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "axis": "x",
+                "children": [
+                  {
+                    "kind": "line",
+                    "ref": "panel.matrix.axis.x.spine"
+                  },
+                  {
+                    "kind": "line",
+                    "ref": "panel.matrix.axis.x.spine-2"
+                  },
+                  {
+                    "groupRole": "tick",
+                    "id": "panel.matrix.axis.x.ticks",
+                    "kind": "line",
+                    "members": [
+                      "panel.matrix.axis.x.tick.0",
+                      "panel.matrix.axis.x.tick.1",
+                      "panel.matrix.axis.x.tick.2",
+                      "panel.matrix.axis.x.tick.3"
+                    ],
+                    "role": "group"
+                  },
+                  {
+                    "groupRole": "tick-label",
+                    "id": "panel.matrix.axis.x.tick-labels",
+                    "kind": "text",
+                    "members": [
+                      "panel.matrix.axis.x.ticklabel.0",
+                      "panel.matrix.axis.x.ticklabel.1",
+                      "panel.matrix.axis.x.ticklabel.2",
+                      "panel.matrix.axis.x.ticklabel.3"
+                    ],
+                    "role": "group"
+                  }
+                ],
+                "id": "panel.matrix.axis.x",
+                "kind": "container",
+                "role": "axis"
+              },
+              {
+                "axis": "y",
+                "children": [
+                  {
+                    "kind": "line",
+                    "ref": "panel.matrix.axis.y.spine"
+                  },
+                  {
+                    "kind": "line",
+                    "ref": "panel.matrix.axis.y.spine-2"
+                  },
+                  {
+                    "groupRole": "tick",
+                    "id": "panel.matrix.axis.y.ticks",
+                    "kind": "line",
+                    "members": [
+                      "panel.matrix.axis.y.tick.0",
+                      "panel.matrix.axis.y.tick.1",
+                      "panel.matrix.axis.y.tick.2",
+                      "panel.matrix.axis.y.tick.3",
+                      "panel.matrix.axis.y.tick.4",
+                      "panel.matrix.axis.y.tick.5",
+                      "panel.matrix.axis.y.tick.6"
+                    ],
+                    "role": "group"
+                  },
+                  {
+                    "groupRole": "tick-label",
+                    "id": "panel.matrix.axis.y.tick-labels",
+                    "kind": "text",
+                    "members": [
+                      "panel.matrix.axis.y.ticklabel.0",
+                      "panel.matrix.axis.y.ticklabel.1",
+                      "panel.matrix.axis.y.ticklabel.2",
+                      "panel.matrix.axis.y.ticklabel.3",
+                      "panel.matrix.axis.y.ticklabel.4",
+                      "panel.matrix.axis.y.ticklabel.5",
+                      "panel.matrix.axis.y.ticklabel.6"
+                    ],
+                    "role": "group"
+                  }
+                ],
+                "id": "panel.matrix.axis.y",
+                "kind": "container",
+                "role": "axis"
+              },
+              {
+                "children": [
+                  {
+                    "groupRole": "x-heatmap",
+                    "id": "panel.matrix.correlation.x-heatmap",
+                    "members": [
+                      "panel.matrix.correlation.x-heatmap.cell.0.0",
+                      "panel.matrix.correlation.x-heatmap.cell.0.1",
+                      "panel.matrix.correlation.x-heatmap.cell.0.2",
+                      "panel.matrix.correlation.x-heatmap.cell.1.0",
+                      "panel.matrix.correlation.x-heatmap.cell.1.1",
+                      "panel.matrix.correlation.x-heatmap.cell.1.2",
+                      "panel.matrix.correlation.x-heatmap.cell.2.0",
+                      "panel.matrix.correlation.x-heatmap.cell.2.1",
+                      "panel.matrix.correlation.x-heatmap.cell.2.2"
+                    ],
+                    "role": "group"
+                  }
+                ],
+                "id": "panel.matrix.correlation",
+                "kind": "container",
+                "role": "series"
+              }
+            ],
+            "id": "panel.matrix.plot-area",
+            "kind": "container",
+            "role": "plot-area"
+          },
+          {
+            "kind": "text",
+            "ref": "panel.matrix.figure.title"
+          },
+          {
+            "children": [
+              {
+                "ref": "panel.matrix.colorbar.correlation.label"
+              },
+              {
+                "ref": "panel.matrix.colorbar.correlation.outline"
+              },
+              {
+                "ref": "panel.matrix.colorbar.correlation.tick-label.0"
+              },
+              {
+                "ref": "panel.matrix.colorbar.correlation.tick-label.1"
+              },
+              {
+                "ref": "panel.matrix.colorbar.correlation.tick-label.2"
+              },
+              {
+                "ref": "panel.matrix.colorbar.correlation.tick-label.3"
+              },
+              {
+                "ref": "panel.matrix.colorbar.correlation.tick-label.4"
+              },
+              {
+                "ref": "panel.matrix.colorbar.correlation.tick-label.5"
+              },
+              {
+                "ref": "panel.matrix.colorbar.correlation.solids"
+              }
+            ],
+            "id": "panel.matrix.colorbar.correlation",
+            "kind": "container",
+            "role": "colorbar"
+          }
+        ],
+        "id": "panel.matrix",
+        "kind": "container",
+        "label": "matrix",
+        "role": "panel"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "axis": "x",
+                "children": [
+                  {
+                    "kind": "line",
+                    "ref": "panel.contours.axis.x.spine"
+                  },
+                  {
+                    "kind": "line",
+                    "ref": "panel.contours.axis.x.spine-2"
+                  },
+                  {
+                    "groupRole": "tick",
+                    "id": "panel.contours.axis.x.ticks",
+                    "kind": "line",
+                    "members": [
+                      "panel.contours.axis.x.tick.0",
+                      "panel.contours.axis.x.tick.1",
+                      "panel.contours.axis.x.tick.2"
+                    ],
+                    "role": "group"
+                  },
+                  {
+                    "groupRole": "tick-label",
+                    "id": "panel.contours.axis.x.tick-labels",
+                    "kind": "text",
+                    "members": [
+                      "panel.contours.axis.x.ticklabel.0",
+                      "panel.contours.axis.x.ticklabel.1",
+                      "panel.contours.axis.x.ticklabel.2"
+                    ],
+                    "role": "group"
+                  }
+                ],
+                "id": "panel.contours.axis.x",
+                "kind": "container",
+                "role": "axis"
+              },
+              {
+                "axis": "y",
+                "children": [
+                  {
+                    "kind": "line",
+                    "ref": "panel.contours.axis.y.spine"
+                  },
+                  {
+                    "kind": "line",
+                    "ref": "panel.contours.axis.y.spine-2"
+                  },
+                  {
+                    "groupRole": "tick",
+                    "id": "panel.contours.axis.y.ticks",
+                    "kind": "line",
+                    "members": [
+                      "panel.contours.axis.y.tick.0",
+                      "panel.contours.axis.y.tick.1",
+                      "panel.contours.axis.y.tick.2",
+                      "panel.contours.axis.y.tick.3",
+                      "panel.contours.axis.y.tick.4"
+                    ],
+                    "role": "group"
+                  },
+                  {
+                    "groupRole": "tick-label",
+                    "id": "panel.contours.axis.y.tick-labels",
+                    "kind": "text",
+                    "members": [
+                      "panel.contours.axis.y.ticklabel.0",
+                      "panel.contours.axis.y.ticklabel.1",
+                      "panel.contours.axis.y.ticklabel.2",
+                      "panel.contours.axis.y.ticklabel.3",
+                      "panel.contours.axis.y.ticklabel.4"
+                    ],
+                    "role": "group"
+                  }
+                ],
+                "id": "panel.contours.axis.y",
+                "kind": "container",
+                "role": "axis"
+              },
+              {
+                "children": [
+                  {
+                    "groupRole": "x-contourf",
+                    "id": "panel.contours.energy.x-contourf",
+                    "members": [
+                      "panel.contours.energy.x-contourf.level.0",
+                      "panel.contours.energy.x-contourf.level.1",
+                      "panel.contours.energy.x-contourf.level.2",
+                      "panel.contours.energy.x-contourf.level.3"
+                    ],
+                    "role": "group"
+                  }
+                ],
+                "id": "panel.contours.energy",
+                "kind": "container",
+                "role": "series"
+              }
+            ],
+            "id": "panel.contours.plot-area",
+            "kind": "container",
+            "role": "plot-area"
+          },
+          {
+            "kind": "text",
+            "ref": "panel.contours.figure.title"
+          },
+          {
+            "children": [
+              {
+                "ref": "panel.contours.colorbar.energy.label"
+              },
+              {
+                "ref": "panel.contours.colorbar.energy.outline"
+              },
+              {
+                "ref": "panel.contours.colorbar.energy.tick-label.0"
+              },
+              {
+                "ref": "panel.contours.colorbar.energy.tick-label.1"
+              },
+              {
+                "ref": "panel.contours.colorbar.energy.tick-label.2"
+              },
+              {
+                "ref": "panel.contours.colorbar.energy.tick-label.3"
+              },
+              {
+                "ref": "panel.contours.colorbar.energy.tick-label.4"
+              },
+              {
+                "ref": "panel.contours.colorbar.energy.solids"
+              }
+            ],
+            "id": "panel.contours.colorbar.energy",
+            "kind": "container",
+            "role": "colorbar"
+          }
+        ],
+        "id": "panel.contours",
+        "kind": "container",
+        "label": "contours",
+        "role": "panel"
+      }
+    ],
+    "id": "figure",
+    "kind": "container",
+    "role": "figure"
+  },
+  "plotType": "heatmap",
+  "schemaVersion": "0.3.0",
+  "series": [
+    {
+      "capabilities": {
+        "dataMorph": false
+      },
+      "components": [
+        {
+          "members": [
+            "panel.matrix.correlation.x-heatmap.cell.0.0",
+            "panel.matrix.correlation.x-heatmap.cell.0.1",
+            "panel.matrix.correlation.x-heatmap.cell.0.2",
+            "panel.matrix.correlation.x-heatmap.cell.1.0",
+            "panel.matrix.correlation.x-heatmap.cell.1.1",
+            "panel.matrix.correlation.x-heatmap.cell.1.2",
+            "panel.matrix.correlation.x-heatmap.cell.2.0",
+            "panel.matrix.correlation.x-heatmap.cell.2.1",
+            "panel.matrix.correlation.x-heatmap.cell.2.2"
+          ],
+          "role": "x-heatmap",
+          "svgId": "panel.matrix.correlation.x-heatmap"
+        }
+      ],
+      "data": {},
+      "field": {
+        "cmap": "viridis",
+        "controlKey": "panel.matrix.correlation",
+        "grid": {
+          "x": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "y": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "kind": "heatmap",
+        "maskedIndices": [
+          5
+        ],
+        "missingColor": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "normalization": {
+          "clip": false,
+          "kind": "Normalize",
+          "vmax": 1.0,
+          "vmin": 0.0
+        },
+        "overColor": [
+          0.993248,
+          0.906157,
+          0.143936,
+          1.0
+        ],
+        "shape": [
+          3,
+          3
+        ],
+        "underColor": [
+          0.267004,
+          0.004874,
+          0.329415,
+          1.0
+        ],
+        "values": [
+          [
+            1.0,
+            0.2,
+            0.3
+          ],
+          [
+            0.2,
+            1.0,
+            null
+          ],
+          [
+            0.3,
+            0.6,
+            1.0
+          ]
+        ]
+      },
+      "id": "panel.matrix.correlation",
+      "kind": "heatmap",
+      "name": "correlation",
+      "panelId": "panel.matrix",
+      "roles": [
+        "x-heatmap"
+      ],
+      "svg": {
+        "x-heatmap": "panel.matrix.correlation.x-heatmap"
+      }
+    },
+    {
+      "capabilities": {
+        "dataMorph": false
+      },
+      "components": [
+        {
+          "members": [
+            "panel.contours.energy.x-contourf.level.0",
+            "panel.contours.energy.x-contourf.level.1",
+            "panel.contours.energy.x-contourf.level.2",
+            "panel.contours.energy.x-contourf.level.3"
+          ],
+          "role": "x-contourf",
+          "svgId": "panel.contours.energy.x-contourf"
+        }
+      ],
+      "data": {},
+      "field": {
+        "cmap": "plasma",
+        "controlKey": "panel.contours.energy",
+        "extend": "neither",
+        "grid": {
+          "x": [
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ],
+            [
+              -2.0,
+              -1.7142857142857144,
+              -1.4285714285714286,
+              -1.1428571428571428,
+              -0.8571428571428572,
+              -0.5714285714285716,
+              -0.2857142857142858,
+              0.0,
+              0.2857142857142856,
+              0.5714285714285712,
+              0.8571428571428568,
+              1.1428571428571428,
+              1.4285714285714284,
+              1.714285714285714,
+              2.0
+            ]
+          ],
+          "y": [
+            [
+              -2.0,
+              -2.0,
+              -2.0,
+              -2.0,
+              -2.0,
+              -2.0,
+              -2.0,
+              -2.0,
+              -2.0,
+              -2.0,
+              -2.0,
+              -2.0,
+              -2.0,
+              -2.0,
+              -2.0
+            ],
+            [
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144,
+              -1.7142857142857144
+            ],
+            [
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286,
+              -1.4285714285714286
+            ],
+            [
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428,
+              -1.1428571428571428
+            ],
+            [
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572,
+              -0.8571428571428572
+            ],
+            [
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716,
+              -0.5714285714285716
+            ],
+            [
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858,
+              -0.2857142857142858
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856,
+              0.2857142857142856
+            ],
+            [
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712,
+              0.5714285714285712
+            ],
+            [
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568,
+              0.8571428571428568
+            ],
+            [
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428,
+              1.1428571428571428
+            ],
+            [
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284,
+              1.4285714285714284
+            ],
+            [
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714,
+              1.714285714285714
+            ],
+            [
+              2.0,
+              2.0,
+              2.0,
+              2.0,
+              2.0,
+              2.0,
+              2.0,
+              2.0,
+              2.0,
+              2.0,
+              2.0,
+              2.0,
+              2.0,
+              2.0,
+              2.0
+            ]
+          ]
+        },
+        "kind": "contourf",
+        "levels": [
+          0.0,
+          1.0,
+          3.0,
+          5.0,
+          8.0
+        ],
+        "maskedIndices": [],
+        "missingColor": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "normalization": {
+          "clip": false,
+          "kind": "Normalize",
+          "vmax": 8.0,
+          "vmin": 0.0
+        },
+        "overColor": [
+          0.940015,
+          0.975158,
+          0.131326,
+          1.0
+        ],
+        "shape": [
+          15,
+          15
+        ],
+        "underColor": [
+          0.050383,
+          0.029803,
+          0.527975,
+          1.0
+        ]
+      },
+      "id": "panel.contours.energy",
+      "kind": "contourf",
+      "name": "energy",
+      "panelId": "panel.contours",
+      "roles": [
+        "x-contourf"
+      ],
+      "svg": {
+        "x-contourf": "panel.contours.energy.x-contourf"
+      }
+    }
+  ],
+  "size": {
+    "height": 172.79999999999998,
+    "unit": "pt",
+    "width": 360.0
+  },
+  "spec": "fluxplot/manifest",
+  "svg": "fields.svg"
+}

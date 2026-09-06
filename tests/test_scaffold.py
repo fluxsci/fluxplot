@@ -38,7 +38,7 @@ def test_scaffold_tags_and_groups(tmp_path):
     assert 'data-axis="x"' in svg and 'data-axis="y"' in svg
 
     man = json.load(open(res.manifest))
-    assert man["schemaVersion"].startswith("0.2")
+    assert man["schemaVersion"] == fp.SPEC_VERSION
 
     groups = _groups(man["parts"], [])
     roles = {g["groupRole"] for g in groups}

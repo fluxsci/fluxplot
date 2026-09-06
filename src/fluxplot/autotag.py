@@ -43,21 +43,6 @@ def _public_label(artist) -> str | None:
     return lab
 
 
-def _float_list(seq):
-    try:
-        return [float(v) for v in seq]
-    except (TypeError, ValueError):  # datetime/categorical raw data — no exact float claim
-        return None
-
-
-def _line_xy(ln):
-    gx, gy = ln.get_data()
-    fx, fy = _float_list(gx), _float_list(gy)
-    if fx is None or fy is None:
-        return None, None  # promote identity without a one-sided spatial claim
-    return fx, fy
-
-
 def _finite_offsets(coll):
     """Exact Nx2 finite offsets, or None (masked/non-finite would shift per-point indices)."""
     off = coll.get_offsets()
@@ -70,33 +55,8 @@ def _finite_offsets(coll):
 
 
 def extract_xy(artist):
-    """Exact x/y for a supported artist via the same adapters promotion uses, else (None, None).
-
-    Used by :func:`fluxplot.tag` when the caller omits ``x``/``y``: a supported artist's
-    coordinates are read from the artist itself; anything else stays honestly absent.
-    """
-    from matplotlib.collections import PathCollection, PolyCollection
-    from matplotlib.lines import Line2D
-
-    if isinstance(artist, Line2D):
-        return _line_xy(artist)
-    if isinstance(artist, PathCollection) and not isinstance(artist, PolyCollection):
-        arr = _finite_offsets(artist)
-        if arr is not None:
-            return [float(v) for v in arr[:, 0]], [float(v) for v in arr[:, 1]]
-    return None, None
-
-
-def _bar_centers_heights(container):
-    """Bar centers along the category axis + bar lengths, honoring orientation."""
-    patches = list(container.patches)
-    if getattr(container, "orientation", "vertical") == "horizontal":
-        centers = [float(p.get_y() + p.get_height() / 2.0) for p in patches]
-        lengths = [float(p.get_width()) for p in patches]
-        return lengths, centers  # x = value extent, y = category center
-    centers = [float(p.get_x() + p.get_width() / 2.0) for p in patches]
-    lengths = [float(p.get_height()) for p in patches]
-    return centers, lengths
+    from .data import artist_xy
+    return artist_xy(artist)
 
 
 def promote_labeled(fig, reg) -> list[str]:
@@ -168,10 +128,10 @@ def promote_labeled(fig, reg) -> list[str]:
             continue
         capture = {"capture": dict(AUTO_CAPTURE)}
         if adapter == "line":
-            fx, fy = _line_xy(art)
+            fx, fy = extract_xy(art)
             reg.add(
                 Mark(role="line", series=lab, kind="line", x=fx, y=fy, label=lab,
-                     artists=[art], data=capture)
+                     artists=[art], live_data=True, data=capture)
             )
         elif adapter == "point":
             arr = _finite_offsets(art)
@@ -187,16 +147,18 @@ def promote_labeled(fig, reg) -> list[str]:
             reg.add(
                 Mark(role="point", series=lab, kind="scatter",
                      x=[float(v) for v in arr[:, 0]], y=[float(v) for v in arr[:, 1]],
-                     label=lab, artists=[art], indexed=True, data=capture)
+                     label=lab, artists=[art], indexed=True, live_data=True, data=capture)
             )
         elif adapter == "area":
             # exact fill geometry lives in the SVG; the original y1/y2 vectors are not
             # recoverable from the artist, and we do not invent them
-            reg.add(Mark(role="area", series=lab, kind="area", label=lab, artists=[art], data=capture))
+            reg.add(Mark(role="area", series=lab, kind="area", label=lab, artists=[art], live_data=True, data=capture))
         elif adapter == "bar":
-            cx, cy = _bar_centers_heights(art)
+            from .data import bar_data
+            cx, cy, bar = bar_data(art.patches, getattr(art, "orientation", "vertical"))
+            capture["bar"] = bar
             reg.add(
                 Mark(role="bar", series=lab, kind="bar", x=cx, y=cy, label=lab,
-                     artists=list(art.patches), indexed=True, data=capture)
+                     artists=list(art.patches), indexed=True, live_data=True, data=capture)
             )
     return notes

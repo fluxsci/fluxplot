@@ -24,12 +24,15 @@ class Mark:
     y: Optional[Sequence[float]] = None
     artists: list = field(default_factory=list)  # mpl artist(s) this Mark draws (strong refs)
     indexed: bool = False  # True for point/bar groups → addressable per-index members
+    live_data: bool = False  # refresh public artist data at save time
+    axes: Any = None  # owning axes, captured before an artist can be detached
     split_use: bool = False  # True when one artist renders N <use> to split in post-process
     data: dict = field(default_factory=dict)  # extra identity (p, between, yerr, label_artist, …)
 
     # Resolved at save() time:
     gid: Optional[str] = None  # the group/primary id
     member_gids: list = field(default_factory=list)  # per-index member ids (bars), or per-point ids
+    member_indices: list = field(default_factory=list)
 
 
 @dataclass
@@ -42,6 +45,8 @@ class GuideTag:
     text: Optional[str] = None  # for axis-title / tick-label text content
     index: Optional[int] = None  # per-index guides (gridline/tick/ticklabel/legend-entry)
     series: Optional[str] = None  # series this guide belongs to (legend swatch/label)
+    data: dict = field(default_factory=dict)
+    virtual: bool = False  # organizational guide without one SVG wrapper
     kind: Optional[str] = None  # data-kind hint (text|line|shape|container); auto-derived from role
 
     def __post_init__(self) -> None:

@@ -8,6 +8,8 @@ the figure). ``resolve_gids`` turns Marks into deterministic SVG ids (``artist.s
 from __future__ import annotations
 
 import weakref
+from dataclasses import replace
+from contextlib import contextmanager
 
 from . import ids as _ids
 from .descriptors import GuideTag, Mark, artist_kind
@@ -22,12 +24,14 @@ class Registry:
         self._series_slugs: dict[str, str] = {}
 
     def add(self, mark: Mark) -> Mark:
+        if mark.axes is None and mark.artists:
+            mark.axes = getattr(mark.artists[0], "axes", None)
         # Two DIFFERENT series names normalizing to one slug would silently produce
         # order-dependent "-2" ids — a safety net, not durable identity (plan §7). Fail at
         # registration, where the traceback points at the user's own call site.
         if mark.series is not None:
             slug = _ids.series_root(mark.series)
-            first = self._series_slugs.setdefault(slug, str(mark.series))
+            first = self._series_slugs.setdefault((mark.axes, slug), str(mark.series))
             if first != str(mark.series):
                 raise ValueError(
                     f"series name {str(mark.series)!r} collides with {first!r}: both normalize "
@@ -44,15 +48,43 @@ class Registry:
 
 
 def registry_for(fig) -> Registry:
-    reg = _REGISTRIES.get(fig)
+    reg = getattr(fig, "_fluxplot_registry", None)
     if reg is None:
         reg = Registry()
-        _REGISTRIES[fig] = reg
+        fig._fluxplot_registry = reg
+        _REGISTRIES[fig] = weakref.ref(reg)
     return reg
 
 
 def clear(fig) -> None:
     _REGISTRIES.pop(fig, None)
+    if hasattr(fig, "_fluxplot_registry"):
+        del fig._fluxplot_registry
+
+
+def snapshot(fig):
+    from .data import refresh
+    reg = Registry()
+    for original in registry_for(fig).marks:
+        mark = replace(original, artists=list(original.artists), data=dict(original.data),
+                       member_gids=[], member_indices=[])
+        refresh(mark)
+        reg.add(mark)
+    return reg
+
+
+@contextmanager
+def temporary_gids(fig, reg):
+    artists = {id(a): a for a in fig.findobj()}
+    for m in reg.marks:
+        for a in m.artists:
+            artists[id(a)] = a
+    before = [(a, a.get_gid()) for a in artists.values()]
+    try:
+        yield
+    finally:
+        for a, gid in before:
+            a.set_gid(gid)
 
 
 def fig_of(artist):
@@ -75,6 +107,7 @@ def resolve_gids(reg: Registry, alloc: "_ids.IdAllocator") -> None:
         # reset resolved fields so re-saving the same figure is idempotent
         m.gid = None
         m.member_gids = []
+        m.member_indices = []
         m.split_use = False
         if m.series is not None:
             _resolve_series_mark(m, alloc)
@@ -84,12 +117,19 @@ def resolve_gids(reg: Registry, alloc: "_ids.IdAllocator") -> None:
 
 def _resolve_series_mark(m: Mark, alloc: "_ids.IdAllocator") -> None:
     series = m.series
-    if m.role == "point":
+    if m.data.get('contour_legacy'):
+        m.gid = alloc.take(_ids.series_id(series, m.role))
+        for i, art in enumerate(m.artists):
+            gid = m.gid + f'.level.{i}'
+            art.set_gid(gid)
+            m.member_gids.append(gid)
+    elif m.role == "point":
         m.gid = alloc.take(_ids.series_id(series, "points"))
         m.artists[0].set_gid(m.gid)
         m.split_use = True
-        n = len(m.y) if m.y is not None else 0
-        m.member_gids = [alloc.take(_ids.series_id(series, "point", k)) for k in range(n)]
+        from .data import point_indices
+        m.member_indices = point_indices(m)
+        m.member_gids = [alloc.take(_ids.series_id(series, "point", k)) for k in m.member_indices]
     elif m.role == "bar":
         for k, art in enumerate(m.artists):
             cid = alloc.take(_ids.series_id(series, "bar", k))
@@ -138,12 +178,24 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
     """
     guides: list[GuideTag] = []
 
-    for which, mpl_axis in (("x", ax.xaxis), ("y", ax.yaxis)):
+    axes = [("x", ax.xaxis), ("y", ax.yaxis)]
+    is3d = getattr(ax, "name", None) == "3d"
+    if is3d:
+        axes.append(("z", ax.zaxis))
+    for which, mpl_axis in axes:
         # the WHOLE axis as a real <g id="axis.x"> wrapper, so the manifest's axis ref
         # resolves and "hide the entire X axis" targets one element.
         axis_gid = alloc.take(_ids.axis_id(which))
-        mpl_axis.set_gid(axis_gid)
-        guides.append(GuideTag(gid=axis_gid, role="axis", axis=which))
+        # Axes3D draws one Axis through three separate groups with the same
+        # gid. Name its actual components and use a virtual organizational axis.
+        mpl_axis.set_gid(None if is3d else axis_gid)
+        guides.append(GuideTag(gid=axis_gid, role="axis", axis=which, virtual=is3d))
+        if is3d:
+            for role, art in (("spine", mpl_axis.line), ("background", mpl_axis.pane),
+                              ("gridline", mpl_axis.gridlines)):
+                gid = alloc.take(_ids.axis_id(which, role))
+                art.set_gid(gid)
+                guides.append(GuideTag(gid=gid, role=role, axis=which))
 
         title_gid = alloc.take(_ids.axis_id(which, "title"))
         mpl_axis.label.set_gid(title_gid)
@@ -151,7 +203,7 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
             GuideTag(gid=title_gid, role="axis-title", axis=which, text=mpl_axis.label.get_text())
         )
 
-        labels = ax.get_xticklabels() if which == "x" else ax.get_yticklabels()
+        labels = mpl_axis.get_ticklabels()
         for k, lbl in enumerate(labels):
             t = lbl.get_text()
             if not t or not lbl.get_visible():

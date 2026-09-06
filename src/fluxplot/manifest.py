@@ -13,7 +13,8 @@ from .descriptors import mark_kind
 
 
 def _floats(seq):
-    return [float(v) for v in seq] if seq is not None else None
+    from .data import values
+    return values(seq)
 
 
 # Composite sub-part roles → the plural series-svg key listing every member. An errorbar/box/
@@ -83,7 +84,18 @@ def build_manifest(
         roles = sorted({m.role for m in marks})
         kinds: dict = {}
         composite_members: dict[str, list] = {}
+        components = []
         for m in marks:
+            actual = [g for g in m.member_gids or ([m.gid] if m.gid else []) if _keep(g)]
+            if m.data.get('field_members') and _keep(m.gid):
+                components.append({'role': m.role, 'svgId': m.gid,
+                                   'members': [g for g in m.data['field_members'] if _keep(g)]})
+            elif m.role == "point" and _keep(m.gid):
+                components.append({"role": "point", "svgId": m.gid, "members": actual})
+            else:
+                components.extend({"role": m.role, "svgId": g} for g in actual)
+            if not actual and not _keep(m.gid):
+                continue
             kind = kind or m.kind
             label = label or m.label
             if m.role not in kinds:
@@ -94,16 +106,16 @@ def build_manifest(
                 data = {"x": _floats(m.x), "y": _floats(m.y)}
             if m.role == "line":
                 if _keep(m.gid):
-                    svg["line"] = m.gid
+                    svg.setdefault("line", m.gid)
             elif m.role == "point":
                 if _keep(m.gid):
-                    svg["points"] = m.gid
-                points = [
+                    svg.setdefault("points", m.gid)
+                points = (points or []) + [
                     {
-                        "index": k,
+                        "index": m.member_indices[k],
                         "svgId": m.member_gids[k],
-                        "x": float(m.x[k]),
-                        "y": float(m.y[k]),
+                        "x": m.x[m.member_indices[k]],
+                        "y": m.y[m.member_indices[k]],
                     }
                     for k in range(len(m.member_gids))
                     if _keep(m.member_gids[k])
@@ -111,7 +123,7 @@ def build_manifest(
             elif m.role == "bar":
                 bars = [g for g in m.member_gids if _keep(g)]
                 if bars:
-                    svg["bars"] = bars
+                    svg.setdefault("bars", []).extend(bars)
             elif m.role in COMPOSITE_ROLES:
                 if _keep(m.gid) and m.role not in svg:
                     svg[m.role] = m.gid  # primary ref stays (compat); first mark wins
@@ -119,7 +131,7 @@ def build_manifest(
                     g for g in m.member_gids if _keep(g)
                 )
             elif _keep(m.gid):
-                svg[m.role] = m.gid
+                svg.setdefault(m.role, m.gid)
         for crole, members in composite_members.items():
             if members:
                 svg[COMPOSITE_ROLES[crole]] = members
@@ -127,6 +139,13 @@ def build_manifest(
         # tagged role so `kind` is always a string (Flux's validator rejects null).
         if kind is None:
             kind = marks[0].role
+        if not svg:
+            continue
+        datasets = [(m.x, m.y) for m in marks if m.x is not None and _keep(m.gid)]
+        if (datasets and any(pair != datasets[0] for pair in datasets[1:])) or sum(m.role == 'point' for m in marks) > 1:
+            # Several components may share one semantic series while depicting
+            # different observations. Keep part identity without one false data table.
+            data, points = {}, None
         entry = {
             "id": _ids.series_root(series),
             "name": str(series),
@@ -134,12 +153,31 @@ def build_manifest(
             "roles": roles,
             "svg": svg,
             "data": data,
+            "components": components,
         }
+        for field in ("bar", "band", "uncertainty", "field"):
+            payload = next((m.data[field] for m in marks if m.data.get(field)), None)
+            if payload is not None:
+                entry[field] = payload
+        ordinary = all(m.role in ('line', 'point') for m in marks)
+        ordinary = ordinary and len([m for m in marks if m.role == 'line']) <= 1
+        ordinary = ordinary and len([m for m in marks if m.role == 'point']) <= 1
+        for m in marks:
+            for a in m.artists:
+                if hasattr(a, 'get_drawstyle') and a.get_drawstyle() != 'default': ordinary = False
+                if getattr(getattr(a, 'axes', None), 'name', None) not in (None, 'rectilinear'): ordinary = False
+                if hasattr(a, 'get_transform') and m.axes is not None and a.get_transform() != m.axes.transData:
+                    # Collections carry data through their offset transform.
+                    if not hasattr(a, 'get_offset_transform') or a.get_offset_transform() != m.axes.transData:
+                        ordinary = False
+        entry['capabilities'] = {'dataMorph': bool(ordinary and data and
+            not any(c['svgId'] in rasterized for c in components) and
+            (svg.get('line') or points))}
         if label:
             entry["label"] = label
         if points:
             entry["points"] = points
-        if any(g in rasterized for g in svg.values() if isinstance(g, str)):
+        if any(c["svgId"] in rasterized for c in components):
             entry["rasterized"] = True
         # additive provenance for auto-promoted series: how identity/data were captured
         # (identity=artist-label, data=artist — see autotag.py)
@@ -180,7 +218,7 @@ def build_manifest(
     legend_present = any(g.role == "legend" for g in guides)
     for g in guides:
         if g.role == "axis":
-            guide_entries.append({"id": g.gid, "svgId": g.gid, "role": "axis", "axis": g.axis})
+            guide_entries.append({"id": g.gid, **({} if g.virtual else {"svgId": g.gid}), "role": "axis", "axis": g.axis})
     if legend_present:
         # entry ↔ series joined by exact, UNIQUE label text — positional order is not
         # identity (plan §7). An entry whose text matches no series label (or an ambiguous
@@ -216,8 +254,17 @@ def build_manifest(
             entries.append(e)
         guide_entries.append({"id": "legend", "svgId": "legend", "role": "legend", "entries": entries})
 
+    for g in guides:
+        if g.role == 'colorbar':
+            payload = dict(g.data)
+            payload['parts'] = [part for part in payload.get('parts', []) if _keep(part['svgId'])]
+            if not _keep(payload.get('mappable')): payload.pop('mappable', None)
+            guide_entries.append({'id': g.gid, 'svgId': g.gid, 'role': g.role, **payload})
+
     overlay_entries = []
     for m in overlays:
+        if not _keep(m.gid):
+            continue
         oe = {"id": m.gid, "svgId": m.gid, "role": m.role}
         mk = mark_kind(m)
         if mk is not None:
@@ -253,6 +300,10 @@ def build_manifest(
         series_entries, axes_parts, legend_entries, figure_titles, overlay_entries,
         legend_present, extra_entries, series_kinds,
     )
+    for guide in guide_entries:
+        if guide['role'] == 'colorbar':
+            parts['children'].append({'id': guide['id'], 'role': 'colorbar', 'kind': 'container',
+                'children': [_ref(p['svgId']) for p in guide.get('parts', [])]})
     build = _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles, extra_entries)
 
     out = {
@@ -299,7 +350,7 @@ def _organize_guides(guides):
             axes.setdefault(g.axis, {}).setdefault("ticks", []).append(g.gid)
         elif g.role == "gridline":
             axes.setdefault(g.axis, {}).setdefault("gridlines", []).append(g.gid)
-        elif g.role == "spine":
+        elif g.role in ("spine", "background"):
             axes.setdefault(g.axis, {}).setdefault("spines", []).append(g.gid)
         elif g.role == "legend-swatch":
             legend_entries.setdefault(g.index, {})["swatch"] = g.gid
@@ -344,7 +395,7 @@ def _build_parts_tree(
     plot_children = []
 
     # axes → real <g id="axis.x"> nodes, each with spine + grouped ticks/labels/gridlines + title
-    for which in ("x", "y"):
+    for which in ("x", "y", "z"):
         ap = axes_parts.get(which)
         if not ap:
             continue
@@ -374,39 +425,22 @@ def _build_parts_tree(
     # x-stem, x-trajectory, x-contour, …) so every drawn series part is addressable
     # and no series becomes a childless phantom node.
     for s in series_entries:
-        svg = s["svg"]
         kinds = series_kinds.get(s["id"], {})
         kids = []
-        if "line" in svg:
-            kids.append(_ref(svg["line"], kinds.get("line", _roles.kind_for_role("line"))))
-        if "points" in svg:
-            members = [p["svgId"] for p in s.get("points", [])]
-            kids.append(
-                _group(svg["points"], "point", members)
-                if members
-                else _ref(svg["points"], _roles.kind_for_role("point"))
-            )
-        if svg.get("bars"):
-            kids.append(_group(f'{s["id"]}.bars', "bar", svg["bars"]))
-        # one group node per composite role (errorbars/whiskers/caps/medians/fliers/means/
-        # segments): every statistic addressable individually AND as a group
-        for crole, plural in COMPOSITE_ROLES.items():
-            if svg.get(plural):
-                kids.append(_group(f'{s["id"]}.{plural}', crole, svg[plural]))
-        plurals = set(COMPOSITE_ROLES.values())
-        for role, val in svg.items():
-            if role in ("line", "points", "bars") or role in plurals:
-                continue
-            if role in COMPOSITE_ROLES and svg.get(COMPOSITE_ROLES[role]):
-                continue  # already covered by its composite group (avoid a duplicate ref)
-            k = kinds.get(role, _roles.kind_for_role(role))
-            if isinstance(val, list):
-                grp = _group(f'{s["id"]}.{role}', role, val)
-                if k is not None and "kind" not in grp:
-                    grp["kind"] = k
-                kids.append(grp)
+        by_role = {}
+        for component in s["components"]:
+            by_role.setdefault(component["role"], []).append(component)
+        for role, components in by_role.items():
+            kind = kinds.get(role, _roles.kind_for_role(role))
+            if role == "point" or any(c.get("members") for c in components):
+                for c in components:
+                    kids.append(_group(c["svgId"], role, c["members"]) if c.get("members")
+                                else _ref(c["svgId"], kind))
+            elif role == "bar" or role in COMPOSITE_ROLES or len(components) > 1:
+                plural = "bars" if role == "bar" else COMPOSITE_ROLES.get(role, role + "-parts")
+                kids.append(_group(s["id"] + "." + plural, role, [c["svgId"] for c in components]))
             else:
-                kids.append(_ref(val, k))
+                kids.append(_ref(components[0]["svgId"], kind))
         plot_children.append({"id": s["id"], "role": "series", "kind": "container", "children": kids})
 
     for o in overlay_entries:
@@ -443,24 +477,16 @@ def _build_order(series_entries, guide_entries, overlay_entries, reg, figure_tit
     order = []
     for g in guide_entries:
         if g["role"] == "axis":
-            order.append(g["svgId"])
+            order.append(g.get("svgId", g["id"]))
+    order.extend(g['svgId'] for g in guide_entries if g['role'] == 'colorbar')
     order.extend(figure_titles)  # titles reveal with the axes (phase 0)
     order.append("gridlines")
+    # Use the same component inventory as the tree. Unknown/extension roles are
+    # ordinary drawable parts, not exceptions silently excluded from animation.
     for s in series_entries:
-        if "line" in s["svg"]:
-            order.append(s["svg"]["line"])
+        order.extend(c["svgId"] for c in s["components"] if c["role"] == "line")
     for s in series_entries:
-        if "points" in s["svg"]:
-            order.append(s["svg"]["points"])
-        if "bars" in s["svg"]:
-            order.extend(s["svg"]["bars"])
-        # bodies first, then composite statistics — every sub-part reveals, like bars
-        for key in ("area", "box", "violin", "errorbar", "whisker", "cap", "median", "flier", "mean", "segment"):
-            plural = COMPOSITE_ROLES.get(key)
-            if plural and s["svg"].get(plural):
-                order.extend(s["svg"][plural])
-            elif key in s["svg"]:
-                order.append(s["svg"][key])
+        order.extend(c["svgId"] for c in s["components"] if c["role"] != "line")
     if any(g["role"] == "legend" for g in guide_entries):
         order.append("legend")
     for o in overlay_entries:
@@ -471,4 +497,4 @@ def _build_order(series_entries, guide_entries, overlay_entries, reg, figure_tit
     roles_present = {m.role for m in reg.marks} | {"axis", "gridline"}
     if extra_entries:
         roles_present.add("extra")
-    return {"order": order, "presets": _presets.presets_for(sorted(roles_present))}
+    return {"order": list(dict.fromkeys(order)), "presets": _presets.presets_for(sorted(roles_present))}

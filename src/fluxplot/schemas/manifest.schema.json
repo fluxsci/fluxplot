@@ -1,48 +1,106 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://flux.dev/schemas/fluxplot-manifest-0.1.0.json",
+  "$id": "https://flux.dev/schemas/fluxplot-manifest-0.3.0.json",
   "title": "FluxPlot manifest",
   "type": "object",
-  "required": ["spec", "schemaVersion", "plotType", "svg", "size", "axes", "series", "parts", "build"],
+  "required": [
+    "spec",
+    "schemaVersion",
+    "plotType",
+    "svg",
+    "size",
+    "axes",
+    "series",
+    "parts",
+    "build"
+  ],
   "properties": {
-    "spec": { "const": "fluxplot/manifest" },
-    "schemaVersion": { "type": "string" },
+    "spec": {
+      "const": "fluxplot/manifest"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
     "generator": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "version": { "type": "string" },
-        "matplotlib": { "type": "string" }
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "matplotlib": {
+          "type": "string"
+        }
       }
     },
-    "plotType": { "type": "string" },
-    "svg": { "type": "string" },
+    "plotType": {
+      "type": "string"
+    },
+    "svg": {
+      "type": "string"
+    },
     "artifact": {
       "type": "object",
       "properties": {
-        "svgSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        "svgSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
       }
     },
     "size": {
       "type": "object",
-      "required": ["width", "height", "unit"],
+      "required": [
+        "width",
+        "height",
+        "unit"
+      ],
       "properties": {
-        "width": { "type": "number" },
-        "height": { "type": "number" },
-        "unit": { "type": "string" }
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "unit": {
+          "type": "string"
+        }
       }
     },
     "axes": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["x", "y"],
+        "required": [
+          "x",
+          "y"
+        ],
         "properties": {
-          "id": { "type": "string" },
-          "svgId": { "type": "string" },
-          "x": { "$ref": "#/$defs/axis" },
-          "y": { "$ref": "#/$defs/axis" },
-          "pixelBox": { "type": "object" }
+          "id": {
+            "type": "string"
+          },
+          "svgId": {
+            "type": "string"
+          },
+          "x": {
+            "$ref": "#/$defs/axis"
+          },
+          "y": {
+            "$ref": "#/$defs/axis"
+          },
+          "pixelBox": {
+            "type": "object"
+          },
+          "panelId": {
+            "type": "string"
+          },
+          "projection": {
+            "type": "string"
+          }
         }
       }
     },
@@ -50,78 +108,265 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "svg"],
+        "required": [
+          "id",
+          "svg"
+        ],
         "properties": {
-          "id": { "type": "string" },
-          "name": { "type": "string" },
-          "kind": { "type": ["string", "null"] },
-          "roles": { "type": "array", "items": { "type": "string" } },
-          "svg": { "type": "object" },
-          "data": { "type": "object" },
-          "label": { "type": "string" },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "svg": {
+            "type": "object"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "y": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "label": {
+            "type": "string"
+          },
           "capture": {
             "type": "object",
             "properties": {
-              "identity": { "type": "string" },
-              "data": { "type": "string" }
+              "identity": {
+                "type": "string"
+              },
+              "data": {
+                "type": "string"
+              }
             }
           },
-          "distribution": { "type": "object" },
+          "distribution": {
+            "type": "object"
+          },
           "points": {
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["index", "svgId"],
+              "required": [
+                "index",
+                "svgId"
+              ],
               "properties": {
-                "index": { "type": "integer" },
-                "svgId": { "type": "string" },
-                "x": { "type": "number" },
-                "y": { "type": "number" }
+                "index": {
+                  "type": "integer"
+                },
+                "svgId": {
+                  "type": "string"
+                },
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "panelId": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "object",
+            "required": [
+              "dataMorph"
+            ],
+            "properties": {
+              "dataMorph": {
+                "type": "boolean"
+              }
+            }
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "role",
+                "svgId"
+              ],
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "svgId": {
+                  "type": "string"
+                },
+                "members": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
         }
       }
     },
-    "guides": { "type": "array" },
-    "overlays": { "type": "array" },
-    "parts": { "type": "object", "required": ["id", "role"] },
+    "guides": {
+      "type": "array"
+    },
+    "overlays": {
+      "type": "array"
+    },
+    "parts": {
+      "type": "object",
+      "required": [
+        "id",
+        "role"
+      ]
+    },
     "build": {
       "type": "object",
-      "required": ["order"],
+      "required": [
+        "order"
+      ],
       "properties": {
-        "order": { "type": "array", "items": { "type": "string" } },
-        "presets": { "type": "object" }
+        "order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "presets": {
+          "type": "object"
+        }
+      }
+    },
+    "panels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "svgId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "svgId": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
       }
     }
   },
   "$defs": {
     "axis": {
       "type": "object",
-      "required": ["scale", "domain", "anchors"],
+      "required": [
+        "scale",
+        "domain",
+        "anchors"
+      ],
       "properties": {
-        "scale": { "type": "string" },
-        "label": { "type": "string" },
-        "base": { "type": "number" },
+        "scale": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "base": {
+          "type": "number"
+        },
         "domain": {
           "type": "array",
-          "items": { "type": "number" },
+          "items": {
+            "type": "number"
+          },
           "minItems": 2,
           "maxItems": 2
         },
         "anchors": {
           "type": "array",
-          "minItems": 2,
+          "minItems": 0,
           "items": {
             "type": "object",
-            "required": ["data", "svg"],
+            "required": [
+              "data",
+              "svg"
+            ],
             "properties": {
-              "data": { "type": "number" },
-              "svg": { "type": "number" }
+              "data": {
+                "type": "number"
+              },
+              "svg": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "supported": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "supported": {
+                "const": true
+              }
+            },
+            "required": [
+              "supported"
+            ]
+          },
+          "then": {
+            "properties": {
+              "scale": {
+                "enum": [
+                  "linear",
+                  "log"
+                ]
+              },
+              "anchors": {
+                "minItems": 2
+              }
             }
           }
         }
-      }
+      ]
     }
   }
 }

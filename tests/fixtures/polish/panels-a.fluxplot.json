@@ -1,0 +1,689 @@
+{
+  "artifact": {
+    "svgSha256": "f04256894499fdc4bef80cff555248cc483d01e220d2e2fc2e401a71e52d5675"
+  },
+  "axes": [
+    {
+      "id": "panel.small.plot-area",
+      "panelId": "panel.small",
+      "pixelBox": {
+        "x0": 30.36274,
+        "x1": 170.63726000000005,
+        "y0": 18.118364999999983,
+        "y1": 138.79897874999997
+      },
+      "projection": "rectilinear",
+      "svgId": "panel.small.plot-area",
+      "x": {
+        "anchors": [
+          {
+            "data": -0.2,
+            "svg": 30.362739999999995
+          },
+          {
+            "data": 4.2,
+            "svg": 170.63726000000003
+          }
+        ],
+        "domain": [
+          -0.2,
+          4.2
+        ],
+        "label": "Time",
+        "scale": "linear",
+        "supported": true,
+        "ticks": [
+          {
+            "label": "−2",
+            "value": -2.0
+          },
+          {
+            "label": "0",
+            "value": 0.0
+          },
+          {
+            "label": "2",
+            "value": 2.0
+          },
+          {
+            "label": "4",
+            "value": 4.0
+          },
+          {
+            "label": "6",
+            "value": 6.0
+          }
+        ]
+      },
+      "y": {
+        "anchors": [
+          {
+            "data": 8e-07,
+            "svg": 138.79897874999997
+          },
+          {
+            "data": 5.199999999999999e-06,
+            "svg": 18.11836500000002
+          }
+        ],
+        "domain": [
+          8e-07,
+          5.199999999999999e-06
+        ],
+        "label": "Response",
+        "scale": "linear",
+        "supported": true,
+        "ticks": [
+          {
+            "label": "0",
+            "value": 0.0
+          },
+          {
+            "label": "1",
+            "value": 1e-06
+          },
+          {
+            "label": "2",
+            "value": 2e-06
+          },
+          {
+            "label": "3",
+            "value": 3e-06
+          },
+          {
+            "label": "4",
+            "value": 4e-06
+          },
+          {
+            "label": "5",
+            "value": 4.9999999999999996e-06
+          },
+          {
+            "label": "6",
+            "value": 6e-06
+          }
+        ]
+      }
+    },
+    {
+      "id": "panel.large.plot-area",
+      "panelId": "panel.large",
+      "pixelBox": {
+        "x0": 216.72524000000007,
+        "x1": 356.99976,
+        "y0": 18.118364999999983,
+        "y1": 138.79897874999997
+      },
+      "projection": "rectilinear",
+      "svgId": "panel.large.plot-area",
+      "x": {
+        "anchors": [
+          {
+            "data": -0.2,
+            "svg": 216.7252400000001
+          },
+          {
+            "data": 4.2,
+            "svg": 356.99976000000004
+          }
+        ],
+        "domain": [
+          -0.2,
+          4.2
+        ],
+        "label": "Time",
+        "scale": "linear",
+        "supported": true,
+        "ticks": [
+          {
+            "label": "−2",
+            "value": -2.0
+          },
+          {
+            "label": "0",
+            "value": 0.0
+          },
+          {
+            "label": "2",
+            "value": 2.0
+          },
+          {
+            "label": "4",
+            "value": 4.0
+          },
+          {
+            "label": "6",
+            "value": 6.0
+          }
+        ]
+      },
+      "y": {
+        "anchors": [
+          {
+            "data": 80.0,
+            "svg": 138.79897874999997
+          },
+          {
+            "data": 520.0,
+            "svg": 18.11836500000002
+          }
+        ],
+        "domain": [
+          80.0,
+          520.0
+        ],
+        "label": "Response",
+        "scale": "linear",
+        "supported": true,
+        "ticks": [
+          {
+            "label": "0",
+            "value": 0.0
+          },
+          {
+            "label": "100",
+            "value": 100.0
+          },
+          {
+            "label": "200",
+            "value": 200.0
+          },
+          {
+            "label": "300",
+            "value": 300.0
+          },
+          {
+            "label": "400",
+            "value": 400.0
+          },
+          {
+            "label": "500",
+            "value": 500.0
+          },
+          {
+            "label": "600",
+            "value": 600.0
+          }
+        ]
+      }
+    }
+  ],
+  "build": {
+    "order": [
+      "panel.small.axis.x",
+      "panel.small.axis.y",
+      "panel.small.figure.title",
+      "gridlines",
+      "panel.small.control.line",
+      "panel.small.control.points",
+      "panel.large.axis.x",
+      "panel.large.axis.y",
+      "panel.large.figure.title",
+      "panel.large.control.line",
+      "panel.large.control.points"
+    ],
+    "presets": {
+      "axis": {
+        "animation": "draw-on",
+        "durationMs": 400
+      },
+      "gridline": {
+        "animation": "fade-in",
+        "durationMs": 300
+      },
+      "line": {
+        "animation": "draw-on",
+        "durationMs": 800
+      },
+      "point": {
+        "animation": "stagger-in",
+        "durationMs": 240,
+        "staggerMs": 40
+      }
+    }
+  },
+  "generator": {
+    "matplotlib": "3.11.0",
+    "name": "fluxplot",
+    "version": "0.1.0"
+  },
+  "guides": [
+    {
+      "axis": "x",
+      "id": "panel.small.axis.x",
+      "role": "axis",
+      "svgId": "panel.small.axis.x"
+    },
+    {
+      "axis": "y",
+      "id": "panel.small.axis.y",
+      "role": "axis",
+      "svgId": "panel.small.axis.y"
+    },
+    {
+      "axis": "x",
+      "id": "panel.large.axis.x",
+      "role": "axis",
+      "svgId": "panel.large.axis.x"
+    },
+    {
+      "axis": "y",
+      "id": "panel.large.axis.y",
+      "role": "axis",
+      "svgId": "panel.large.axis.y"
+    }
+  ],
+  "overlays": [],
+  "panels": [
+    {
+      "id": "panel.small",
+      "index": 0,
+      "label": "small",
+      "svgId": "panel.small.plot-area"
+    },
+    {
+      "id": "panel.large",
+      "index": 1,
+      "label": "large",
+      "svgId": "panel.large.plot-area"
+    }
+  ],
+  "parts": {
+    "children": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "axis": "x",
+                "children": [
+                  {
+                    "kind": "line",
+                    "ref": "panel.small.axis.x.spine"
+                  },
+                  {
+                    "kind": "line",
+                    "ref": "panel.small.axis.x.spine-2"
+                  },
+                  {
+                    "groupRole": "tick",
+                    "id": "panel.small.axis.x.ticks",
+                    "kind": "line",
+                    "members": [
+                      "panel.small.axis.x.tick.1",
+                      "panel.small.axis.x.tick.2",
+                      "panel.small.axis.x.tick.3"
+                    ],
+                    "role": "group"
+                  },
+                  {
+                    "groupRole": "tick-label",
+                    "id": "panel.small.axis.x.tick-labels",
+                    "kind": "text",
+                    "members": [
+                      "panel.small.axis.x.ticklabel.1",
+                      "panel.small.axis.x.ticklabel.2",
+                      "panel.small.axis.x.ticklabel.3"
+                    ],
+                    "role": "group"
+                  },
+                  {
+                    "kind": "text",
+                    "ref": "panel.small.axis.x.title"
+                  }
+                ],
+                "id": "panel.small.axis.x",
+                "kind": "container",
+                "role": "axis"
+              },
+              {
+                "axis": "y",
+                "children": [
+                  {
+                    "kind": "line",
+                    "ref": "panel.small.axis.y.spine"
+                  },
+                  {
+                    "kind": "line",
+                    "ref": "panel.small.axis.y.spine-2"
+                  },
+                  {
+                    "groupRole": "tick",
+                    "id": "panel.small.axis.y.ticks",
+                    "kind": "line",
+                    "members": [
+                      "panel.small.axis.y.tick.1",
+                      "panel.small.axis.y.tick.2",
+                      "panel.small.axis.y.tick.3",
+                      "panel.small.axis.y.tick.4",
+                      "panel.small.axis.y.tick.5"
+                    ],
+                    "role": "group"
+                  },
+                  {
+                    "groupRole": "tick-label",
+                    "id": "panel.small.axis.y.tick-labels",
+                    "kind": "text",
+                    "members": [
+                      "panel.small.axis.y.ticklabel.1",
+                      "panel.small.axis.y.ticklabel.2",
+                      "panel.small.axis.y.ticklabel.3",
+                      "panel.small.axis.y.ticklabel.4",
+                      "panel.small.axis.y.ticklabel.5"
+                    ],
+                    "role": "group"
+                  },
+                  {
+                    "kind": "text",
+                    "ref": "panel.small.axis.y.title"
+                  }
+                ],
+                "id": "panel.small.axis.y",
+                "kind": "container",
+                "role": "axis"
+              },
+              {
+                "children": [
+                  {
+                    "kind": "line",
+                    "ref": "panel.small.control.line"
+                  },
+                  {
+                    "groupRole": "point",
+                    "id": "panel.small.control.points",
+                    "kind": "shape",
+                    "members": [
+                      "panel.small.control.point.0",
+                      "panel.small.control.point.4"
+                    ],
+                    "role": "group"
+                  }
+                ],
+                "id": "panel.small.control",
+                "kind": "container",
+                "role": "series"
+              }
+            ],
+            "id": "panel.small.plot-area",
+            "kind": "container",
+            "role": "plot-area"
+          },
+          {
+            "kind": "text",
+            "ref": "panel.small.figure.title"
+          }
+        ],
+        "id": "panel.small",
+        "kind": "container",
+        "label": "small",
+        "role": "panel"
+      },
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "axis": "x",
+                "children": [
+                  {
+                    "kind": "line",
+                    "ref": "panel.large.axis.x.spine"
+                  },
+                  {
+                    "kind": "line",
+                    "ref": "panel.large.axis.x.spine-2"
+                  },
+                  {
+                    "groupRole": "tick",
+                    "id": "panel.large.axis.x.ticks",
+                    "kind": "line",
+                    "members": [
+                      "panel.large.axis.x.tick.1",
+                      "panel.large.axis.x.tick.2",
+                      "panel.large.axis.x.tick.3"
+                    ],
+                    "role": "group"
+                  },
+                  {
+                    "groupRole": "tick-label",
+                    "id": "panel.large.axis.x.tick-labels",
+                    "kind": "text",
+                    "members": [
+                      "panel.large.axis.x.ticklabel.1",
+                      "panel.large.axis.x.ticklabel.2",
+                      "panel.large.axis.x.ticklabel.3"
+                    ],
+                    "role": "group"
+                  },
+                  {
+                    "kind": "text",
+                    "ref": "panel.large.axis.x.title"
+                  }
+                ],
+                "id": "panel.large.axis.x",
+                "kind": "container",
+                "role": "axis"
+              },
+              {
+                "axis": "y",
+                "children": [
+                  {
+                    "kind": "line",
+                    "ref": "panel.large.axis.y.spine"
+                  },
+                  {
+                    "kind": "line",
+                    "ref": "panel.large.axis.y.spine-2"
+                  },
+                  {
+                    "groupRole": "tick",
+                    "id": "panel.large.axis.y.ticks",
+                    "kind": "line",
+                    "members": [
+                      "panel.large.axis.y.tick.1",
+                      "panel.large.axis.y.tick.2",
+                      "panel.large.axis.y.tick.3",
+                      "panel.large.axis.y.tick.4",
+                      "panel.large.axis.y.tick.5"
+                    ],
+                    "role": "group"
+                  },
+                  {
+                    "groupRole": "tick-label",
+                    "id": "panel.large.axis.y.tick-labels",
+                    "kind": "text",
+                    "members": [
+                      "panel.large.axis.y.ticklabel.1",
+                      "panel.large.axis.y.ticklabel.2",
+                      "panel.large.axis.y.ticklabel.3",
+                      "panel.large.axis.y.ticklabel.4",
+                      "panel.large.axis.y.ticklabel.5"
+                    ],
+                    "role": "group"
+                  },
+                  {
+                    "kind": "text",
+                    "ref": "panel.large.axis.y.title"
+                  }
+                ],
+                "id": "panel.large.axis.y",
+                "kind": "container",
+                "role": "axis"
+              },
+              {
+                "children": [
+                  {
+                    "kind": "line",
+                    "ref": "panel.large.control.line"
+                  },
+                  {
+                    "groupRole": "point",
+                    "id": "panel.large.control.points",
+                    "kind": "shape",
+                    "members": [
+                      "panel.large.control.point.0",
+                      "panel.large.control.point.4"
+                    ],
+                    "role": "group"
+                  }
+                ],
+                "id": "panel.large.control",
+                "kind": "container",
+                "role": "series"
+              }
+            ],
+            "id": "panel.large.plot-area",
+            "kind": "container",
+            "role": "plot-area"
+          },
+          {
+            "kind": "text",
+            "ref": "panel.large.figure.title"
+          }
+        ],
+        "id": "panel.large",
+        "kind": "container",
+        "label": "large",
+        "role": "panel"
+      }
+    ],
+    "id": "figure",
+    "kind": "container",
+    "role": "figure"
+  },
+  "plotType": "line",
+  "schemaVersion": "0.3.0",
+  "series": [
+    {
+      "capabilities": {
+        "dataMorph": true
+      },
+      "components": [
+        {
+          "role": "line",
+          "svgId": "panel.small.control.line"
+        },
+        {
+          "members": [
+            "panel.small.control.point.0",
+            "panel.small.control.point.4"
+          ],
+          "role": "point",
+          "svgId": "panel.small.control.points"
+        }
+      ],
+      "data": {
+        "x": [
+          0.0,
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "y": [
+          1e-06,
+          3e-06,
+          null,
+          2e-06,
+          4.9999999999999996e-06
+        ]
+      },
+      "id": "panel.small.control",
+      "kind": "line",
+      "label": "Control",
+      "name": "control",
+      "panelId": "panel.small",
+      "points": [
+        {
+          "index": 0,
+          "svgId": "panel.small.control.point.0",
+          "x": 0.0,
+          "y": 1e-06
+        },
+        {
+          "index": 4,
+          "svgId": "panel.small.control.point.4",
+          "x": 4.0,
+          "y": 4.9999999999999996e-06
+        }
+      ],
+      "roles": [
+        "line",
+        "point"
+      ],
+      "svg": {
+        "line": "panel.small.control.line",
+        "points": "panel.small.control.points"
+      }
+    },
+    {
+      "capabilities": {
+        "dataMorph": true
+      },
+      "components": [
+        {
+          "role": "line",
+          "svgId": "panel.large.control.line"
+        },
+        {
+          "members": [
+            "panel.large.control.point.0",
+            "panel.large.control.point.4"
+          ],
+          "role": "point",
+          "svgId": "panel.large.control.points"
+        }
+      ],
+      "data": {
+        "x": [
+          0.0,
+          1.0,
+          2.0,
+          3.0,
+          4.0
+        ],
+        "y": [
+          100.0,
+          300.0,
+          null,
+          200.0,
+          500.0
+        ]
+      },
+      "id": "panel.large.control",
+      "kind": "line",
+      "label": "Control",
+      "name": "control",
+      "panelId": "panel.large",
+      "points": [
+        {
+          "index": 0,
+          "svgId": "panel.large.control.point.0",
+          "x": 0.0,
+          "y": 100.0
+        },
+        {
+          "index": 4,
+          "svgId": "panel.large.control.point.4",
+          "x": 4.0,
+          "y": 500.0
+        }
+      ],
+      "roles": [
+        "line",
+        "point"
+      ],
+      "svg": {
+        "line": "panel.large.control.line",
+        "points": "panel.large.control.points"
+      }
+    }
+  ],
+  "size": {
+    "height": 172.79999999999998,
+    "unit": "pt",
+    "width": 360.0
+  },
+  "spec": "fluxplot/manifest",
+  "svg": "panels-a.svg"
+}

@@ -1,0 +1,27 @@
+{
+  "env": null,
+  "generatedAt": "2026-09-06T00:00:00Z",
+  "inputs": [],
+  "outputs": {
+    "manifest": "fields.fluxplot.json",
+    "svg": "fields.svg"
+  },
+  "params": {
+    "__fluxplot__": {
+      "panel.contours.energy": {
+        "cmap": "plasma",
+        "vmax": 8.0,
+        "vmin": 0.0
+      },
+      "panel.matrix.correlation": {
+        "cmap": "viridis",
+        "vmax": 1.0,
+        "vmin": 0.0
+      }
+    }
+  },
+  "plot": "fields",
+  "schemaVersion": "0.3.0",
+  "script": null,
+  "spec": "fluxplot/recipe"
+}

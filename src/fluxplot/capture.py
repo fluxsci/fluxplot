@@ -60,7 +60,20 @@ def _axis_capture(ax, fig, which: str) -> dict:
     if scale == "log":
         out["base"] = _log_base(mpl_axis)
 
+    supported = getattr(ax, "name", "rectilinear") == "rectilinear" and scale in ("linear", "log")
+    out["supported"] = supported
+    out["ticks"] = [{"value": float(v), "label": t.get_text()}
+                    for v, t in zip(mpl_axis.get_ticklocs(), mpl_axis.get_ticklabels()) if np.isfinite(v)]
+    converter = getattr(mpl_axis, "get_converter", lambda: getattr(mpl_axis, "converter", None))()
+    module = type(converter).__module__ if converter else ""
+    if module == "matplotlib.dates":
+        from matplotlib.dates import get_epoch
+        out["units"] = {"kind": "date", "epoch": get_epoch(), "unit": "day"}
+    elif module == "matplotlib.category":
+        out["units"] = {"kind": "category"}
     for (dx, dy), data_val in zip(endpoints, (lo, hi)):
+        if not supported:
+            break
         sx, sy = data_to_svg(ax, fig, dx, dy)
         out["anchors"].append({"data": float(data_val), "svg": sx if which == "x" else sy})
     return out
@@ -69,10 +82,12 @@ def _axis_capture(ax, fig, which: str) -> dict:
 def capture_axes(ax, fig) -> dict:
     """Return ``{"x": {...}, "y": {...}, "pixelBox": {...}}`` for one Axes."""
     # plot-area rectangle in SVG coords (convenience; the SVG clipPath stays authoritative).
-    (x0, y0), (x1, y1) = ax.get_xlim(), ax.get_ylim()
-    sx0, sy0 = data_to_svg(ax, fig, x0, y0)
-    sx1, sy1 = data_to_svg(ax, fig, x1, y1)
+    vbw, vbh = svg_viewbox(fig)
+    box = ax.get_window_extent()
+    sx0, sx1 = box.x0 / fig.bbox.width * vbw, box.x1 / fig.bbox.width * vbw
+    sy0, sy1 = (1 - box.y1 / fig.bbox.height) * vbh, (1 - box.y0 / fig.bbox.height) * vbh
     return {
+        "projection": getattr(ax, "name", "rectilinear"),
         "x": _axis_capture(ax, fig, "x"),
         "y": _axis_capture(ax, fig, "y"),
         "pixelBox": {

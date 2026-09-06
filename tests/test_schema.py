@@ -10,7 +10,7 @@ import fluxplot as fp
 
 
 def _schemas():
-    sch = files("fluxplot.schemas")
+    sch = files("fluxplot").joinpath("schemas")
     return (
         json.loads((sch / "manifest.schema.json").read_text()),
         json.loads((sch / "recipe.schema.json").read_text()),

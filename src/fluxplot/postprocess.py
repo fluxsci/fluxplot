@@ -26,7 +26,7 @@ def _fmt(v) -> str:
     if isinstance(v, bool):
         return str(v)
     if isinstance(v, (int, float)):
-        return "%.10g" % v
+        return repr(v)
     return str(v)
 
 
@@ -37,7 +37,7 @@ def _set(el, **attrs) -> None:
         el.set(k.replace("_", "-"), _fmt(v))
 
 
-def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=()):
+def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=(), check_ids=True):
     """Return ``(processed_svg_bytes, warnings, present)``."""
     parser = etree.XMLParser(remove_blank_text=True)
     root = etree.fromstring(svg_bytes, parser)
@@ -57,7 +57,11 @@ def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=()):
 
     # 2. rename matplotlib's structural wrappers → semantic roots
     _rename(id_map, "figure_1", "figure", "figure")
-    _rename(id_map, "axes_1", "plot-area", "plot-area")
+    if not any(g == "plot-area" or g.endswith(".plot-area") for g in id_map):
+        _rename(id_map, "axes_1", "plot-area", "plot-area")
+    for gid, el in id_map.items():
+        if gid == "plot-area" or gid.endswith(".plot-area"):
+            _set(el, data_role="plot-area", data_kind="container")
 
     # 3. root markers
     root.set("data-fluxplot", "1")
@@ -65,6 +69,10 @@ def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=()):
 
     # 4. inject data-* per Mark
     for m in reg.marks:
+        if m.data.get('contour_legacy'):
+            _group_legacy_contour(m, id_map)
+        if m.data.get('cells') or m.data.get('contour_paths'):
+            _inject_field(m, id_map, warnings)
         if m.role == "point":
             _inject_points(m, id_map, warnings)
         elif m.role == "bar":
@@ -103,7 +111,12 @@ def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=()):
     # gridlines at draw and omits empty axis titles even though the artists carry a
     # gid — the manifest must reference only what's really here, so callers prune
     # guides/members against this set (else the X-Ray shows dead nodes).
-    present = {el.get("id") for el in root.iter() if el.get("id")}
+    all_ids = [el.get("id") for el in root.iter() if el.get("id")]
+    present = set(all_ids)
+    if check_ids and len(all_ids) != len(present):
+        from collections import Counter
+        duplicates = [gid for gid, count in Counter(all_ids).items() if count > 1]
+        raise ValueError('duplicate SVG IDs: ' + ', '.join(duplicates[:10]))
 
     return _serialize(root), warnings, present
 
@@ -145,9 +158,9 @@ def _inject_points(m: Mark, id_map, warnings) -> None:
             use_el,
             data_role="point",
             data_series=m.series,
-            data_index=k,
-            data_x=xs[k],
-            data_y=ys[k],
+            data_index=m.member_indices[k],
+            data_x=xs[m.member_indices[k]],
+            data_y=ys[m.member_indices[k]],
             data_kind=kind_for_role("point"),
         )
 
@@ -283,3 +296,48 @@ def _deref_ticks(root) -> None:
 def _serialize(root) -> bytes:
     body = etree.tostring(root, pretty_print=True, encoding="unicode")
     return ('<?xml version="1.0" encoding="utf-8" standalone="no"?>\n' + body).encode("utf-8")
+
+
+def _inject_field(mark, id_map, warnings):
+    group = id_map.get(mark.gid)
+    if group is None or group.get('data-rasterized') == '1': return
+    # Direct paths are emitted in row-major QuadMesh order or ContourSet level
+    # order. Exclude definitions/clip paths; reject any backend count mismatch.
+    paths = group.findall(f'{{{SVG}}}path')
+    field = mark.data['field']
+    if mark.data.get('cells'):
+        rows, cols = field['shape']
+        count = rows * cols
+        names = [f'cell.{i // cols}.{i % cols}' for i in range(count)]
+    else:
+        artist = mark.data['field_artist']
+        count = len(artist.get_paths())
+        names = [f'level.{i}' for i in range(count)]
+    if len(paths) != count:
+        warnings.append(f"field '{mark.gid}': backend path count differs; keeping layer identity")
+        return
+    members = []
+    for i, (path, name) in enumerate(zip(paths, names)):
+        gid = mark.gid + '.' + name
+        path.set('id', gid)
+        _set(path, data_role='cell' if mark.data.get('cells') else 'contour-level',
+             data_index=i, data_series=mark.series, data_kind='shape')
+        if mark.data.get('cells'):
+            _set(path, data_row=i // cols, data_column=i % cols)
+        members.append(gid)
+        id_map[gid] = path
+    mark.data['field_members'] = members
+
+
+def _group_legacy_contour(mark, id_map):
+    nodes = [id_map[g] for g in mark.member_gids if g in id_map]
+    if not nodes: return
+    parent = nodes[0].getparent()
+    positions = [parent.index(n) for n in nodes if n.getparent() is parent]
+    if len(positions) != len(nodes) or positions != list(range(positions[0], positions[0] + len(nodes))):
+        return  # Keep truthful per-level references if callers interleaved artists.
+    group = etree.Element(f'{{{SVG}}}g', id=mark.gid)
+    parent.insert(positions[0], group)
+    for node in nodes: group.append(node)
+    id_map[mark.gid] = group
+    mark.data['field_members'] = [node.get('id') for node in nodes]

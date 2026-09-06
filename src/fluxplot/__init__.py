@@ -15,6 +15,7 @@ from .api import (  # noqa: E402,F401
     annotation,
     area,
     bar,
+    barh,
     box,
     errorbar,
     hist,
@@ -39,11 +40,18 @@ from .style import (  # noqa: E402,F401  (re-exported for convenience)
     use_light,
     use_paper,
 )
+from .fields import heatmap, contour, contourf, colorbar
+from .panels import panel
 from .version import SPEC_VERSION, __version__  # noqa: F401
 
 __all__ = [
     "__version__",
     "surface",
+    "panel",
+    "heatmap",
+    "contour",
+    "contourf",
+    "colorbar",
     "SPEC_VERSION",
     "colors",
     "style",
@@ -54,6 +62,7 @@ __all__ = [
     "line",
     "scatter",
     "bar",
+    "barh",
     "errorbar",
     "area",
     "box",

@@ -117,10 +117,10 @@ def _front_facing(verts, faces, sign_x):
     Back-face culling — not merely an optimisation, it is what makes per-region collections
     *correct*. Splitting a map into one collection per category means matplotlib draws the
     categories in sequence, so a painter's-algorithm depth sort inside each collection cannot stop a
-    far-side face of one category from painting over a near-side face of another (the far wall of
-    the opposite bank would bleed through, and the medial wall would be hidden by whatever is drawn
-    after it). Culling the hemisphere's far half first leaves a single visible layer, after which
-    drawing order between categories is irrelevant.
+    far-side face of one category from painting over a near-side face of another.
+    This only establishes correct cross-category visibility for convex projections.
+    Front-facing faces can still overlap on folded/concave meshes; category layers
+    use per-part painter ordering and are not a general depth-buffer renderer.
     """
     tri = verts[faces]
     normals = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
@@ -380,14 +380,9 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
         return coll
 
     # ---- missing data: its own part, never a data value ------------------------------------
-    # Drawn LAST, after the data parts. Splitting a map into one collection per part means
-    # matplotlib paints them in sequence, and back-face culling only removes geometry facing away
-    # from the camera — it cannot resolve occlusion WITHIN the visible half. On a folded surface the
-    # no-data region (a mesh's medial wall) is concave, so data faces lying behind it are still
-    # front-facing and, drawn afterwards, would bleed colour into it. Painting the no-data region
-    # last restores the correct appearance: it is a contiguous surface region, so anything the data
-    # parts would have drawn over it is by construction behind it. (On a near-convex mesh this is a
-    # no-op, which is why the artefact only appears once a less-inflated surface is used.)
+    # Missing regions retain the established last-layer convention. This is an
+    # approximation for folded meshes, not a claim that all no-data faces are
+    # geometrically in front. The manifest records this rendering limitation.
     parts_missing_colour = [None]
     miss_shade = parts_shade.pop("missing", None)
     miss_polys = parts.pop("missing", [])
@@ -395,6 +390,8 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
     style_common = {
         "views": list(views), "hemispheres": list(hemispheres),
         "missingColor": missing_color,
+        "rendering": {"projection": "orthographic", "occlusion": "per-part-painter",
+                      "crossPartDepth": "convex-only", "missingLayer": "last"},
         "missingRule": {"below": missing_below, "values": [float(m) for m in missing_values],
                         "zeroIsData": True},
     }
@@ -456,24 +453,20 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
                    "vmin": vmin, "vmax": vmax,
                    "percentile": list(percentile) if percentile else None, **style_common}
         if coll is not None:
-            coll.set_array(fv)            # keeps the mapping live for a colorbar
+            # Face colors include geometric shading. A collection scalar array
+            # would overwrite them on every draw; the key owns a separate mappable.
             coll.set_cmap(cmap_obj)
             coll.set_norm(norm)
             reg.add(Mark(role="surface-field", series=series, name="field", kind="surface",
                          label=label, artists=[coll],
                          data={"surface": dict(summary, part="field")}))
         if colorbar and coll is not None:
-            cb = ax.figure.colorbar(coll, ax=ax, fraction=0.03, pad=0.02)
-            # Matplotlib rasterizes a colorbar's solids by default. That would emit an <image> the
-            # rasterisation planner never planned, and `raster.reattach` — which matches images to
-            # planned artists by count and document order — refuses to guess when the counts
-            # disagree, leaving EVERY layer of this plot with matplotlib's auto ids. The whole map
-            # then arrives unclassified. Keeping the bar vector costs a few hundred quads, keeps the
-            # counts honest, and makes the colorbar itself editable rather than a picture of a ramp.
-            # Leave the bar RASTERIZED (matplotlib's default). Drawn as vector it is a strip of
-            # ~256 quads whose seams read as banding, so the ramp stops looking continuous; as one
-            # image it is smooth. This is safe because raster.plan() honours artists already flagged
-            # rasterized, so the colorbar is planned, its gid survives, and it stays addressable.
+            mappable = mpl.cm.ScalarMappable(norm=norm, cmap=cmap_obj)
+            mappable.set_array(fv)
+            cb = ax.figure.colorbar(mappable, ax=ax, fraction=0.03, pad=0.02)
+            # A rasterized ramp avoids seams. The raster draw scope preserves its
+            # identity independently of the surface or other embedded images.
+            cb.ax._fluxplot_owner_axes = ax
             if cb.solids is not None:
                 cb.solids.set_edgecolor("face")
             if cbar_ticks is not None:
@@ -488,7 +481,7 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
 
     # One summary mark carrying the whole value→colour contract, so the mapping round-trips even if
     # a downstream editor only reads the series-level entry.
-    reg.add(Mark(role="surface", series=series, kind="surface", label=label,
+    reg.add(Mark(role="surface", series=series, kind="surface", label=label, axes=ax,
                  data={"surface": dict(summary, nVertices=int(all_vals.size),
                                        nMissing=int((~np.isfinite(all_vals)).sum()),
                                        panes=[f"{h}-{v}" for h, v in panes])}))

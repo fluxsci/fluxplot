@@ -46,9 +46,12 @@ def _hash_input(inp, base_dir):
     full = path if base_dir is None else os.path.join(base_dir, path)
     try:
         with open(full, "rb") as f:
-            data = f.read()
-        entry["sha256"] = hashlib.sha256(data).hexdigest()
-        entry["bytes"] = len(data)
+            digest, size = hashlib.sha256(), 0
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                digest.update(chunk)
+                size += len(chunk)
+        entry["sha256"] = digest.hexdigest()
+        entry["bytes"] = size
     except OSError:
         entry["sha256"] = None
     return entry
@@ -109,15 +112,18 @@ def build_recipe(
     # and overridable via recipe["command"].
     script = out["script"]
     if script and script.get("path") and recipe_dir is not None:
-        cwd_now = os.getcwd()
+        cwd_now = os.path.abspath(os.path.join(recipe_dir, recipe["cwd"])) if recipe.get("cwd") else os.getcwd()
         script_abs = os.path.abspath(script["path"])
         svg_abs = os.path.join(recipe_dir, svg_filename)
         out["command"] = recipe.get("command") or sys.executable or "python"
-        out["args"] = [os.path.relpath(script_abs, cwd_now)]
+        out["args"] = list(recipe["args"]) if "args" in recipe else [os.path.relpath(script_abs, cwd_now)]
         out["cwd"] = os.path.relpath(cwd_now, recipe_dir)
-        out["output"] = os.path.relpath(svg_abs, recipe_dir)
+        out["output"] = recipe.get("output", os.path.relpath(svg_abs, recipe_dir))
     elif recipe.get("command"):  # explicit command without a script — pass through (back-compat)
         out["command"] = recipe["command"]
+        for key in ("args", "cwd", "output"):
+            if key in recipe:
+                out[key] = recipe[key]
     return out
 
 

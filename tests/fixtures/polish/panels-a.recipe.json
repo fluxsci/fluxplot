@@ -1,0 +1,14 @@
+{
+  "env": null,
+  "generatedAt": "2026-09-06T00:00:00Z",
+  "inputs": [],
+  "outputs": {
+    "manifest": "panels-a.fluxplot.json",
+    "svg": "panels-a.svg"
+  },
+  "params": {},
+  "plot": "panels-a",
+  "schemaVersion": "0.3.0",
+  "script": null,
+  "spec": "fluxplot/recipe"
+}

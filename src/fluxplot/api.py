@@ -22,20 +22,22 @@ from . import autotag as _autotag
 from . import canonical_json as _cjson
 from . import capture as _capture
 from . import ids as _ids
-from . import manifest as _manifest
 from . import postprocess as _postprocess
 from . import raster as _raster
 from . import recipe as _recipe
 from . import render as _render
 from . import roles as _roles
 from . import tagger as _tagger
-from .autotag import is_colorbar_axes as _is_colorbar_axes
 from .descriptors import Mark
+from . import data as _data
+from . import panels as _panels
+from types import SimpleNamespace
+import numpy as np
 from .version import SPEC_VERSION, __version__
 
 
 def _list(a):
-    return None if a is None else list(a)
+    return None if a is None else list(np.atleast_1d(a))
 
 
 def _env_flag(name: str) -> bool:
@@ -50,10 +52,21 @@ def line(ax, x, y, *, series, marker=None, label=None, **kw):
     """A named line. With ``marker=`` it also draws an addressable per-point group."""
     reg = _tagger.registry_for(ax.figure)
     (ln,) = ax.plot(x, y, label=label, **kw)
-    reg.add(Mark(role="line", series=series, kind="line", x=_list(x), y=_list(y), label=label, artists=[ln]))
+    reg.add(Mark(role="line", series=series, kind="line", live_data=True, x=None, y=None, label=label, artists=[ln]))
     if marker:
-        (pts,) = ax.plot(x, y, linestyle="none", marker=marker, color=ln.get_color())
-        reg.add(Mark(role="point", series=series, kind="line", x=_list(x), y=_list(y), artists=[pts], indexed=True))
+        # Copy the resolved Line2D style, including aliases/defaults, then disable
+        # its stroke. This keeps the established (line, points) return contract.
+        from matplotlib.lines import Line2D
+        pts = Line2D([], [])
+        pts.update_from(ln)
+        pts.set_zorder(ln.get_zorder())
+        pts.set_markevery(ln.get_markevery())
+        pts.set_data(x, y)
+        pts.set_linestyle("none")
+        pts.set_marker(marker)
+        pts.set_label("_nolegend_")
+        ax.add_line(pts)
+        reg.add(Mark(role="point", series=series, kind="line", live_data=True, x=None, y=None, artists=[pts], indexed=True))
         return ln, pts
     return ln
 
@@ -61,14 +74,24 @@ def line(ax, x, y, *, series, marker=None, label=None, **kw):
 def scatter(ax, x, y, *, series, label=None, **kw):
     reg = _tagger.registry_for(ax.figure)
     coll = ax.scatter(x, y, label=label, **kw)
-    reg.add(Mark(role="point", series=series, kind="scatter", x=_list(x), y=_list(y), label=label, artists=[coll], indexed=True))
+    reg.add(Mark(role="point", series=series, kind="scatter", live_data=True, x=None, y=None, label=label, artists=[coll], indexed=True))
     return coll
 
 
 def bar(ax, x, height, *, series, label=None, **kw):
     reg = _tagger.registry_for(ax.figure)
     container = ax.bar(x, height, label=label, **kw)
-    reg.add(Mark(role="bar", series=series, kind="bar", x=_list(x), y=_list(height), label=label, artists=list(container.patches), indexed=True))
+    reg.add(Mark(role="bar", series=series, kind="bar", live_data=True, x=None, y=None, label=label, artists=list(container.patches), indexed=True))
+    return container
+
+
+def barh(ax, y, width, *, series, label=None, **kw):
+    """A horizontal named bar series; returns the ordinary BarContainer."""
+    container = ax.barh(y, width, label=label, **kw)
+    _tagger.registry_for(ax.figure).add(Mark(
+        role="bar", series=series, kind="bar", live_data=True, label=label,
+        artists=list(container.patches), indexed=True,
+        data={"bar": {"orientation": "horizontal"}}))
     return container
 
 
@@ -80,14 +103,14 @@ def errorbar(ax, x, y, *, series, yerr=None, label=None, **kw):
     # error bars. Previously only barlinecols was kept, so the central line and the
     # caps escaped the scene graph entirely.
     artists = ([data_line] if data_line is not None else []) + list(caps) + list(barlinecols)
-    reg.add(Mark(role="errorbar", series=series, kind="errorbar", x=_list(x), y=_list(y), label=label, artists=artists, data={"yerr": _list(yerr)}))
+    reg.add(Mark(role="errorbar", series=series, kind="errorbar", x=_data.converted(ax, x, y)[0], y=_data.converted(ax, x, y)[1], live_data=data_line is not None, label=label, artists=artists, data={"uncertainty": {"xerr": _list(kw.get("xerr")), "yerr": _list(yerr)}}))
     return container
 
 
 def area(ax, x, y1, y2=0, *, series, label=None, **kw):
     reg = _tagger.registry_for(ax.figure)
     poly = ax.fill_between(x, y1, y2, label=label, **kw)
-    reg.add(Mark(role="area", series=series, kind="area", x=_list(x), y=_list(y1), label=label, artists=[poly]))
+    reg.add(Mark(role="area", series=series, kind="area", x=None, y=None, label=label, artists=[poly]))
     return poly
 
 
@@ -110,7 +133,7 @@ def box(ax, values, *, series, label=None, include_values=False, **kw):
     body = bp["boxes"][0]
     if label:
         body.set_label(label)
-    data = {"distribution": {"values": [float(v) for v in values]}} if include_values else {}
+    data = {"distribution": {"values": _data.values(values)}} if include_values else {}
     reg.add(Mark(role="box", series=series, kind="box", label=label, artists=[body], data=data))
     for role, key in (
         ("whisker", "whiskers"), ("cap", "caps"), ("median", "medians"),
@@ -142,7 +165,7 @@ def violin(ax, values, *, series, label=None, include_values=False, **kw):
     body = bodies[0]
     if label:
         body.set_label(label)
-    data = {"distribution": {"values": [float(v) for v in values]}} if include_values else {}
+    data = {"distribution": {"values": _data.values(values)}} if include_values else {}
     reg.add(Mark(role="violin", series=series, kind="violin", label=label, artists=[body], data=data))
     caps = [vp[k] for k in ("cmins", "cmaxes") if vp.get(k) is not None]
     if caps:
@@ -175,14 +198,19 @@ def hist(ax, values, *, series, bins=None, label=None, include_values=False, **k
             "histtype='step' have no exact per-bar contract; call fp.hist once per series"
         )
     edges_f = [float(e) for e in edges]
-    counts_f = [float(c) for c in counts]
+    counts_f = _data.values(counts)
     centers = [(edges_f[k] + edges_f[k + 1]) / 2.0 for k in range(len(counts_f))]
-    dist = {"binEdges": edges_f, "counts": counts_f}
+    dist = {"binEdges": edges_f, "counts": counts_f,
+            "normalization": "density" if kw.get("density") else "count",
+            "weighted": kw.get("weights") is not None,
+            "cumulative": kw.get("cumulative", False),
+            "orientation": kw.get("orientation", "vertical")}
     if include_values:
-        dist["values"] = [float(v) for v in values]
+        dist["values"] = _data.values(values)
     reg.add(
         Mark(role="bar", series=series, kind="bar", x=centers, y=counts_f, label=label,
-             artists=list(patches.patches), indexed=True, data={"distribution": dist})
+             artists=list(patches.patches), indexed=True, live_data=True,
+             data={"distribution": dist, "bar": {"orientation": kw.get("orientation", "vertical")}})
     )
     return counts, edges, patches
 
@@ -199,14 +227,15 @@ def tag(artist, *, role, series=None, index=None, name=None, x=None, y=None, **i
     making an invalid spatial claim.
     """
     reg = _tagger.registry_for(_tagger.fig_of(artist))
-    if x is None and y is None:
+    live = x is None and y is None
+    if live:
         x, y = _autotag.extract_xy(artist)
     data = dict(identity)
     if index is not None:
         data["index"] = index
     reg.add(
         Mark(role=_roles.validate(role), series=series, name=name, x=_list(x), y=_list(y),
-             artists=[artist], data=data, indexed=index is not None)
+             artists=[artist], data=data, live_data=live, indexed=index is not None)
     )
     return artist
 
@@ -214,24 +243,28 @@ def tag(artist, *, role, series=None, index=None, name=None, x=None, y=None, **i
 def tag_points(points, *, series, x=None, y=None):
     """Tag an existing markers ``Line2D`` / ``PathCollection`` as an addressable point group."""
     reg = _tagger.registry_for(_tagger.fig_of(points))
-    if x is None and y is None:
+    live = x is None and y is None
+    if live:
         x, y = _autotag.extract_xy(points)  # Line2D data or exact finite scatter offsets
-    reg.add(Mark(role="point", series=series, kind="scatter", x=_list(x), y=_list(y), artists=[points], indexed=True))
+    reg.add(Mark(role="point", series=series, kind="scatter", live_data=live, x=_list(x), y=_list(y), artists=[points], indexed=True))
     return points
 
 
-def tag_seaborn(ax, *, series=None):
+def tag_seaborn(ax, *, series=None, plot=None):
     """Auto-tag the artists a seaborn axes-level plot drew on ``ax`` — one call, done.
 
     Call it right after the seaborn call (and before raw-matplotlib additions you tag
     yourself). Series names come from ``series=[...]`` if given, else the legend's labels
-    (seaborn writes them in hue order), else the y-axis label. Per series it names:
+    for a known ``plot=`` adapter, else the y-axis label. Multi-hue plots require
+    ``plot='lineplot'`` (or ``histplot``, ``barplot``, ``kdeplot``, etc.) because
+    legend order alone does not identify Seaborn's drawing order. An explicit
+    ``series=[...]`` always means artist draw order. Per series it names:
 
     - data-carrying lines           → role ``line``      (``lineplot`` means, ``kdeplot``, ``regplot`` fits)
     - fill-between bands            → role ``area``      (confidence / error bands)
     - scatter collections           → role ``point``     (``scatterplot`` / ``regplot`` — per-point addressable)
     - bar containers                → role ``bar``       (``barplot`` / ``countplot`` / ``histplot``)
-    - vertical error-bar segments   → role ``errorbar``  (joined to their bar by x position)
+    - capped/horizontal bar errors  → role ``errorbar``  (joined by categorical position)
 
     Seaborn's empty legend-proxy lines are removed (they draw nothing; the legend keeps its
     own handles). Artists already tagged are skipped, so this composes with the ``fp.*``
@@ -265,28 +298,41 @@ def tag_seaborn(ax, *, series=None):
     else:
         names = [ax.get_ylabel() or "data"]
 
+    # Seaborn deliberately reverses hue iteration for distribution plots.
+    # A legend does not encode this provenance. Require the plot kind for a
+    # multi-hue adapter instead of inferring identity from color or geometry.
+    if plot not in (None, "lineplot", "scatterplot", "barplot", "countplot", "histplot", "kdeplot", "regplot"):
+        raise ValueError("unsupported seaborn plot kind")
+    if len(names) > 1 and series is None and plot is None:
+        warnings.warn("tag_seaborn: multi-hue identity needs plot='lineplot', 'histplot', "
+                      "'barplot', etc.; ambiguous artists remain addressable as extras", stacklevel=2)
+        return {}
+    if plot in ("histplot", "kdeplot") and series is None:
+        names.reverse()
     tagged: dict = {}
 
     def _record(name, role):
         tagged.setdefault(str(name), []).append(role)
 
-    def _is_segment(ln):  # a 2-point vertical segment is an error bar, not a data curve
-        x = ln.get_xdata()
-        return len(x) == 2 and float(x[0]) == float(x[1])
+    bar_context = plot in ("barplot", "countplot") or bool(ax.containers)
+
+    def _is_segment(ln):
+        return bar_context  # these adapters own the loose uncertainty lines
+
 
     # data curves (one per hue level) → line
     curves = [ln for ln in ax.lines if id(ln) not in already and len(ln.get_xdata()) and not _is_segment(ln)]
     if curves and len(curves) == len(names):
         for name, ln in zip(names, curves):
             gx, gy = ln.get_data()
-            reg.add(Mark(role="line", series=name, kind="line", x=_list(gx), y=_list(gy), artists=[ln]))
+            reg.add(Mark(role="line", series=name, kind="line", x=_list(gx), y=_list(gy), live_data=True, label=name, artists=[ln]))
             _record(name, "line")
 
     # fill-between bands (one per hue level) → area
     bands = [c for c in ax.collections if id(c) not in already and isinstance(c, PolyCollection)]
     if bands and len(bands) == len(names):
         for name, band in zip(names, bands):
-            reg.add(Mark(role="area", series=name, kind="area", artists=[band]))
+            reg.add(Mark(role="area", series=name, kind="area", label=name, artists=[band]))
             _record(name, "area")
 
     # scatter collections → point (per-point addressable, with data values from the offsets)
@@ -303,7 +349,7 @@ def tag_seaborn(ax, *, series=None):
     for name, coll in pairs:
         off = coll.get_offsets()
         x, y = [float(v) for v in off[:, 0]], [float(v) for v in off[:, 1]]
-        reg.add(Mark(role="point", series=name, kind="scatter", x=x, y=y, artists=[coll], indexed=True))
+        reg.add(Mark(role="point", series=name, kind="scatter", x=x, y=y, artists=[coll], indexed=True, live_data=True))
         _record(name, "point")
 
     # bar containers (one per hue level) → bar, with bar centers/heights as the data
@@ -314,22 +360,27 @@ def tag_seaborn(ax, *, series=None):
             patches = [p for p in cont.patches if id(p) not in already]
             if not patches:
                 continue
-            cx = [float(p.get_x() + p.get_width() / 2.0) for p in patches]
-            cy = [float(p.get_height()) for p in patches]
-            reg.add(Mark(role="bar", series=name, kind="bar", x=cx, y=cy, artists=patches, indexed=True))
+            orientation = getattr(cont, "orientation", "vertical")
+            cx, cy, meta = _data.bar_data(patches, orientation)
+            reg.add(Mark(role="bar", series=name, kind="bar", x=cx, y=cy, label=name,
+                         live_data=True, artists=patches, indexed=True, data={"bar": meta}))
             _record(name, "bar")
-            bar_centers.append((name, {round(v, 9) for v in cx}))
+            bar_centers.append((name, orientation, {round(v, 9) for v in (cy if orientation == "horizontal" else cx)}))
 
     # seaborn draws bar errors as loose 2-point vertical lines — join each to its bar
     # by x position (an exact join on coordinates seaborn itself set, not a guess).
     segs = [ln for ln in ax.lines if id(ln) not in already and len(ln.get_xdata()) and _is_segment(ln)]
     for ln in segs:
-        x0 = round(float(ln.get_xdata()[0]), 9)
-        for name, centers in bar_centers:
-            if x0 in centers:
-                reg.add(Mark(role="errorbar", series=name, kind="errorbar", artists=[ln]))
-                _record(name, "errorbar")
-                break
+        matches = []
+        for name, orientation, centers in bar_centers:
+            positions = np.asarray(ln.get_ydata() if orientation == "horizontal" else ln.get_xdata(), dtype=float)
+            center = round(float(np.nanmedian(positions)), 9)
+            if center in centers:
+                matches.append(name)
+        if len(matches) == 1:
+            name = matches[0]
+            reg.add(Mark(role="errorbar", series=name, kind="errorbar", artists=[ln]))
+            _record(name, "errorbar")
 
     return tagged
 
@@ -435,7 +486,7 @@ def _warn_log_zero_anchors(plot_axes, plot_name: str) -> list:
 
 def _infer_plot_type(reg) -> str:
     kinds = [m.kind for m in reg.marks if m.kind]
-    for k in ("line", "scatter", "bar", "errorbar", "area", "box", "violin"):
+    for k in ("line", "scatter", "bar", "errorbar", "area", "box", "violin", "heatmap", "contour", "contourf", "surface"):
         if k in kinds:
             return k
     return "plot"
@@ -446,7 +497,7 @@ def _validate(manifest_obj, recipe_obj) -> None:
         import jsonschema
         from importlib.resources import files
 
-        sch = files("fluxplot.schemas")
+        sch = files("fluxplot").joinpath("schemas")
         mschema = json.loads((sch / "manifest.schema.json").read_text())
         rschema = json.loads((sch / "recipe.schema.json").read_text())
     except (FileNotFoundError, ModuleNotFoundError):
@@ -486,7 +537,7 @@ def _write_staged(files) -> None:
                 pass
 
 
-def save(
+def _save(
     fig,
     path,
     *,
@@ -496,6 +547,7 @@ def save(
     raster_threshold=None,
     raster_dpi=None,
     _now=None,
+    _registry=None,
 ) -> SaveResult:
     """Emit ``<path>.svg`` + ``<path>.fluxplot.json`` + ``<path>.recipe.json`` for ``fig``.
 
@@ -542,43 +594,41 @@ def save(
     svg_filename = os.path.basename(svg_path)
     manifest_filename = os.path.basename(manifest_path)
 
-    only = os.environ.get("FLUXPLOT_ONLY", "").strip()
-    if only:
-        pats = [p.strip() for p in only.split(",") if p.strip()]
-        if pats and not any(fnmatch.fnmatchcase(plot_name, p) for p in pats):
-            print(f"fluxplot: skipped '{plot_name}' (FLUXPLOT_ONLY={only})", file=sys.stderr)
-            return SaveResult(
-                svg=svg_path, manifest=manifest_path, recipe=recipe_path,
-                warnings=[f"skipped by FLUXPLOT_ONLY={only}"], skipped=True,
-            )
 
-    reg = _tagger.registry_for(fig)
+    reg = _registry if _registry is not None else _tagger.snapshot(fig)
     alloc = _ids.IdAllocator()
 
-    # 0. promote safe labeled raw artists (identity = the user's own public labels; exact
-    # artist data only — see autotag.py). Anything ambiguous stays for the extra.* sweep.
-    promo_warnings = _autotag.promote_labeled(fig, reg)
-
-    # 1. deterministic gids on the user-tagged marks
-    _tagger.resolve_gids(reg, alloc)
-
-    # 2. finalize layout (so ticks/labels exist + transforms are final), then auto-tag scaffold.
-    # Colorbar axes (fig.colorbar adds a second Axes) are NOT the plot area: scaffolding them
-    # produced duplicate "plot-area" capture entries and collided axis ids (axis.x-2/y-2). Skip
-    # them here so the primary plot stays the single, clean plot-area.
-    fig.canvas.draw()
-    plot_axes = [ax for ax in fig.axes if not _is_colorbar_axes(ax)]
+    panels = _panels.plan(fig)
+    promo_warnings, guides_by_panel, axes_capture = [], [], []
+    registered = {id(m) for m in reg.marks}
+    for i, panel in enumerate(panels):
+        ax = panel.axes
+        # Colorbar marks belong to the plot whose mappable produced their key.
+        members = []
+        for m in reg.marks:
+            owner = getattr(m.axes, "_fluxplot_owner_axes", m.axes)
+            if owner is ax or (owner is None and i == 0):
+                m._panel_axes = ax
+                members.append(m)
+        sub = _tagger.Registry()
+        for m in members:
+            sub.add(m)
+        promo_warnings.extend(_autotag.promote_labeled(SimpleNamespace(axes=[ax]), sub))
+        for m in sub.marks:
+            m._panel_axes = ax
+            _data.refresh(m)
+            if id(m) not in registered:
+                reg.marks.append(m)
+                registered.add(id(m))
+        scoped = _panels.ScopedAllocator(alloc, panel.prefix)
+        _tagger.resolve_gids(sub, scoped)
+        ax.set_gid(panel.svg_id)
+        from .fields import colorbar_guides
+        guides_by_panel.append(_tagger.autotag_scaffold(ax, scoped) + colorbar_guides(fig, ax, scoped))
+        axes_capture.append({"id": "plot-area", "svgId": "plot-area", **_capture.capture_axes(ax, fig)})
+    plot_axes = [p.axes for p in panels]
+    guides = [g for local in guides_by_panel for g in local]
     geometry_warnings = _warn_log_zero_anchors(plot_axes, plot_name)
-    guides = []
-    for ax in plot_axes:
-        guides.extend(_tagger.autotag_scaffold(ax, alloc))
-
-    # 3. capture the data↔SVG mapping (after layout is final)
-    axes_capture = []
-    for ax in plot_axes:
-        cap = {"id": "plot-area", "svgId": "plot-area"}
-        cap.update(_capture.capture_axes(ax, fig))
-        axes_capture.append(cap)
 
     # 3b. auto-rasterize pathologically heavy layers — the safety default. A LineCollection of
     # per-edge segments or a 10k-point scatter becomes one <image> instead of 10^4-10^5 SVG
@@ -588,15 +638,8 @@ def save(
     heavy = _raster.plan(fig, threshold)
     raster_items = [] if keep_vectors else heavy
     raster_warnings = []
-    if heavy:
-        note = _raster.describe(
-            heavy, plot_name=plot_name, dpi=raster_dpi, rasterized=not keep_vectors
-        )
-        raster_warnings.append(note)
-        print(note, file=sys.stderr)
-
     # 4. render deterministically (hashsalt derived from the plot name)
-    with _raster.rasterizing(fig, raster_items):
+    with _raster.rasterizing(fig, heavy, force_vectors=keep_vectors):
         svg_bytes = _render.render_svg(
             fig,
             hashsalt=plot_name or "fluxplot",
@@ -606,27 +649,43 @@ def save(
     # 5. inject data-* + canonicalize
     plot_type = _infer_plot_type(reg)
     out_svg, post_warnings, present = _postprocess.postprocess(
-        svg_bytes, reg, guides, plot_type, raster_items=raster_items
+        svg_bytes, reg, guides, plot_type, raster_items=raster_items, check_ids=validate
     )
+    rendered_heavy = [it for it in heavy if it.gid in present]
+    if rendered_heavy:
+        note = _raster.describe(rendered_heavy, plot_name=plot_name, dpi=raster_dpi,
+                                rasterized=not keep_vectors)
+        raster_warnings.append(note)
+        print(note, file=sys.stderr)
     all_warnings = promo_warnings + geometry_warnings + raster_warnings + post_warnings
 
     # 6. assemble manifest + recipe. Drop scaffold guides matplotlib culled at draw
     # (boundary ticks/gridlines, empty axis titles) so the manifest references only
     # parts that exist in the SVG — keeps the parts tree / group members honest.
-    kept_guides = [g for g in guides if g.gid in present]
-    rasterized_gids = {it.gid for it in raster_items if it.gid}
-    man = _manifest.build_manifest(
-        fig, reg, kept_guides, axes_capture, plot_type, svg_filename,
-        SPEC_VERSION, __version__, matplotlib.__version__, present=present,
+    kept_guides = [[g for g in local if g.gid in present or (g.virtual and any(other.axis == g.axis and other.gid in present for other in local))]
+                   for local in guides_by_panel]
+    rasterized_gids = {it.gid for it in raster_items if it.gid and it.gid in present}
+    man = _panels.manifest(
+        fig, reg, kept_guides, panels, axes_capture, present, rasterized_gids,
+        plot_type=plot_type, svg_filename=svg_filename, spec_version=SPEC_VERSION,
+        fluxplot_version=__version__, mpl_version=matplotlib.__version__,
         svg_sha256=hashlib.sha256(out_svg).hexdigest(),
-        rasterized=rasterized_gids,
     )
     rec = _recipe.build_recipe(
         recipe, plot_name=plot_name, svg_filename=svg_filename,
         manifest_filename=manifest_filename, spec_version=SPEC_VERSION,
         recipe_dir=os.path.dirname(os.path.abspath(svg_path)), now=_now,
     )
+    controls = {m.data['field']['controlKey']: {
+        'cmap': m.data['field']['cmap'],
+        'vmin': m.data['field']['normalization']['vmin'],
+        'vmax': m.data['field']['normalization']['vmax'],
+    } for m in reg.marks if m.data.get('field')}
+    if controls:
+        rec['params'] = {**rec['params'], '__fluxplot__': controls}
     if validate:
+        from .integrity import validate_references
+        validate_references(man, present)
         _validate(man, rec)
 
     # 7. stage all three, then commit in dependency order (SVG → manifest → recipe): the
@@ -648,3 +707,28 @@ def save(
         warnings=all_warnings,
         rasterized=sorted(rasterized_gids),
     )
+
+
+def save(fig, path, *, recipe=None, validate=True, force_vectors=False,
+         raster_threshold=None, raster_dpi=None, _now=None) -> SaveResult:
+    base, _ext = os.path.splitext(path)
+    plot_name = os.path.basename(base)
+    svg_path, manifest_path, recipe_path = base + '.svg', base + '.fluxplot.json', base + '.recipe.json'
+    only = os.environ.get("FLUXPLOT_ONLY", "").strip()
+    if only:
+        pats = [p.strip() for p in only.split(",") if p.strip()]
+        if pats and not any(fnmatch.fnmatchcase(plot_name, p) for p in pats):
+            print(f"fluxplot: skipped '{plot_name}' (FLUXPLOT_ONLY={only})", file=sys.stderr)
+            return SaveResult(
+                svg=svg_path, manifest=manifest_path, recipe=recipe_path,
+                warnings=[f"skipped by FLUXPLOT_ONLY={only}"], skipped=True,
+            )
+
+    reg = _tagger.snapshot(fig)
+    with _tagger.temporary_gids(fig, reg), _render.final_layout(fig):
+        return _save(fig, path, recipe=recipe, validate=validate, force_vectors=force_vectors,
+                     raster_threshold=raster_threshold, raster_dpi=raster_dpi,
+                     _now=_now, _registry=reg)
+
+
+save.__doc__ = _save.__doc__

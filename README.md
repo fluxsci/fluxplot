@@ -382,11 +382,11 @@ fp.tag_points(sc, series="treatment")          # make an existing collection add
 **Seaborn in one line** — seaborn is matplotlib underneath, so `fp.tag_seaborn` inspects what a
 seaborn axes-level call drew (`lineplot`/`scatterplot`/`barplot`/`histplot`/`kdeplot`/`regplot`) and
 names it — mean lines → `line`, CI bands → `area`, points → per-point `point`, bars → `bar` (+ their
-`errorbar`) — one series per hue level (from the legend, or pass `series=[...]`):
+`errorbar`) — using a named plotting adapter (or explicit `series=[...]` in artist draw order):
 
 ```python
 sns.lineplot(data=fmri, x="timepoint", y="signal", hue="region", ax=ax)
-fp.tag_seaborn(ax)                              # → {"parietal": ["line","area"], "frontal": [...]}
+fp.tag_seaborn(ax, plot="lineplot")             # → {"parietal": ["line","area"], "frontal": [...]}
 ```
 
 **Recipes for artists without a first-class helper** — `fp.tag` covers all of them; these are the
@@ -457,8 +457,8 @@ The file *is* the API — every consumer reads the same artifacts, no private st
 - **Not a new plotting API or grammar.** It rides matplotlib's; your full matplotlib knowledge applies.
 - **Not a renderer or a matplotlib replacement.** It adds names; it removes nothing.
 - **Not a figure compositor.** Its unit is *one semantically-tagged plot + its manifest + recipe*.
-  Assembling plots into multi-panel figures is Flux Figure's job. (Recommended convention: one plot per
-  file — maximal composability.)
+  It supports Matplotlib subplots in one exported plot. Composing independent plot files into a
+  publication figure remains Flux Figure's job.
 
 A small, sharp contract is adoptable and composable; a sprawling one rots.
 
@@ -501,3 +501,93 @@ corrupting per-point ids.
 Flux Figure consumes them (inline render, part selection, restyle-by-part, semantic export). The
 conceptual spec is `../Flux_SemanticSVG_Spec.md`; the verified matplotlib mechanics are
 `NOTES_matplotlib_svg.md`.
+
+## Scientific export and panels (schema 0.3)
+
+Saving captures the current artist state: edit a line with `set_data`, remove an annotation,
+then save again. Scientific numbers retain their precision; NaN and masked observations become
+JSON `null` at their original indices. Missing line observations remain gaps. Nonfinite recipe
+parameters are rejected before any existing output file is replaced. Normal figure closing and
+garbage collection release the registry.
+
+Use ordinary Matplotlib scalar inputs, categorical bars and datetime coordinates. `barh` shares
+`bar`'s orientation/baseline metadata. Histograms record bin edges, heights, count/density,
+weighting and cumulative settings; `counts` remains the legacy height key. Line markers inherit
+size, color, opacity, z-order and `markevery`. Numeric exported coordinates use Matplotlib's
+converted units, with display tick labels and date epoch information alongside them.
+
+```python
+fig, axes = plt.subplots(1, 2, layout="constrained")
+for name, ax in zip(["baseline", "followup"], axes):
+    fp.panel(ax, name)               # stable even when the layout changes
+    fp.line(ax, [0, 1, 2], [1, 3, 2], series="control")
+fp.save(fig, "comparison.svg")
+```
+
+A legacy single axes keeps IDs such as `control.line`. Multiple axes (including twins and
+insets) use panel namespaces; explicit names produce `panel.baseline.control.line`. Automatic
+names follow layout order. Name panels explicitly when identities must survive rearrangement.
+Colorbars belong to their source panel and do not masquerade as additional plotting axes.
+
+The manifest's `components` inventory includes every repeated role, and both the parts tree
+and build order use that inventory. Coordinates are captured after layout with the SVG renderer.
+`projection`, axis `supported`, and series `capabilities.dataMorph` describe whether data-space
+interpolation is exact. Flux interpolates supported line/scatter plots per panel and preserves
+gaps; unsupported scales, polar/3D projections, raster layers and composite marks use a complete
+transition. A 3D scatter retains group identity without claiming depth-sorted point indices.
+
+For multi-hue Seaborn output, pass the plotting adapter: `fp.tag_seaborn(ax, plot="histplot")`,
+`plot="lineplot"`, `plot="barplot"`, etc. Distribution adapters account for reversed hue draw
+order. Explicit `series=[...]` means **artist draw order**. Ambiguous automatic tagging warns
+and leaves addressable extras; it never guesses scientific identity from color.
+
+## Matrices, contours and color keys
+
+```python
+fig, ax = plt.subplots(layout="constrained")
+image = fp.heatmap(ax, [[1, .2], [.2, 1]], series="correlation",
+                   cmap="viridis", vmin=0, vmax=1, cells=True)
+fp.colorbar(image, name="correlation", label="Correlation")
+fp.save(fig, "correlation.svg")
+
+# Ordinary Matplotlib contour arguments/options and return objects:
+fig, ax = plt.subplots()
+bands = fp.contourf(ax, x, y, z, series="energy", levels=[0, 1, 3, 5])
+fp.colorbar(bands, name="energy", label="Energy")
+```
+
+- `heatmap` uses `imshow` by default. Supplying `x` and `y` selects `pcolormesh` and supports
+  irregular grids. `cells=True` uses mesh edges (default unit edges, origin at the lower left)
+  and names each small-matrix cell by row/column. It does not change the raster budget.
+- `contour` and `contourf` retain exact boundaries and addressable levels/bands, including the
+  different ContourSet structures in Matplotlib 3.7 and later.
+- Field metadata records shape, extent or grid, masks, colormap, normalization and its range.
+  `include_values=True` additionally records raw matrix values; it is off by default. Regular
+  meshes store compact one-dimensional edge arrays. Large layers rasterize as one named part.
+- Named colorbars expose the ramp, label and ticks, and link to the mappable. Ordinary
+  `fig.colorbar` calls receive the same automatic guide capture.
+
+In Flux, open X-Ray on a recipe-backed plot and expand **Color scales**. Edit the palette or
+range, then choose **Apply and regenerate**. Both the field and its key are regenerated from
+source data; authored Flux overrides remain keyed to existing part IDs. There is no attempt to
+recolor an embedded image by changing SVG fill. Nonstandard normalizations retain their own
+range rules; edit those in Python.
+
+Field helpers read reserved `FLUX_PARAMS.__fluxplot__` overrides automatically and record their
+controls in the recipe. A `key=` explicitly names the control; otherwise the key includes the
+owning axes and series. Set explicit panel names or control keys before plotting for stability
+across source rearrangements. `recipe={"args": ..., "cwd": ..., "output": ...}` overrides are
+honored; cwd/output resolve relative to the recipe directory. `FLUXPLOT_ONLY` skips unselected
+saves before layout or file I/O.
+
+`force_vectors=True` overrides and restores caller rasterization flags, including axes z-order
+rasterization. It cannot vectorize a source image created with `imshow`; use a modest
+`cells=True` heatmap when individual vector cells are needed. Empty/clipped raster artists no
+longer disrupt another layer's IDs. Surface lighting survives SVG rendering and colorbars use
+a separate scalar mappable. Surface category rendering uses per-part painter ordering, **not a
+full cross-category depth buffer**: convex projections are supported, while arbitrary folded
+meshes can have cross-part occlusion differences. This limitation is recorded in surface metadata.
+
+Old saved projects remain readable. Schema 0.3 output should be used with the accompanying Flux
+reader update. New imports and reloads verify SVG checksums before legacy geometry repair;
+a mismatched pair leaves the last accepted plot intact. No existing project is bulk-regenerated.

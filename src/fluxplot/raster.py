@@ -29,14 +29,12 @@ matplotlib's generated id (``image`` + 10 hex chars) and no wrapping ``<g id="..
 Left alone that would silently delete the part from fluxplot's semantic contract — the
 whole point of the library.
 
-So :func:`reattach` puts the gid back, matching auto-id ``<image>`` elements to the
-rasterized artists **in document order**: rasterization emits exactly one image per
-rasterized artist, in draw order, and :func:`plan` returns the artists in that same order.
-The match is exact because every *other* image-emitting artist carries a gid by then
-(tagged images keep theirs; ``tagger._sweep_extra`` names the rest), so an auto id is by
-construction one of ours. If the counts ever disagree — matplotlib composites adjacent
-``AxesImage``\\ s into one element when ``image.composite_image`` is on — we warn and
-leave matplotlib's ids alone rather than risk mislabelling a layer.
+Each planned artist receives a temporary draw wrapper that opens an SVG group
+before mixed-mode rendering and flushes the raster inside that group. :func:`reattach`
+then transfers the identity to its actual image. Empty/clipped layers cannot shift
+another layer's identity; multiple images retain a named container. Draw methods,
+raster flags, axes z-order rasterization and figure compositing state are restored.
+The wrapper is local to this figure's export; no Matplotlib class/global is patched.
 """
 from __future__ import annotations
 
@@ -129,12 +127,14 @@ def _draw_order(fig) -> list:
         seen.add(id(artist))
         out.append(artist)
 
-    for child in sorted(fig.get_children(), key=_zorder):
-        if hasattr(child, "get_children") and hasattr(child, "get_xaxis"):  # an Axes
-            for grandchild in sorted(child.get_children(), key=_zorder):
-                visit(grandchild)
+    def descend(artist):
+        if hasattr(artist, 'get_xaxis'):
+            for child in sorted(artist.get_children(), key=_zorder):
+                descend(child)
         else:
-            visit(child)
+            visit(artist)
+    for child in sorted(fig.get_children(), key=_zorder):
+        descend(child)
     return out
 
 
@@ -160,12 +160,14 @@ def plan(fig, threshold: int = DEFAULT_THRESHOLD) -> list:
             continue
         n = primitive_count(artist)
         # An artist the CALLER already flagged rasterized is planned too, however few primitives it
-        # has. matplotlib will emit an <image> for it either way, and reattach matches images to
-        # planned artists by count and document order — so an unplanned one shifts the whole match
-        # and, on a disagreement, costs EVERY layer in the figure its gid. The commonest case is a
+        # has. matplotlib will emit an <image> for it either way, and reattach keeps each image in its own
+        # explicit draw scope, including caller-rasterized lightweight artists. The commonest case is a
         # colorbar: its solids are rasterized by default, are far below any heaviness threshold, and
         # would otherwise silently orphan the plot they belong to.
-        if n > threshold or bool(artist.get_rasterized()):
+        ax = getattr(artist, 'axes', None)
+        cutoff = ax.get_rasterization_zorder() if ax is not None else None
+        inherited = ax is not None and (ax.get_rasterized() or (cutoff is not None and _zorder(artist) < cutoff))
+        if n > threshold or bool(artist.get_rasterized()) or inherited:
             items.append(
                 RasterItem(
                     artist=artist,
@@ -178,7 +180,7 @@ def plan(fig, threshold: int = DEFAULT_THRESHOLD) -> list:
 
 
 @contextmanager
-def rasterizing(fig, items):
+def rasterizing(fig, items, force_vectors=False):
     """Render ``fig`` with ``items`` rasterized, then hand the figure back untouched.
 
     ``suppressComposite`` is the load-bearing detail. ``Artist.allow_rasterization`` only
@@ -193,22 +195,48 @@ def rasterizing(fig, items):
     It is applied only when something is actually rasterized, so an ordinary save keeps
     matplotlib's default compositing and byte-identical output.
     """
-    if not items:
-        yield
-        return
+    from .panels import all_axes
     previous = fig.suppressComposite
+    axes_state = [(ax, ax.get_rasterization_zorder(), ax.get_rasterized()) for ax in all_axes(fig)]
+    draws = []
     fig.suppressComposite = True
-    for it in items:
-        it.artist.set_rasterized(True)
+    for ax, _, _ in axes_state:
+        ax.set_rasterization_zorder(None)
+        ax.set_rasterized(False)
     try:
+        for it in items:
+            it.artist.set_rasterized(not force_vectors)
+            if force_vectors or not it.gid: continue
+            art = it.artist
+            original = art.draw
+            had_draw = 'draw' in art.__dict__
+            saved_draw = art.__dict__.get('draw')
+            draws.append((art, had_draw, saved_draw))
+            def draw(renderer, original=original, gid=it.gid):
+                # Scope identity around the actual draw, so empty/clipped layers
+                # cannot shift another layer's identity. Matplotlib's public
+                # renderer group API encloses the mixed-mode image flush.
+                renderer.open_group('fluxplot-raster', gid=gid)
+                try:
+                    original(renderer)
+                    if getattr(renderer, '_rasterizing', False) and renderer._raster_depth == 0:
+                        renderer.stop_rasterizing()
+                        renderer._rasterizing = False
+                finally:
+                    renderer.close_group('fluxplot-raster')
+            draw._supports_rasterization = True
+            art.draw = draw
         yield
     finally:
         fig.suppressComposite = previous
+        for art, had_draw, saved_draw in draws:
+            if had_draw: art.draw = saved_draw
+            else: del art.__dict__['draw']
         for it in items:
-            try:
-                it.artist.set_rasterized(it.was_rasterized)
-            except Exception:
-                pass
+            it.artist.set_rasterized(it.was_rasterized)
+        for ax, zorder, rasterized in axes_state:
+            ax.set_rasterization_zorder(zorder)
+            ax.set_rasterized(rasterized)
 
 
 def reattach(root, items, warnings) -> set:
@@ -218,25 +246,24 @@ def reattach(root, items, warnings) -> set:
     """
     if not items:
         return set()
-    auto = [
-        el
-        for el in root.iter(f"{{{SVG}}}image")
-        if AUTO_IMAGE_ID.match(el.get("id") or "")
-    ]
-    if len(auto) != len(items):
-        warnings.append(
-            f"rasterized {len(items)} layer(s) but matplotlib emitted {len(auto)} generated "
-            "<image> element(s) — keeping its ids, so those layers are addressable only as a "
-            "whole (an adjacent AxesImage composite is the usual cause)"
-        )
-        return set()
+    by_id = {el.get('id'): el for el in root.iter() if el.get('id')}
     restored = set()
-    for el, it in zip(auto, items):
-        if not it.gid:
-            continue
-        el.set("id", it.gid)
-        el.set("data-rasterized", "1")
-        restored.add(it.gid)
+    for it in items:
+        group = by_id.get(it.gid)
+        if group is None: continue
+        images = list(group.iter(f'{{{SVG}}}image'))
+        if len(images) == 1:
+            # Preserve the existing contract: the layer ID names the image.
+            group.attrib.pop('id', None)
+            images[0].set('id', it.gid)
+            images[0].set('data-rasterized', '1')
+            restored.add(it.gid)
+        elif images:
+            group.set('data-rasterized', '1')
+            for i, image in enumerate(images): image.set('id', f'{it.gid}.raster.{i}')
+            restored.add(it.gid)
+        elif not len(group):
+            group.getparent().remove(group)
     return restored
 
 
@@ -248,12 +275,12 @@ def describe(items, *, plot_name: str, dpi: int, rasterized: bool) -> str:
     total = sum(it.count for it in items)
     if rasterized:
         return (
-            f"fluxplot: '{plot_name}' — rasterized {len(items)} heavy layer(s) at {dpi} dpi: "
+            f"fluxplot: '{plot_name}' — rasterized {len(items)} layer(s) at {dpi} dpi: "
             f"{listed}. Axes, ticks, labels and legend stay vector. "
             f"Pass force_vectors=True to keep everything as vectors."
         )
     return (
-        f"fluxplot: '{plot_name}' — kept {len(items)} heavy layer(s) as vectors "
+        f"fluxplot: '{plot_name}' — kept {len(items)} layer(s) as vectors "
         f"(force_vectors=True): {listed}. That is ~{total:,} SVG nodes; editors that inline "
-        f"this SVG will be slow."
+        f"large vector layers can slow inline editors."
     )

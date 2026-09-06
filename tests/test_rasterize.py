@@ -191,21 +191,18 @@ def test_two_heavy_layers_are_not_swapped(tmp_path):
     )
 
 
-def test_ambiguous_image_match_is_skipped_not_guessed(tmp_path, monkeypatch):
-    """If the image count ever disagrees, keep matplotlib's ids rather than mislabel."""
+def test_raster_identity_does_not_depend_on_backend_generated_ids(tmp_path, monkeypatch):
+    """Explicit draw scopes retain identity even when backend image naming changes."""
     fig, ax, lc = _heavy_fig()
     monkeypatch.setattr(_raster, "AUTO_IMAGE_ID", re.compile(r"^never-matches$"))
     res = fp.save(fig, str(tmp_path / "ambig.svg"))
     plt.close(fig)
     svg, _man = _read(res)
+    assert not any("generated <image>" in w for w in res.warnings)
+    assert f'id="{AXON}"' in svg
+    assert res.rasterized == [AXON]
 
-    assert any("generated <image>" in w for w in res.warnings), res.warnings
-    assert svg.count("<image") == 1, "the plot itself is still correct"
 
-
-# --------------------------------------------------------------------------------------
-# 4. force_vectors — the documented escape hatch
-# --------------------------------------------------------------------------------------
 def test_force_vectors_keeps_vectors_and_reports_the_cost(tmp_path):
     fig, ax, lc = _heavy_fig()
     res = fp.save(fig, str(tmp_path / "vec.svg"), force_vectors=True)

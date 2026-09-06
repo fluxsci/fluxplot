@@ -13,6 +13,7 @@ DETERMINISTIC_RCPARAMS = {
     # keep text as real <text> referencing fonts by name → editable, restyleable, addressable,
     # and font-version-independent (the 'path' default outlines glyphs into nondeterministic d's).
     "svg.fonttype": "none",
+    "savefig.bbox": None,
     # path simplification is deterministic given a pinned threshold; pin both explicitly.
     "path.simplify": True,
     "path.simplify_threshold": 0.111111,
@@ -39,3 +40,27 @@ def render_svg(fig, hashsalt: str, dpi=None) -> bytes:
     with plt.rc_context(rc):
         fig.savefig(buf, format="svg", metadata={"Date": None}, bbox_inches=None, **extra)
     return buf.getvalue()
+
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def final_layout(fig):
+    """Lay out with the SVG renderer, then freeze it through capture and export.
+
+    Agg and SVG have different font metrics. Public draw_without_rendering avoids
+    rasterizing data just to obtain the correct text/layout metrics.
+    """
+    from matplotlib.backends.backend_svg import FigureCanvasSVG
+    canvas, dpi, engine = fig.canvas, fig.dpi, fig.get_layout_engine()
+    try:
+        FigureCanvasSVG(fig)
+        fig.set_dpi(72)
+        fig.draw_without_rendering()
+        fig.set_layout_engine('none')
+        yield
+    finally:
+        fig.set_layout_engine(engine)
+        fig.set_dpi(dpi)
+        fig.set_canvas(canvas)

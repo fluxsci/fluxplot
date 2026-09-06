@@ -76,13 +76,12 @@ guide loop). Ticks/gridlines/spines/titles are present in the **parts tree** (so
 they ARE addressable) but absent from the flat `guides[]` index. Low urgency
 because parts covers addressing; revisit if a consumer relies on `guides[]`.
 
-### P0 — multi-panel figures (plan §2; the next deliberate schema version)
-`fig, axs = plt.subplots(2, 2)` still emits every capture as id `plot-area` with
-order-dependent `axis.x-2` collisions. The panel contract (panel.a namespace,
-top-level `panels[]`, colorbars as figure guides) is designed in
-`codex_improvement_plan.md` §2 but requires a synchronized schemaVersion bump +
-Flux TypeScript/consumer changes — land both sides together (and repair the
-schema `$id` 0.1.0 vs `SPEC_VERSION` 0.2.0 drift in the same versioned change).
+### Completed — scientific/panel/field contract 0.3 (September 2026)
+
+See [POLISH_0.3.md](POLISH_0.3.md) and the README's schema 0.3 sections. Panel ownership,
+colorbar guides, full-precision/null data, repeated components and matrix/contour helpers now
+ship with synchronized Flux readers and regression fixtures. The historical deferred contour
+note above is superseded by `fp.contour`/`fp.contourf` and their level metadata.
 
 ### P2
 - `build.order` carries the role-ref token `"gridlines"` (not an svg id). The Flux

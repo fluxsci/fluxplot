@@ -56,7 +56,7 @@ def _save(ax, tmp_path, name):
 
 def test_lineplot_hue(ax, tmp_path):
     sns.lineplot(data=_fmri_stim(), x="timepoint", y="signal", hue="region", ax=ax)
-    tagged = fp.tag_seaborn(ax)
+    tagged = fp.tag_seaborn(ax, plot="lineplot")
     assert tagged == {"parietal": ["line", "area"], "frontal": ["line", "area"]}
     # the empty legend-proxy lines are gone
     assert all(len(ln.get_xdata()) for ln in ax.lines)
@@ -88,14 +88,14 @@ def test_scatterplot_per_point(ax, tmp_path):
 def test_scatterplot_hue_fuses_to_one_group(ax, tmp_path):
     # seaborn draws ALL hue groups as one collection; identity below hue is unrecoverable
     sns.scatterplot(data=_tips(), x="total_bill", y="tip", hue="sex", ax=ax)
-    tagged = fp.tag_seaborn(ax)
+    tagged = fp.tag_seaborn(ax, plot="scatterplot")
     assert tagged == {"tip": ["point"]}
 
 
 def test_barplot_hue_bars_and_errorbars(ax, tmp_path):
     tips = _tips()
     sns.barplot(data=tips, x="day", y="total_bill", hue="sex", errorbar="sd", ax=ax)
-    tagged = fp.tag_seaborn(ax)
+    tagged = fp.tag_seaborn(ax, plot="barplot")
     assert set(tagged) == {"Male", "Female"}
     assert tagged["Male"][0] == "bar" and tagged["Male"].count("errorbar") == 4
     man = _save(ax, tmp_path, "bars")
@@ -105,8 +105,8 @@ def test_barplot_hue_bars_and_errorbars(ax, tmp_path):
         tips[tips.sex == "Male"].groupby("day", observed=True)["total_bill"].mean()
     )
     order = [t.get_text() for t in ax.get_xticklabels()]
-    # canonical JSON rounds floats to 4 decimals — compare at that precision
-    assert male["data"]["y"] == [round(float(expected[d]), 4) for d in order]
+    # Scientific values round-trip without destructive decimal quantization.
+    assert male["data"]["y"] == pytest.approx([float(expected[d]) for d in order], rel=1e-14)
 
 
 def test_series_override_and_compose_with_helpers(ax, tmp_path):
