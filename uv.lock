@@ -659,6 +659,8 @@ name = "fluxplot"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cmasher", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "cmasher", version = "1.9.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "ipykernel", version = "6.31.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "ipykernel", version = "7.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "jsonschema", version = "4.25.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -676,20 +678,13 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "cmasher", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "cmasher", version = "1.9.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pytest", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-]
-style = [
-    { name = "cmasher", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "cmasher", version = "1.9.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "cmasher", marker = "extra == 'dev'" },
-    { name = "cmasher", marker = "extra == 'style'" },
+    { name = "cmasher" },
     { name = "ipykernel", specifier = ">=6.31.0" },
     { name = "jsonschema", specifier = ">=4" },
     { name = "lxml", specifier = ">=4.9" },
@@ -698,7 +693,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7" },
     { name = "seaborn", specifier = ">=0.13.2" },
 ]
-provides-extras = ["dev", "style"]
+provides-extras = ["dev"]
 
 [[package]]
 name = "fonttools"
