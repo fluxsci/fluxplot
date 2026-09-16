@@ -1,0 +1,2547 @@
+{
+ "schema": "fluxplot.palettes/1",
+ "collections": [
+  {
+   "id": "flexoki",
+   "name": "Flexoki",
+   "description": "Steph Ango's Flexoki \u2014 Flux's default palette.",
+   "url": "https://stephango.com/flexoki",
+   "license": "MIT",
+   "groups": [
+    {
+     "name": "base",
+     "type": "neutral",
+     "swatches": [
+      {
+       "name": "paper",
+       "hex": "#fffcf0"
+      },
+      {
+       "name": "base-50",
+       "hex": "#f2f0e5"
+      },
+      {
+       "name": "base-100",
+       "hex": "#e6e4d9"
+      },
+      {
+       "name": "base-150",
+       "hex": "#dad8ce"
+      },
+      {
+       "name": "base-200",
+       "hex": "#cecdc3"
+      },
+      {
+       "name": "base-300",
+       "hex": "#b7b5ac"
+      },
+      {
+       "name": "base-400",
+       "hex": "#9f9d96"
+      },
+      {
+       "name": "base-500",
+       "hex": "#878580"
+      },
+      {
+       "name": "base-600",
+       "hex": "#6f6e69"
+      },
+      {
+       "name": "base-700",
+       "hex": "#575653"
+      },
+      {
+       "name": "base-800",
+       "hex": "#403e3c"
+      },
+      {
+       "name": "base-850",
+       "hex": "#343331"
+      },
+      {
+       "name": "base-900",
+       "hex": "#282726"
+      },
+      {
+       "name": "base-950",
+       "hex": "#1c1b1a"
+      },
+      {
+       "name": "black",
+       "hex": "#100f0f"
+      }
+     ]
+    },
+    {
+     "name": "red",
+     "type": "sequential",
+     "swatches": [
+      {
+       "name": "red-50",
+       "hex": "#ffe1d5"
+      },
+      {
+       "name": "red-100",
+       "hex": "#ffcabb"
+      },
+      {
+       "name": "red-150",
+       "hex": "#fdb2a2"
+      },
+      {
+       "name": "red-200",
+       "hex": "#f89a8a"
+      },
+      {
+       "name": "red-300",
+       "hex": "#e8705f"
+      },
+      {
+       "name": "red-400",
+       "hex": "#d14d41"
+      },
+      {
+       "name": "red-500",
+       "hex": "#c03e35"
+      },
+      {
+       "name": "red-600",
+       "hex": "#af3029"
+      },
+      {
+       "name": "red-700",
+       "hex": "#942822"
+      },
+      {
+       "name": "red-800",
+       "hex": "#6c201c"
+      },
+      {
+       "name": "red-850",
+       "hex": "#551b18"
+      },
+      {
+       "name": "red-900",
+       "hex": "#3e1715"
+      },
+      {
+       "name": "red-950",
+       "hex": "#261312"
+      }
+     ]
+    },
+    {
+     "name": "orange",
+     "type": "sequential",
+     "swatches": [
+      {
+       "name": "orange-50",
+       "hex": "#ffe7ce"
+      },
+      {
+       "name": "orange-100",
+       "hex": "#fed3af"
+      },
+      {
+       "name": "orange-150",
+       "hex": "#fcc192"
+      },
+      {
+       "name": "orange-200",
+       "hex": "#f9ae77"
+      },
+      {
+       "name": "orange-300",
+       "hex": "#ec8b49"
+      },
+      {
+       "name": "orange-400",
+       "hex": "#da702c"
+      },
+      {
+       "name": "orange-500",
+       "hex": "#cb6120"
+      },
+      {
+       "name": "orange-600",
+       "hex": "#bc5215"
+      },
+      {
+       "name": "orange-700",
+       "hex": "#9d4310"
+      },
+      {
+       "name": "orange-800",
+       "hex": "#71320d"
+      },
+      {
+       "name": "orange-850",
+       "hex": "#59290d"
+      },
+      {
+       "name": "orange-900",
+       "hex": "#40200d"
+      },
+      {
+       "name": "orange-950",
+       "hex": "#27180e"
+      }
+     ]
+    },
+    {
+     "name": "yellow",
+     "type": "sequential",
+     "swatches": [
+      {
+       "name": "yellow-50",
+       "hex": "#faeec6"
+      },
+      {
+       "name": "yellow-100",
+       "hex": "#f6e2a0"
+      },
+      {
+       "name": "yellow-150",
+       "hex": "#f1d67e"
+      },
+      {
+       "name": "yellow-200",
+       "hex": "#eccb60"
+      },
+      {
+       "name": "yellow-300",
+       "hex": "#dfb431"
+      },
+      {
+       "name": "yellow-400",
+       "hex": "#d0a215"
+      },
+      {
+       "name": "yellow-500",
+       "hex": "#be9207"
+      },
+      {
+       "name": "yellow-600",
+       "hex": "#ad8301"
+      },
+      {
+       "name": "yellow-700",
+       "hex": "#8e6b01"
+      },
+      {
+       "name": "yellow-800",
+       "hex": "#664d01"
+      },
+      {
+       "name": "yellow-850",
+       "hex": "#503d02"
+      },
+      {
+       "name": "yellow-900",
+       "hex": "#3a2d04"
+      },
+      {
+       "name": "yellow-950",
+       "hex": "#241e08"
+      }
+     ]
+    },
+    {
+     "name": "olive",
+     "type": "sequential",
+     "swatches": [
+      {
+       "name": "olive-50",
+       "hex": "#edeecf"
+      },
+      {
+       "name": "olive-100",
+       "hex": "#dde2b2"
+      },
+      {
+       "name": "olive-150",
+       "hex": "#cdd597"
+      },
+      {
+       "name": "olive-200",
+       "hex": "#bec97e"
+      },
+      {
+       "name": "olive-300",
+       "hex": "#a0af54"
+      },
+      {
+       "name": "olive-400",
+       "hex": "#879a39"
+      },
+      {
+       "name": "olive-500",
+       "hex": "#768d21"
+      },
+      {
+       "name": "olive-600",
+       "hex": "#66800b"
+      },
+      {
+       "name": "olive-700",
+       "hex": "#536907"
+      },
+      {
+       "name": "olive-800",
+       "hex": "#3d4c07"
+      },
+      {
+       "name": "olive-850",
+       "hex": "#313d07"
+      },
+      {
+       "name": "olive-900",
+       "hex": "#252d09"
+      },
+      {
+       "name": "olive-950",
+       "hex": "#1a1e0c"
+      }
+     ]
+    },
+    {
+     "name": "green",
+     "type": "sequential",
+     "swatches": [
+      {
+       "name": "green-50",
+       "hex": "#a9e3b2"
+      },
+      {
+       "name": "green-100",
+       "hex": "#95dca1"
+      },
+      {
+       "name": "green-150",
+       "hex": "#7fd68d"
+      },
+      {
+       "name": "green-200",
+       "hex": "#67d379"
+      },
+      {
+       "name": "green-300",
+       "hex": "#44c55a"
+      },
+      {
+       "name": "green-400",
+       "hex": "#35ab49"
+      },
+      {
+       "name": "green-500",
+       "hex": "#2c973e"
+      },
+      {
+       "name": "green-600",
+       "hex": "#228833"
+      },
+      {
+       "name": "green-700",
+       "hex": "#1c722a"
+      },
+      {
+       "name": "green-800",
+       "hex": "#165421"
+      },
+      {
+       "name": "green-850",
+       "hex": "#13421b"
+      },
+      {
+       "name": "green-900",
+       "hex": "#113016"
+      },
+      {
+       "name": "green-950",
+       "hex": "#0f1e11"
+      }
+     ]
+    },
+    {
+     "name": "cyan",
+     "type": "sequential",
+     "swatches": [
+      {
+       "name": "cyan-50",
+       "hex": "#ddf1e4"
+      },
+      {
+       "name": "cyan-100",
+       "hex": "#bfe8d9"
+      },
+      {
+       "name": "cyan-150",
+       "hex": "#a2dece"
+      },
+      {
+       "name": "cyan-200",
+       "hex": "#87d3c3"
+      },
+      {
+       "name": "cyan-300",
+       "hex": "#5abdac"
+      },
+      {
+       "name": "cyan-400",
+       "hex": "#3aa99f"
+      },
+      {
+       "name": "cyan-500",
+       "hex": "#2f968d"
+      },
+      {
+       "name": "cyan-600",
+       "hex": "#24837b"
+      },
+      {
+       "name": "cyan-700",
+       "hex": "#1c6c66"
+      },
+      {
+       "name": "cyan-800",
+       "hex": "#164f4a"
+      },
+      {
+       "name": "cyan-850",
+       "hex": "#143f3c"
+      },
+      {
+       "name": "cyan-900",
+       "hex": "#122f2c"
+      },
+      {
+       "name": "cyan-950",
+       "hex": "#101f1d"
+      }
+     ]
+    },
+    {
+     "name": "blue",
+     "type": "sequential",
+     "swatches": [
+      {
+       "name": "blue-50",
+       "hex": "#e1eceb"
+      },
+      {
+       "name": "blue-100",
+       "hex": "#c6dde8"
+      },
+      {
+       "name": "blue-150",
+       "hex": "#abcfe2"
+      },
+      {
+       "name": "blue-200",
+       "hex": "#92bfdb"
+      },
+      {
+       "name": "blue-300",
+       "hex": "#66a0c8"
+      },
+      {
+       "name": "blue-400",
+       "hex": "#4385be"
+      },
+      {
+       "name": "blue-500",
+       "hex": "#3171b2"
+      },
+      {
+       "name": "blue-600",
+       "hex": "#205ea6"
+      },
+      {
+       "name": "blue-700",
+       "hex": "#1a4f8c"
+      },
+      {
+       "name": "blue-800",
+       "hex": "#163b66"
+      },
+      {
+       "name": "blue-850",
+       "hex": "#133051"
+      },
+      {
+       "name": "blue-900",
+       "hex": "#12253b"
+      },
+      {
+       "name": "blue-950",
+       "hex": "#101a24"
+      }
+     ]
+    },
+    {
+     "name": "purple",
+     "type": "sequential",
+     "swatches": [
+      {
+       "name": "purple-50",
+       "hex": "#f0eaec"
+      },
+      {
+       "name": "purple-100",
+       "hex": "#e2d9e9"
+      },
+      {
+       "name": "purple-150",
+       "hex": "#d3cae6"
+      },
+      {
+       "name": "purple-200",
+       "hex": "#c4b9e0"
+      },
+      {
+       "name": "purple-300",
+       "hex": "#a699d0"
+      },
+      {
+       "name": "purple-400",
+       "hex": "#8b7ec8"
+      },
+      {
+       "name": "purple-500",
+       "hex": "#735eb5"
+      },
+      {
+       "name": "purple-600",
+       "hex": "#5e409d"
+      },
+      {
+       "name": "purple-700",
+       "hex": "#4f3685"
+      },
+      {
+       "name": "purple-800",
+       "hex": "#3c2a62"
+      },
+      {
+       "name": "purple-850",
+       "hex": "#31234e"
+      },
+      {
+       "name": "purple-900",
+       "hex": "#261c39"
+      },
+      {
+       "name": "purple-950",
+       "hex": "#1a1623"
+      }
+     ]
+    },
+    {
+     "name": "magenta",
+     "type": "sequential",
+     "swatches": [
+      {
+       "name": "magenta-50",
+       "hex": "#fee4e5"
+      },
+      {
+       "name": "magenta-100",
+       "hex": "#fccfda"
+      },
+      {
+       "name": "magenta-150",
+       "hex": "#f9b9cf"
+      },
+      {
+       "name": "magenta-200",
+       "hex": "#f4a4c2"
+      },
+      {
+       "name": "magenta-300",
+       "hex": "#e47da8"
+      },
+      {
+       "name": "magenta-400",
+       "hex": "#ce5d97"
+      },
+      {
+       "name": "magenta-500",
+       "hex": "#b74583"
+      },
+      {
+       "name": "magenta-600",
+       "hex": "#a02f6f"
+      },
+      {
+       "name": "magenta-700",
+       "hex": "#87285e"
+      },
+      {
+       "name": "magenta-800",
+       "hex": "#641f46"
+      },
+      {
+       "name": "magenta-850",
+       "hex": "#4f1b39"
+      },
+      {
+       "name": "magenta-900",
+       "hex": "#39172b"
+      },
+      {
+       "name": "magenta-950",
+       "hex": "#24131d"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "brewer",
+   "name": "ColorBrewer",
+   "description": "Cynthia Brewer's ColorBrewer schemes: sequential (9 classes), diverging (11) and qualitative sets.",
+   "url": "https://colorbrewer2.org/",
+   "license": "Apache-2.0 (Brewer, Harrower and Penn State)",
+   "groups": [
+    {
+     "name": "Blues",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "Blues-1",
+       "hex": "#f7fbff"
+      },
+      {
+       "name": "Blues-2",
+       "hex": "#deebf7"
+      },
+      {
+       "name": "Blues-3",
+       "hex": "#c6dbef"
+      },
+      {
+       "name": "Blues-4",
+       "hex": "#9ecae1"
+      },
+      {
+       "name": "Blues-5",
+       "hex": "#6baed6"
+      },
+      {
+       "name": "Blues-6",
+       "hex": "#4292c6"
+      },
+      {
+       "name": "Blues-7",
+       "hex": "#2171b5"
+      },
+      {
+       "name": "Blues-8",
+       "hex": "#08519c"
+      },
+      {
+       "name": "Blues-9",
+       "hex": "#08306b"
+      }
+     ]
+    },
+    {
+     "name": "BuGn",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "BuGn-1",
+       "hex": "#f7fcfd"
+      },
+      {
+       "name": "BuGn-2",
+       "hex": "#e5f5f9"
+      },
+      {
+       "name": "BuGn-3",
+       "hex": "#ccece6"
+      },
+      {
+       "name": "BuGn-4",
+       "hex": "#99d8c9"
+      },
+      {
+       "name": "BuGn-5",
+       "hex": "#66c2a4"
+      },
+      {
+       "name": "BuGn-6",
+       "hex": "#41ae76"
+      },
+      {
+       "name": "BuGn-7",
+       "hex": "#238b45"
+      },
+      {
+       "name": "BuGn-8",
+       "hex": "#006d2c"
+      },
+      {
+       "name": "BuGn-9",
+       "hex": "#00441b"
+      }
+     ]
+    },
+    {
+     "name": "BuPu",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "BuPu-1",
+       "hex": "#f7fcfd"
+      },
+      {
+       "name": "BuPu-2",
+       "hex": "#e0ecf4"
+      },
+      {
+       "name": "BuPu-3",
+       "hex": "#bfd3e6"
+      },
+      {
+       "name": "BuPu-4",
+       "hex": "#9ebcda"
+      },
+      {
+       "name": "BuPu-5",
+       "hex": "#8c96c6"
+      },
+      {
+       "name": "BuPu-6",
+       "hex": "#8c6bb1"
+      },
+      {
+       "name": "BuPu-7",
+       "hex": "#88419d"
+      },
+      {
+       "name": "BuPu-8",
+       "hex": "#810f7c"
+      },
+      {
+       "name": "BuPu-9",
+       "hex": "#4d004b"
+      }
+     ]
+    },
+    {
+     "name": "GnBu",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "GnBu-1",
+       "hex": "#f7fcf0"
+      },
+      {
+       "name": "GnBu-2",
+       "hex": "#e0f3db"
+      },
+      {
+       "name": "GnBu-3",
+       "hex": "#ccebc5"
+      },
+      {
+       "name": "GnBu-4",
+       "hex": "#a8ddb5"
+      },
+      {
+       "name": "GnBu-5",
+       "hex": "#7bccc4"
+      },
+      {
+       "name": "GnBu-6",
+       "hex": "#4eb3d3"
+      },
+      {
+       "name": "GnBu-7",
+       "hex": "#2b8cbe"
+      },
+      {
+       "name": "GnBu-8",
+       "hex": "#0868ac"
+      },
+      {
+       "name": "GnBu-9",
+       "hex": "#084081"
+      }
+     ]
+    },
+    {
+     "name": "Greens",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "Greens-1",
+       "hex": "#f7fcf5"
+      },
+      {
+       "name": "Greens-2",
+       "hex": "#e5f5e0"
+      },
+      {
+       "name": "Greens-3",
+       "hex": "#c7e9c0"
+      },
+      {
+       "name": "Greens-4",
+       "hex": "#a1d99b"
+      },
+      {
+       "name": "Greens-5",
+       "hex": "#74c476"
+      },
+      {
+       "name": "Greens-6",
+       "hex": "#41ab5d"
+      },
+      {
+       "name": "Greens-7",
+       "hex": "#238b45"
+      },
+      {
+       "name": "Greens-8",
+       "hex": "#006d2c"
+      },
+      {
+       "name": "Greens-9",
+       "hex": "#00441b"
+      }
+     ]
+    },
+    {
+     "name": "Greys",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "Greys-1",
+       "hex": "#ffffff"
+      },
+      {
+       "name": "Greys-2",
+       "hex": "#f0f0f0"
+      },
+      {
+       "name": "Greys-3",
+       "hex": "#d9d9d9"
+      },
+      {
+       "name": "Greys-4",
+       "hex": "#bdbdbd"
+      },
+      {
+       "name": "Greys-5",
+       "hex": "#969696"
+      },
+      {
+       "name": "Greys-6",
+       "hex": "#737373"
+      },
+      {
+       "name": "Greys-7",
+       "hex": "#525252"
+      },
+      {
+       "name": "Greys-8",
+       "hex": "#252525"
+      },
+      {
+       "name": "Greys-9",
+       "hex": "#000000"
+      }
+     ]
+    },
+    {
+     "name": "OrRd",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "OrRd-1",
+       "hex": "#fff7ec"
+      },
+      {
+       "name": "OrRd-2",
+       "hex": "#fee8c8"
+      },
+      {
+       "name": "OrRd-3",
+       "hex": "#fdd49e"
+      },
+      {
+       "name": "OrRd-4",
+       "hex": "#fdbb84"
+      },
+      {
+       "name": "OrRd-5",
+       "hex": "#fc8d59"
+      },
+      {
+       "name": "OrRd-6",
+       "hex": "#ef6548"
+      },
+      {
+       "name": "OrRd-7",
+       "hex": "#d7301f"
+      },
+      {
+       "name": "OrRd-8",
+       "hex": "#b30000"
+      },
+      {
+       "name": "OrRd-9",
+       "hex": "#7f0000"
+      }
+     ]
+    },
+    {
+     "name": "Oranges",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "Oranges-1",
+       "hex": "#fff5eb"
+      },
+      {
+       "name": "Oranges-2",
+       "hex": "#fee6ce"
+      },
+      {
+       "name": "Oranges-3",
+       "hex": "#fdd0a2"
+      },
+      {
+       "name": "Oranges-4",
+       "hex": "#fdae6b"
+      },
+      {
+       "name": "Oranges-5",
+       "hex": "#fd8d3c"
+      },
+      {
+       "name": "Oranges-6",
+       "hex": "#f16913"
+      },
+      {
+       "name": "Oranges-7",
+       "hex": "#d94801"
+      },
+      {
+       "name": "Oranges-8",
+       "hex": "#a63603"
+      },
+      {
+       "name": "Oranges-9",
+       "hex": "#7f2704"
+      }
+     ]
+    },
+    {
+     "name": "PuBu",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "PuBu-1",
+       "hex": "#fff7fb"
+      },
+      {
+       "name": "PuBu-2",
+       "hex": "#ece7f2"
+      },
+      {
+       "name": "PuBu-3",
+       "hex": "#d0d1e6"
+      },
+      {
+       "name": "PuBu-4",
+       "hex": "#a6bddb"
+      },
+      {
+       "name": "PuBu-5",
+       "hex": "#74a9cf"
+      },
+      {
+       "name": "PuBu-6",
+       "hex": "#3690c0"
+      },
+      {
+       "name": "PuBu-7",
+       "hex": "#0570b0"
+      },
+      {
+       "name": "PuBu-8",
+       "hex": "#045a8d"
+      },
+      {
+       "name": "PuBu-9",
+       "hex": "#023858"
+      }
+     ]
+    },
+    {
+     "name": "PuBuGn",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "PuBuGn-1",
+       "hex": "#fff7fb"
+      },
+      {
+       "name": "PuBuGn-2",
+       "hex": "#ece2f0"
+      },
+      {
+       "name": "PuBuGn-3",
+       "hex": "#d0d1e6"
+      },
+      {
+       "name": "PuBuGn-4",
+       "hex": "#a6bddb"
+      },
+      {
+       "name": "PuBuGn-5",
+       "hex": "#67a9cf"
+      },
+      {
+       "name": "PuBuGn-6",
+       "hex": "#3690c0"
+      },
+      {
+       "name": "PuBuGn-7",
+       "hex": "#02818a"
+      },
+      {
+       "name": "PuBuGn-8",
+       "hex": "#016c59"
+      },
+      {
+       "name": "PuBuGn-9",
+       "hex": "#014636"
+      }
+     ]
+    },
+    {
+     "name": "PuRd",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "PuRd-1",
+       "hex": "#f7f4f9"
+      },
+      {
+       "name": "PuRd-2",
+       "hex": "#e7e1ef"
+      },
+      {
+       "name": "PuRd-3",
+       "hex": "#d4b9da"
+      },
+      {
+       "name": "PuRd-4",
+       "hex": "#c994c7"
+      },
+      {
+       "name": "PuRd-5",
+       "hex": "#df65b0"
+      },
+      {
+       "name": "PuRd-6",
+       "hex": "#e7298a"
+      },
+      {
+       "name": "PuRd-7",
+       "hex": "#ce1256"
+      },
+      {
+       "name": "PuRd-8",
+       "hex": "#980043"
+      },
+      {
+       "name": "PuRd-9",
+       "hex": "#67001f"
+      }
+     ]
+    },
+    {
+     "name": "Purples",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "Purples-1",
+       "hex": "#fcfbfd"
+      },
+      {
+       "name": "Purples-2",
+       "hex": "#efedf5"
+      },
+      {
+       "name": "Purples-3",
+       "hex": "#dadaeb"
+      },
+      {
+       "name": "Purples-4",
+       "hex": "#bcbddc"
+      },
+      {
+       "name": "Purples-5",
+       "hex": "#9e9ac8"
+      },
+      {
+       "name": "Purples-6",
+       "hex": "#807dba"
+      },
+      {
+       "name": "Purples-7",
+       "hex": "#6a51a3"
+      },
+      {
+       "name": "Purples-8",
+       "hex": "#54278f"
+      },
+      {
+       "name": "Purples-9",
+       "hex": "#3f007d"
+      }
+     ]
+    },
+    {
+     "name": "RdPu",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "RdPu-1",
+       "hex": "#fff7f3"
+      },
+      {
+       "name": "RdPu-2",
+       "hex": "#fde0dd"
+      },
+      {
+       "name": "RdPu-3",
+       "hex": "#fcc5c0"
+      },
+      {
+       "name": "RdPu-4",
+       "hex": "#fa9fb5"
+      },
+      {
+       "name": "RdPu-5",
+       "hex": "#f768a1"
+      },
+      {
+       "name": "RdPu-6",
+       "hex": "#dd3497"
+      },
+      {
+       "name": "RdPu-7",
+       "hex": "#ae017e"
+      },
+      {
+       "name": "RdPu-8",
+       "hex": "#7a0177"
+      },
+      {
+       "name": "RdPu-9",
+       "hex": "#49006a"
+      }
+     ]
+    },
+    {
+     "name": "Reds",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "Reds-1",
+       "hex": "#fff5f0"
+      },
+      {
+       "name": "Reds-2",
+       "hex": "#fee0d2"
+      },
+      {
+       "name": "Reds-3",
+       "hex": "#fcbba1"
+      },
+      {
+       "name": "Reds-4",
+       "hex": "#fc9272"
+      },
+      {
+       "name": "Reds-5",
+       "hex": "#fb6a4a"
+      },
+      {
+       "name": "Reds-6",
+       "hex": "#ef3b2c"
+      },
+      {
+       "name": "Reds-7",
+       "hex": "#cb181d"
+      },
+      {
+       "name": "Reds-8",
+       "hex": "#a50f15"
+      },
+      {
+       "name": "Reds-9",
+       "hex": "#67000d"
+      }
+     ]
+    },
+    {
+     "name": "YlGn",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "YlGn-1",
+       "hex": "#ffffe5"
+      },
+      {
+       "name": "YlGn-2",
+       "hex": "#f7fcb9"
+      },
+      {
+       "name": "YlGn-3",
+       "hex": "#d9f0a3"
+      },
+      {
+       "name": "YlGn-4",
+       "hex": "#addd8e"
+      },
+      {
+       "name": "YlGn-5",
+       "hex": "#78c679"
+      },
+      {
+       "name": "YlGn-6",
+       "hex": "#41ab5d"
+      },
+      {
+       "name": "YlGn-7",
+       "hex": "#238443"
+      },
+      {
+       "name": "YlGn-8",
+       "hex": "#006837"
+      },
+      {
+       "name": "YlGn-9",
+       "hex": "#004529"
+      }
+     ]
+    },
+    {
+     "name": "YlGnBu",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "YlGnBu-1",
+       "hex": "#ffffd9"
+      },
+      {
+       "name": "YlGnBu-2",
+       "hex": "#edf8b1"
+      },
+      {
+       "name": "YlGnBu-3",
+       "hex": "#c7e9b4"
+      },
+      {
+       "name": "YlGnBu-4",
+       "hex": "#7fcdbb"
+      },
+      {
+       "name": "YlGnBu-5",
+       "hex": "#41b6c4"
+      },
+      {
+       "name": "YlGnBu-6",
+       "hex": "#1d91c0"
+      },
+      {
+       "name": "YlGnBu-7",
+       "hex": "#225ea8"
+      },
+      {
+       "name": "YlGnBu-8",
+       "hex": "#253494"
+      },
+      {
+       "name": "YlGnBu-9",
+       "hex": "#081d58"
+      }
+     ]
+    },
+    {
+     "name": "YlOrBr",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "YlOrBr-1",
+       "hex": "#ffffe5"
+      },
+      {
+       "name": "YlOrBr-2",
+       "hex": "#fff7bc"
+      },
+      {
+       "name": "YlOrBr-3",
+       "hex": "#fee391"
+      },
+      {
+       "name": "YlOrBr-4",
+       "hex": "#fec44f"
+      },
+      {
+       "name": "YlOrBr-5",
+       "hex": "#fe9929"
+      },
+      {
+       "name": "YlOrBr-6",
+       "hex": "#ec7014"
+      },
+      {
+       "name": "YlOrBr-7",
+       "hex": "#cc4c02"
+      },
+      {
+       "name": "YlOrBr-8",
+       "hex": "#993404"
+      },
+      {
+       "name": "YlOrBr-9",
+       "hex": "#662506"
+      }
+     ]
+    },
+    {
+     "name": "YlOrRd",
+     "type": "sequential",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "YlOrRd-1",
+       "hex": "#ffffcc"
+      },
+      {
+       "name": "YlOrRd-2",
+       "hex": "#ffeda0"
+      },
+      {
+       "name": "YlOrRd-3",
+       "hex": "#fed976"
+      },
+      {
+       "name": "YlOrRd-4",
+       "hex": "#feb24c"
+      },
+      {
+       "name": "YlOrRd-5",
+       "hex": "#fd8d3c"
+      },
+      {
+       "name": "YlOrRd-6",
+       "hex": "#fc4e2a"
+      },
+      {
+       "name": "YlOrRd-7",
+       "hex": "#e31a1c"
+      },
+      {
+       "name": "YlOrRd-8",
+       "hex": "#bd0026"
+      },
+      {
+       "name": "YlOrRd-9",
+       "hex": "#800026"
+      }
+     ]
+    },
+    {
+     "name": "BrBG",
+     "type": "diverging",
+     "classes": 11,
+     "swatches": [
+      {
+       "name": "BrBG-1",
+       "hex": "#543005"
+      },
+      {
+       "name": "BrBG-2",
+       "hex": "#8c510a"
+      },
+      {
+       "name": "BrBG-3",
+       "hex": "#bf812d"
+      },
+      {
+       "name": "BrBG-4",
+       "hex": "#dfc27d"
+      },
+      {
+       "name": "BrBG-5",
+       "hex": "#f6e8c3"
+      },
+      {
+       "name": "BrBG-6",
+       "hex": "#f5f5f5"
+      },
+      {
+       "name": "BrBG-7",
+       "hex": "#c7eae5"
+      },
+      {
+       "name": "BrBG-8",
+       "hex": "#80cdc1"
+      },
+      {
+       "name": "BrBG-9",
+       "hex": "#35978f"
+      },
+      {
+       "name": "BrBG-10",
+       "hex": "#01665e"
+      },
+      {
+       "name": "BrBG-11",
+       "hex": "#003c30"
+      }
+     ]
+    },
+    {
+     "name": "PiYG",
+     "type": "diverging",
+     "classes": 11,
+     "swatches": [
+      {
+       "name": "PiYG-1",
+       "hex": "#8e0152"
+      },
+      {
+       "name": "PiYG-2",
+       "hex": "#c51b7d"
+      },
+      {
+       "name": "PiYG-3",
+       "hex": "#de77ae"
+      },
+      {
+       "name": "PiYG-4",
+       "hex": "#f1b6da"
+      },
+      {
+       "name": "PiYG-5",
+       "hex": "#fde0ef"
+      },
+      {
+       "name": "PiYG-6",
+       "hex": "#f7f7f7"
+      },
+      {
+       "name": "PiYG-7",
+       "hex": "#e6f5d0"
+      },
+      {
+       "name": "PiYG-8",
+       "hex": "#b8e186"
+      },
+      {
+       "name": "PiYG-9",
+       "hex": "#7fbc41"
+      },
+      {
+       "name": "PiYG-10",
+       "hex": "#4d9221"
+      },
+      {
+       "name": "PiYG-11",
+       "hex": "#276419"
+      }
+     ]
+    },
+    {
+     "name": "PRGn",
+     "type": "diverging",
+     "classes": 11,
+     "swatches": [
+      {
+       "name": "PRGn-1",
+       "hex": "#40004b"
+      },
+      {
+       "name": "PRGn-2",
+       "hex": "#762a83"
+      },
+      {
+       "name": "PRGn-3",
+       "hex": "#9970ab"
+      },
+      {
+       "name": "PRGn-4",
+       "hex": "#c2a5cf"
+      },
+      {
+       "name": "PRGn-5",
+       "hex": "#e7d4e8"
+      },
+      {
+       "name": "PRGn-6",
+       "hex": "#f7f7f7"
+      },
+      {
+       "name": "PRGn-7",
+       "hex": "#d9f0d3"
+      },
+      {
+       "name": "PRGn-8",
+       "hex": "#a6dba0"
+      },
+      {
+       "name": "PRGn-9",
+       "hex": "#5aae61"
+      },
+      {
+       "name": "PRGn-10",
+       "hex": "#1b7837"
+      },
+      {
+       "name": "PRGn-11",
+       "hex": "#00441b"
+      }
+     ]
+    },
+    {
+     "name": "PuOr",
+     "type": "diverging",
+     "classes": 11,
+     "swatches": [
+      {
+       "name": "PuOr-1",
+       "hex": "#7f3b08"
+      },
+      {
+       "name": "PuOr-2",
+       "hex": "#b35806"
+      },
+      {
+       "name": "PuOr-3",
+       "hex": "#e08214"
+      },
+      {
+       "name": "PuOr-4",
+       "hex": "#fdb863"
+      },
+      {
+       "name": "PuOr-5",
+       "hex": "#fee0b6"
+      },
+      {
+       "name": "PuOr-6",
+       "hex": "#f7f7f7"
+      },
+      {
+       "name": "PuOr-7",
+       "hex": "#d8daeb"
+      },
+      {
+       "name": "PuOr-8",
+       "hex": "#b2abd2"
+      },
+      {
+       "name": "PuOr-9",
+       "hex": "#8073ac"
+      },
+      {
+       "name": "PuOr-10",
+       "hex": "#542788"
+      },
+      {
+       "name": "PuOr-11",
+       "hex": "#2d004b"
+      }
+     ]
+    },
+    {
+     "name": "RdBu",
+     "type": "diverging",
+     "classes": 11,
+     "swatches": [
+      {
+       "name": "RdBu-1",
+       "hex": "#67001f"
+      },
+      {
+       "name": "RdBu-2",
+       "hex": "#b2182b"
+      },
+      {
+       "name": "RdBu-3",
+       "hex": "#d6604d"
+      },
+      {
+       "name": "RdBu-4",
+       "hex": "#f4a582"
+      },
+      {
+       "name": "RdBu-5",
+       "hex": "#fddbc7"
+      },
+      {
+       "name": "RdBu-6",
+       "hex": "#f7f7f7"
+      },
+      {
+       "name": "RdBu-7",
+       "hex": "#d1e5f0"
+      },
+      {
+       "name": "RdBu-8",
+       "hex": "#92c5de"
+      },
+      {
+       "name": "RdBu-9",
+       "hex": "#4393c3"
+      },
+      {
+       "name": "RdBu-10",
+       "hex": "#2166ac"
+      },
+      {
+       "name": "RdBu-11",
+       "hex": "#053061"
+      }
+     ]
+    },
+    {
+     "name": "RdGy",
+     "type": "diverging",
+     "classes": 11,
+     "swatches": [
+      {
+       "name": "RdGy-1",
+       "hex": "#67001f"
+      },
+      {
+       "name": "RdGy-2",
+       "hex": "#b2182b"
+      },
+      {
+       "name": "RdGy-3",
+       "hex": "#d6604d"
+      },
+      {
+       "name": "RdGy-4",
+       "hex": "#f4a582"
+      },
+      {
+       "name": "RdGy-5",
+       "hex": "#fddbc7"
+      },
+      {
+       "name": "RdGy-6",
+       "hex": "#ffffff"
+      },
+      {
+       "name": "RdGy-7",
+       "hex": "#e0e0e0"
+      },
+      {
+       "name": "RdGy-8",
+       "hex": "#bababa"
+      },
+      {
+       "name": "RdGy-9",
+       "hex": "#878787"
+      },
+      {
+       "name": "RdGy-10",
+       "hex": "#4d4d4d"
+      },
+      {
+       "name": "RdGy-11",
+       "hex": "#1a1a1a"
+      }
+     ]
+    },
+    {
+     "name": "RdYlBu",
+     "type": "diverging",
+     "classes": 11,
+     "swatches": [
+      {
+       "name": "RdYlBu-1",
+       "hex": "#a50026"
+      },
+      {
+       "name": "RdYlBu-2",
+       "hex": "#d73027"
+      },
+      {
+       "name": "RdYlBu-3",
+       "hex": "#f46d43"
+      },
+      {
+       "name": "RdYlBu-4",
+       "hex": "#fdae61"
+      },
+      {
+       "name": "RdYlBu-5",
+       "hex": "#fee090"
+      },
+      {
+       "name": "RdYlBu-6",
+       "hex": "#ffffbf"
+      },
+      {
+       "name": "RdYlBu-7",
+       "hex": "#e0f3f8"
+      },
+      {
+       "name": "RdYlBu-8",
+       "hex": "#abd9e9"
+      },
+      {
+       "name": "RdYlBu-9",
+       "hex": "#74add1"
+      },
+      {
+       "name": "RdYlBu-10",
+       "hex": "#4575b4"
+      },
+      {
+       "name": "RdYlBu-11",
+       "hex": "#313695"
+      }
+     ]
+    },
+    {
+     "name": "RdYlGn",
+     "type": "diverging",
+     "classes": 11,
+     "swatches": [
+      {
+       "name": "RdYlGn-1",
+       "hex": "#a50026"
+      },
+      {
+       "name": "RdYlGn-2",
+       "hex": "#d73027"
+      },
+      {
+       "name": "RdYlGn-3",
+       "hex": "#f46d43"
+      },
+      {
+       "name": "RdYlGn-4",
+       "hex": "#fdae61"
+      },
+      {
+       "name": "RdYlGn-5",
+       "hex": "#fee08b"
+      },
+      {
+       "name": "RdYlGn-6",
+       "hex": "#ffffbf"
+      },
+      {
+       "name": "RdYlGn-7",
+       "hex": "#d9ef8b"
+      },
+      {
+       "name": "RdYlGn-8",
+       "hex": "#a6d96a"
+      },
+      {
+       "name": "RdYlGn-9",
+       "hex": "#66bd63"
+      },
+      {
+       "name": "RdYlGn-10",
+       "hex": "#1a9850"
+      },
+      {
+       "name": "RdYlGn-11",
+       "hex": "#006837"
+      }
+     ]
+    },
+    {
+     "name": "Spectral",
+     "type": "diverging",
+     "classes": 11,
+     "swatches": [
+      {
+       "name": "Spectral-1",
+       "hex": "#9e0142"
+      },
+      {
+       "name": "Spectral-2",
+       "hex": "#d53e4f"
+      },
+      {
+       "name": "Spectral-3",
+       "hex": "#f46d43"
+      },
+      {
+       "name": "Spectral-4",
+       "hex": "#fdae61"
+      },
+      {
+       "name": "Spectral-5",
+       "hex": "#fee08b"
+      },
+      {
+       "name": "Spectral-6",
+       "hex": "#ffffbf"
+      },
+      {
+       "name": "Spectral-7",
+       "hex": "#e6f598"
+      },
+      {
+       "name": "Spectral-8",
+       "hex": "#abdda4"
+      },
+      {
+       "name": "Spectral-9",
+       "hex": "#66c2a5"
+      },
+      {
+       "name": "Spectral-10",
+       "hex": "#3288bd"
+      },
+      {
+       "name": "Spectral-11",
+       "hex": "#5e4fa2"
+      }
+     ]
+    },
+    {
+     "name": "Accent",
+     "type": "qualitative",
+     "classes": 8,
+     "swatches": [
+      {
+       "name": "Accent-1",
+       "hex": "#7fc97f"
+      },
+      {
+       "name": "Accent-2",
+       "hex": "#beaed4"
+      },
+      {
+       "name": "Accent-3",
+       "hex": "#fdc086"
+      },
+      {
+       "name": "Accent-4",
+       "hex": "#ffff99"
+      },
+      {
+       "name": "Accent-5",
+       "hex": "#386cb0"
+      },
+      {
+       "name": "Accent-6",
+       "hex": "#f0027f"
+      },
+      {
+       "name": "Accent-7",
+       "hex": "#bf5b17"
+      },
+      {
+       "name": "Accent-8",
+       "hex": "#666666"
+      }
+     ]
+    },
+    {
+     "name": "Dark2",
+     "type": "qualitative",
+     "classes": 8,
+     "swatches": [
+      {
+       "name": "Dark2-1",
+       "hex": "#1b9e77"
+      },
+      {
+       "name": "Dark2-2",
+       "hex": "#d95f02"
+      },
+      {
+       "name": "Dark2-3",
+       "hex": "#7570b3"
+      },
+      {
+       "name": "Dark2-4",
+       "hex": "#e7298a"
+      },
+      {
+       "name": "Dark2-5",
+       "hex": "#66a61e"
+      },
+      {
+       "name": "Dark2-6",
+       "hex": "#e6ab02"
+      },
+      {
+       "name": "Dark2-7",
+       "hex": "#a6761d"
+      },
+      {
+       "name": "Dark2-8",
+       "hex": "#666666"
+      }
+     ]
+    },
+    {
+     "name": "Paired",
+     "type": "qualitative",
+     "classes": 12,
+     "swatches": [
+      {
+       "name": "Paired-1",
+       "hex": "#a6cee3"
+      },
+      {
+       "name": "Paired-2",
+       "hex": "#1f78b4"
+      },
+      {
+       "name": "Paired-3",
+       "hex": "#b2df8a"
+      },
+      {
+       "name": "Paired-4",
+       "hex": "#33a02c"
+      },
+      {
+       "name": "Paired-5",
+       "hex": "#fb9a99"
+      },
+      {
+       "name": "Paired-6",
+       "hex": "#e31a1c"
+      },
+      {
+       "name": "Paired-7",
+       "hex": "#fdbf6f"
+      },
+      {
+       "name": "Paired-8",
+       "hex": "#ff7f00"
+      },
+      {
+       "name": "Paired-9",
+       "hex": "#cab2d6"
+      },
+      {
+       "name": "Paired-10",
+       "hex": "#6a3d9a"
+      },
+      {
+       "name": "Paired-11",
+       "hex": "#ffff99"
+      },
+      {
+       "name": "Paired-12",
+       "hex": "#b15928"
+      }
+     ]
+    },
+    {
+     "name": "Pastel1",
+     "type": "qualitative",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "Pastel1-1",
+       "hex": "#fbb4ae"
+      },
+      {
+       "name": "Pastel1-2",
+       "hex": "#b3cde3"
+      },
+      {
+       "name": "Pastel1-3",
+       "hex": "#ccebc5"
+      },
+      {
+       "name": "Pastel1-4",
+       "hex": "#decbe4"
+      },
+      {
+       "name": "Pastel1-5",
+       "hex": "#fed9a6"
+      },
+      {
+       "name": "Pastel1-6",
+       "hex": "#ffffcc"
+      },
+      {
+       "name": "Pastel1-7",
+       "hex": "#e5d8bd"
+      },
+      {
+       "name": "Pastel1-8",
+       "hex": "#fddaec"
+      },
+      {
+       "name": "Pastel1-9",
+       "hex": "#f2f2f2"
+      }
+     ]
+    },
+    {
+     "name": "Pastel2",
+     "type": "qualitative",
+     "classes": 8,
+     "swatches": [
+      {
+       "name": "Pastel2-1",
+       "hex": "#b3e2cd"
+      },
+      {
+       "name": "Pastel2-2",
+       "hex": "#fdcdac"
+      },
+      {
+       "name": "Pastel2-3",
+       "hex": "#cbd5e8"
+      },
+      {
+       "name": "Pastel2-4",
+       "hex": "#f4cae4"
+      },
+      {
+       "name": "Pastel2-5",
+       "hex": "#e6f5c9"
+      },
+      {
+       "name": "Pastel2-6",
+       "hex": "#fff2ae"
+      },
+      {
+       "name": "Pastel2-7",
+       "hex": "#f1e2cc"
+      },
+      {
+       "name": "Pastel2-8",
+       "hex": "#cccccc"
+      }
+     ]
+    },
+    {
+     "name": "Set1",
+     "type": "qualitative",
+     "classes": 9,
+     "swatches": [
+      {
+       "name": "Set1-1",
+       "hex": "#e41a1c"
+      },
+      {
+       "name": "Set1-2",
+       "hex": "#377eb8"
+      },
+      {
+       "name": "Set1-3",
+       "hex": "#4daf4a"
+      },
+      {
+       "name": "Set1-4",
+       "hex": "#984ea3"
+      },
+      {
+       "name": "Set1-5",
+       "hex": "#ff7f00"
+      },
+      {
+       "name": "Set1-6",
+       "hex": "#ffff33"
+      },
+      {
+       "name": "Set1-7",
+       "hex": "#a65628"
+      },
+      {
+       "name": "Set1-8",
+       "hex": "#f781bf"
+      },
+      {
+       "name": "Set1-9",
+       "hex": "#999999"
+      }
+     ]
+    },
+    {
+     "name": "Set2",
+     "type": "qualitative",
+     "classes": 8,
+     "swatches": [
+      {
+       "name": "Set2-1",
+       "hex": "#66c2a5"
+      },
+      {
+       "name": "Set2-2",
+       "hex": "#fc8d62"
+      },
+      {
+       "name": "Set2-3",
+       "hex": "#8da0cb"
+      },
+      {
+       "name": "Set2-4",
+       "hex": "#e78ac3"
+      },
+      {
+       "name": "Set2-5",
+       "hex": "#a6d854"
+      },
+      {
+       "name": "Set2-6",
+       "hex": "#ffd92f"
+      },
+      {
+       "name": "Set2-7",
+       "hex": "#e5c494"
+      },
+      {
+       "name": "Set2-8",
+       "hex": "#b3b3b3"
+      }
+     ]
+    },
+    {
+     "name": "Set3",
+     "type": "qualitative",
+     "classes": 12,
+     "swatches": [
+      {
+       "name": "Set3-1",
+       "hex": "#8dd3c7"
+      },
+      {
+       "name": "Set3-2",
+       "hex": "#ffffb3"
+      },
+      {
+       "name": "Set3-3",
+       "hex": "#bebada"
+      },
+      {
+       "name": "Set3-4",
+       "hex": "#fb8072"
+      },
+      {
+       "name": "Set3-5",
+       "hex": "#80b1d3"
+      },
+      {
+       "name": "Set3-6",
+       "hex": "#fdb462"
+      },
+      {
+       "name": "Set3-7",
+       "hex": "#b3de69"
+      },
+      {
+       "name": "Set3-8",
+       "hex": "#fccde5"
+      },
+      {
+       "name": "Set3-9",
+       "hex": "#d9d9d9"
+      },
+      {
+       "name": "Set3-10",
+       "hex": "#bc80bd"
+      },
+      {
+       "name": "Set3-11",
+       "hex": "#ccebc5"
+      },
+      {
+       "name": "Set3-12",
+       "hex": "#ffed6f"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "tol",
+   "name": "Paul Tol",
+   "description": "Paul Tol's qualitative colour sets, colour-blind safe and distinct in print.",
+   "url": "https://personal.sron.nl/~pault/",
+   "license": "BSD-3-Clause (tol-colors)",
+   "groups": [
+    {
+     "name": "bright",
+     "type": "qualitative",
+     "swatches": [
+      {
+       "name": "blue",
+       "hex": "#4477aa"
+      },
+      {
+       "name": "red",
+       "hex": "#ee6677"
+      },
+      {
+       "name": "green",
+       "hex": "#228833"
+      },
+      {
+       "name": "yellow",
+       "hex": "#ccbb44"
+      },
+      {
+       "name": "cyan",
+       "hex": "#66ccee"
+      },
+      {
+       "name": "purple",
+       "hex": "#aa3377"
+      },
+      {
+       "name": "grey",
+       "hex": "#bbbbbb"
+      }
+     ]
+    },
+    {
+     "name": "vibrant",
+     "type": "qualitative",
+     "swatches": [
+      {
+       "name": "orange",
+       "hex": "#ee7733"
+      },
+      {
+       "name": "blue",
+       "hex": "#0077bb"
+      },
+      {
+       "name": "cyan",
+       "hex": "#33bbee"
+      },
+      {
+       "name": "magenta",
+       "hex": "#ee3377"
+      },
+      {
+       "name": "red",
+       "hex": "#cc3311"
+      },
+      {
+       "name": "teal",
+       "hex": "#009988"
+      },
+      {
+       "name": "grey",
+       "hex": "#bbbbbb"
+      }
+     ]
+    },
+    {
+     "name": "muted",
+     "type": "qualitative",
+     "swatches": [
+      {
+       "name": "rose",
+       "hex": "#cc6677"
+      },
+      {
+       "name": "indigo",
+       "hex": "#332288"
+      },
+      {
+       "name": "sand",
+       "hex": "#ddcc77"
+      },
+      {
+       "name": "green",
+       "hex": "#117733"
+      },
+      {
+       "name": "cyan",
+       "hex": "#88ccee"
+      },
+      {
+       "name": "wine",
+       "hex": "#882255"
+      },
+      {
+       "name": "teal",
+       "hex": "#44aa99"
+      },
+      {
+       "name": "olive",
+       "hex": "#999933"
+      },
+      {
+       "name": "purple",
+       "hex": "#aa4499"
+      },
+      {
+       "name": "pale_grey",
+       "hex": "#dddddd"
+      }
+     ]
+    },
+    {
+     "name": "high_contrast",
+     "type": "qualitative",
+     "swatches": [
+      {
+       "name": "black",
+       "hex": "#000000"
+      },
+      {
+       "name": "blue",
+       "hex": "#004488"
+      },
+      {
+       "name": "red",
+       "hex": "#bb5566"
+      },
+      {
+       "name": "yellow",
+       "hex": "#ddaa33"
+      },
+      {
+       "name": "white",
+       "hex": "#ffffff"
+      }
+     ]
+    },
+    {
+     "name": "medium_contrast",
+     "type": "qualitative",
+     "swatches": [
+      {
+       "name": "white",
+       "hex": "#ffffff"
+      },
+      {
+       "name": "light_blue",
+       "hex": "#6699cc"
+      },
+      {
+       "name": "dark_blue",
+       "hex": "#004488"
+      },
+      {
+       "name": "light_yellow",
+       "hex": "#eecc66"
+      },
+      {
+       "name": "dark_yellow",
+       "hex": "#997700"
+      },
+      {
+       "name": "light_red",
+       "hex": "#ee99aa"
+      },
+      {
+       "name": "dark_red",
+       "hex": "#994455"
+      },
+      {
+       "name": "black",
+       "hex": "#000000"
+      }
+     ]
+    },
+    {
+     "name": "pale",
+     "type": "qualitative",
+     "swatches": [
+      {
+       "name": "pale_blue",
+       "hex": "#bbccee"
+      },
+      {
+       "name": "pale_red",
+       "hex": "#ffcccc"
+      },
+      {
+       "name": "pale_green",
+       "hex": "#ccddaa"
+      },
+      {
+       "name": "pale_yellow",
+       "hex": "#eeeebb"
+      },
+      {
+       "name": "pale_cyan",
+       "hex": "#cceeff"
+      },
+      {
+       "name": "pale_grey",
+       "hex": "#dddddd"
+      }
+     ]
+    },
+    {
+     "name": "dark",
+     "type": "qualitative",
+     "swatches": [
+      {
+       "name": "dark_blue",
+       "hex": "#222255"
+      },
+      {
+       "name": "dark_red",
+       "hex": "#663333"
+      },
+      {
+       "name": "dark_green",
+       "hex": "#225522"
+      },
+      {
+       "name": "dark_yellow",
+       "hex": "#666633"
+      },
+      {
+       "name": "dark_cyan",
+       "hex": "#225555"
+      },
+      {
+       "name": "dark_grey",
+       "hex": "#555555"
+      }
+     ]
+    },
+    {
+     "name": "light",
+     "type": "qualitative",
+     "swatches": [
+      {
+       "name": "light_blue",
+       "hex": "#77aadd"
+      },
+      {
+       "name": "orange",
+       "hex": "#ee8866"
+      },
+      {
+       "name": "light_yellow",
+       "hex": "#eedd88"
+      },
+      {
+       "name": "pink",
+       "hex": "#ffaabb"
+      },
+      {
+       "name": "light_cyan",
+       "hex": "#99ddff"
+      },
+      {
+       "name": "mint",
+       "hex": "#44bb99"
+      },
+      {
+       "name": "pear",
+       "hex": "#bbcc33"
+      },
+      {
+       "name": "olive",
+       "hex": "#aaaa00"
+      },
+      {
+       "name": "pale_grey",
+       "hex": "#dddddd"
+      }
+     ]
+    },
+    {
+     "name": "land_cover",
+     "type": "qualitative",
+     "swatches": [
+      {
+       "name": "water",
+       "hex": "#5566aa"
+      },
+      {
+       "name": "evergreen_needleleaf_forest",
+       "hex": "#117733"
+      },
+      {
+       "name": "evergreen_broadleaf_forest",
+       "hex": "#668822"
+      },
+      {
+       "name": "deciduous_needleleaf_forest",
+       "hex": "#44aa66"
+      },
+      {
+       "name": "deciduous_broadleaf_forest",
+       "hex": "#99bb55"
+      },
+      {
+       "name": "mixed_forest",
+       "hex": "#55aa22"
+      },
+      {
+       "name": "woodland",
+       "hex": "#558877"
+      },
+      {
+       "name": "wooded_grassland",
+       "hex": "#88bbaa"
+      },
+      {
+       "name": "closed_shrubland",
+       "hex": "#ddcc66"
+      },
+      {
+       "name": "open_shrubland",
+       "hex": "#ffdd44"
+      },
+      {
+       "name": "grassland",
+       "hex": "#aaddcc"
+      },
+      {
+       "name": "cropland",
+       "hex": "#44aa88"
+      },
+      {
+       "name": "bare_ground",
+       "hex": "#ffee88"
+      },
+      {
+       "name": "urban_and_built_up",
+       "hex": "#bb0011"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

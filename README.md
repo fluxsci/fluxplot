@@ -567,6 +567,36 @@ fp.colorbar(bands, name="energy", label="Energy")
 - Named colorbars expose the ramp, label and ticks, and link to the mappable. Ordinary
   `fig.colorbar` calls receive the same automatic guide capture.
 
+### Colormap and palette collections
+
+Every colormap and palette fluxplot knows is plain data in the package —
+`src/fluxplot/definitions/colormaps.json` and `palettes.json` — so nothing beyond
+matplotlib is imported at runtime and Flux bundles the very same files for its pickers:
+
+| `fx.maps` collection | what | maps |
+| --- | --- | --- |
+| `flexoki` | fluxplot's own maps (`flexoki_diverging`, …) | 5 |
+| `mpl` | matplotlib's built-ins, in its documented groups | 86 |
+| `crameri` | Fabio Crameri's Scientific colour maps | 60 |
+| `tol` | Paul Tol's continuous and discrete maps | 20 |
+| `cmasher` | cmasher | 57 |
+
+Every shipped map is registered with matplotlib under its qualified name and its
+reverse from `import fluxplot` on, so `cmap="crameri.batlow"` (or `"tol.sunset_r"`)
+works in any matplotlib call; `fx.maps.get("batlow")` resolves a bare name through the
+collections in that order, `fx.maps.names("crameri")` lists a collection and
+`fx.maps.info("tol.sunset")` tells you its type (`sequential` / `diverging` / `cyclic` /
+`qualitative` / `misc`), family and whether it is discrete.
+
+Palettes live beside them under `fx.palettes`: `flexoki` (the default), `brewer`
+(ColorBrewer — 9-class sequential, 11-class diverging and the qualitative sets) and
+`tol` (Paul Tol's colour sets). `fx.palettes.brewer["Blues"]` and
+`fx.palettes.get("tol", "bright")` are lists of hex strings.
+
+The JSON is built by `tools/build_color_definitions.py` from the upstream packages
+(matplotlib, cmcrameri, tol-colors, cmasher) — a build-time input only, re-run when a
+collection should be refreshed.
+
 In Flux, open X-Ray on a recipe-backed plot and expand **Color scales**. Edit the palette or
 range, then choose **Apply and regenerate**. Both the field and its key are regenerated from
 source data; authored Flux overrides remain keyed to existing part IDs. There is no attempt to

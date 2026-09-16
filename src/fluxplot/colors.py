@@ -22,7 +22,10 @@ colormaps, and eventually e.g. ``fx.tol`` if we add Paul Tol's colors.
 from __future__ import annotations
 
 import matplotlib as mpl
-from matplotlib.colors import Colormap, LinearSegmentedColormap
+from matplotlib.colors import Colormap, LinearSegmentedColormap, ListedColormap
+import functools
+import json
+from importlib import resources
 
 __all__ = ["flex", "maps"]
 
@@ -253,6 +256,34 @@ flex = _FlexPalette(_flex_data)
 # -------------------------------------------
 
 
+# -------------------------------------------
+# DEFINITIONS (JSON, shipped with the package)
+# -------------------------------------------
+#
+# Every colormap and palette collection fluxplot knows lives in
+# ``definitions/colormaps.json`` and ``definitions/palettes.json`` as plain data —
+# matplotlib's maps, Fabio Crameri's Scientific colour maps, Paul Tol's maps and
+# sets, cmasher, ColorBrewer, Flexoki. The files are built once by
+# ``tools/build_color_definitions.py`` from the upstream packages; at runtime
+# nothing but the JSON is read, so no upstream package is a dependency, and Flux
+# bundles the very same files for its pickers. A continuous map is 256 samples,
+# a discrete one its exact colours.
+
+_MAP_COLLECTION_ORDER = ("mpl", "crameri", "tol", "cmasher")
+
+
+@functools.lru_cache(maxsize=None)
+def _definitions(name: str) -> dict:
+    with resources.files("fluxplot").joinpath(f"definitions/{name}.json").open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _build_cmap(full_name: str, m: dict) -> Colormap:
+    if m.get("discrete"):
+        return ListedColormap(list(m["colors"]), name=full_name)
+    return LinearSegmentedColormap.from_list(full_name, list(m["colors"]), N=256)
+
+
 class _MapRegistry:
     """Colormap access under ``fx.maps``.
 
@@ -265,6 +296,68 @@ class _MapRegistry:
 
     def __init__(self) -> None:
         self._custom: dict[str, Colormap] = {}
+        # collection id -> {bare name: Colormap}; built from the JSON once
+        self._collections: dict[str, dict[str, Colormap]] | None = None
+        self._info: dict[str, dict] = {}
+
+    # -- the JSON collections --------------------------------------------
+    def _ensure(self) -> dict[str, dict[str, Colormap]]:
+        if self._collections is None:
+            cols: dict[str, dict[str, Colormap]] = {}
+            for c in _definitions("colormaps")["collections"]:
+                cols[c["id"]] = {}
+                for m in c["maps"]:
+                    full = f"{c['id']}.{m['name']}"
+                    cm = _build_cmap(full, m)
+                    cols[c["id"]][m["name"]] = cm
+                    self._info[full] = {
+                        "collection": c["id"], "name": m["name"], "type": m["type"],
+                        "family": m.get("family"), "discrete": bool(m.get("discrete")),
+                    }
+                    for variant in (cm, cm.reversed()):
+                        try:
+                            mpl.colormaps.register(variant)
+                        except Exception:  # already registered — best-effort
+                            pass
+            self._collections = cols
+        return self._collections
+
+    def collections(self) -> list[str]:
+        """The map collections: ``'flexoki'`` (fluxplot's own) then the shipped ones."""
+        return ["flexoki", *self._ensure()]
+
+    def get(self, name: str) -> Colormap:
+        """Resolve a colormap by name: ``'crameri.batlow'``, a bare ``'batlow'`` (the
+        first collection that has it — matplotlib, Crameri, Tol, cmasher), a fluxplot
+        custom map, or any of those with ``_r`` for the reversed map."""
+        if name in self._custom:
+            return self._custom[name]
+        base, reversed_ = (name[:-2], True) if name.endswith("_r") else (name, False)
+        cols = self._ensure()
+        found: Colormap | None = None
+        if "." in base:
+            cid, _, bare = base.partition(".")
+            if cid == "cmr":
+                cid = "cmasher"
+            found = cols.get(cid, {}).get(bare)
+        else:
+            if base in self._custom:
+                found = self._custom[base]
+            else:
+                for cid in _MAP_COLLECTION_ORDER:
+                    if base in cols.get(cid, {}):
+                        found = cols[cid][base]
+                        break
+        if found is None:
+            raise KeyError(f"No colormap {name!r} in fluxplot's collections ({', '.join(self.collections())})")
+        return found.reversed() if reversed_ else found
+
+    def info(self, name: str) -> dict:
+        """Collection, type (sequential / diverging / cyclic / qualitative / misc),
+        family and discreteness of a shipped map (``'crameri.batlow'`` or bare)."""
+        cm = self.get(name)
+        key = cm.name[:-2] if cm.name.endswith("_r") else cm.name
+        return dict(self._info.get(key) or {"collection": "flexoki", "name": key, "type": "custom", "family": None, "discrete": False})
 
     # -- attribute access -----------------------------------------------
     def __getattr__(self, name: str) -> Colormap:
@@ -272,6 +365,10 @@ class _MapRegistry:
             raise AttributeError(name)
         if name in self._custom:
             return self._custom[name]
+        try:
+            return self.get(name)
+        except KeyError:
+            pass
         cmr = _import_cmasher()
         if cmr is None:
             raise AttributeError(
@@ -285,13 +382,13 @@ class _MapRegistry:
 
     def __dir__(self) -> list[str]:
         names = set(super().__dir__()) | set(self._custom)
-        cmr = _import_cmasher()
-        if cmr is not None:
-            names |= set(cmr.get_cmap_list())
+        for maps in self._ensure().values():
+            names |= set(maps)
         return sorted(names)
 
     def __repr__(self) -> str:
-        return f"MapRegistry({len(self._custom)} custom maps + cmasher)"
+        n = sum(len(m) for m in self._ensure().values())
+        return f"MapRegistry({len(self._custom)} custom maps + {n} shipped in {', '.join(_MAP_COLLECTION_ORDER)})"
 
     # -- registration ----------------------------------------------------
     def register(self, cmap: Colormap) -> None:
@@ -305,7 +402,8 @@ class _MapRegistry:
 
     # -- map sets ----------------------------------------------------------
     def names(self, set_name: str = "cmasher") -> list[str]:
-        """Return the colormap names in a set (``'cmasher'`` or ``'flexoki'``)."""
+        """Return the colormap names in a collection: ``'flexoki'``, ``'mpl'``,
+        ``'crameri'``, ``'tol'`` or ``'cmasher'`` (reversed ``*_r`` variants omitted)."""
         return [name for name, _ in self._map_set(set_name)]
 
     def view_map_set(self, set_name: str = "cmasher", ncols: int = 3):
@@ -339,16 +437,11 @@ class _MapRegistry:
         s = set_name.lower()
         if s in ("flexoki", "fluxplot", "flux"):
             return sorted(self._custom.items())
-        if s == "cmasher":
-            cmr = _import_cmasher()
-            if cmr is None:
-                raise ImportError(
-                    "cmasher is not installed — pip install 'fluxplot[style]'"
-                )
-            names = [n for n in cmr.get_cmap_list() if not n.endswith("_r")]
-            return [(n, getattr(cmr, n)) for n in names]
+        cols = self._ensure()
+        if s in cols:
+            return list(cols[s].items())
         raise ValueError(
-            f"Unknown map set {set_name!r}; available sets: 'cmasher', 'flexoki'"
+            f"Unknown map set {set_name!r}; available sets: {', '.join(self.collections())}"
         )
 
 
@@ -362,6 +455,55 @@ def _import_cmasher():
 
 
 maps = _MapRegistry()
+maps._ensure()  # every shipped map is addressable by name in matplotlib from `import fluxplot` on
+
+
+# -------------------------------------------
+# PALETTES SECTION
+# -------------------------------------------
+
+
+class _Palettes:
+    """Palette collections under ``fx.palettes``: ``'flexoki'`` (the default),
+    ``'brewer'`` (ColorBrewer) and ``'tol'`` (Paul Tol's colour sets), from
+    ``definitions/palettes.json``. ``palettes.brewer["Blues"]`` is a list of hex
+    strings; ``palettes.get("tol", "bright")`` the same; ``palettes.info("brewer")``
+    the collection's metadata and typed groups."""
+
+    def collections(self) -> list[str]:
+        return [c["id"] for c in _definitions("palettes")["collections"]]
+
+    def info(self, collection: str) -> dict:
+        for c in _definitions("palettes")["collections"]:
+            if c["id"] == collection:
+                return c
+        raise KeyError(f"No palette collection {collection!r}; available: {', '.join(self.collections())}")
+
+    def names(self, collection: str) -> list[str]:
+        return [g["name"] for g in self.info(collection)["groups"]]
+
+    def get(self, collection: str, group: str) -> list[str]:
+        for g in self.info(collection)["groups"]:
+            if g["name"] == group:
+                return [s["hex"] for s in g["swatches"]]
+        raise KeyError(f"No group {group!r} in palette collection {collection!r}")
+
+    def __getattr__(self, collection: str) -> dict[str, list[str]]:
+        if collection.startswith("_"):
+            raise AttributeError(collection)
+        try:
+            return {g["name"]: [s["hex"] for s in g["swatches"]] for g in self.info(collection)["groups"]}
+        except KeyError as e:
+            raise AttributeError(str(e)) from None
+
+    def __dir__(self) -> list[str]:
+        return sorted(set(super().__dir__()) | set(self.collections()))
+
+    def __repr__(self) -> str:
+        return f"Palettes({', '.join(self.collections())})"
+
+
+palettes = _Palettes()
 
 # Flexoki-flavoured custom maps, built from the canonical palette above. The
 # light-centred diverging map (blue–paper–red) is handy for correlation matrices.
