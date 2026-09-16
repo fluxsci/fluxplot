@@ -42,23 +42,23 @@ from .colors import flex as _flex
 from .colors import maps as _maps
 
 __all__ = [
-    "FLEXOKI",
-    "CYCLE_LIGHT",
     "CYCLE_DARK",
-    "SEQUENTIAL",
-    "SEQUENTIAL_WARM",
-    "DIVERGING",
+    "CYCLE_LIGHT",
     "CYCLIC",
+    "DIVERGING",
+    "FLEXOKI",
+    "FLEXOKI_DIVERGING",
     "FLEXOKI_SEQUENTIAL",
     "FLEXOKI_WARM",
-    "FLEXOKI_DIVERGING",
-    "TERRAIN",
-    "SPECTRUM",
     "HAVE_CMASHER",
-    "use_light",
-    "use_dark",
+    "SEQUENTIAL",
+    "SEQUENTIAL_WARM",
+    "SPECTRUM",
+    "TERRAIN",
     "despine",
     "title",
+    "use_dark",
+    "use_light",
 ]
 
 # ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ TERRAIN = _maps.flexoki_terrain
 SPECTRUM = _maps.flexoki_spectrum
 
 try:  # cmasher: perceptually-uniform continuous maps (the preferred default)
-    import cmasher as cmr  # noqa: F401  (importing also registers "cmr.*" names in matplotlib)
+    import cmasher as cmr
 
     HAVE_CMASHER = True
     # Tweak these picks to taste — any cmasher map works (fx.maps.<name>):
@@ -234,6 +234,60 @@ def _base_rc(ink, muted, grid, paper, serif):
     }
 
 
+def _exploratory_rc(ink, muted, grid, paper, serif):
+    return {
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "font.family": "serif" if serif else "sans-serif",
+        "font.sans-serif": SANS_STACK,
+        "font.serif": SERIF_STACK,
+        "font.size": 12,  # 6pt as default
+        "axes.titlesize": 12,  # 6pt font for axes titles
+        "axes.titleweight": _title_weight(serif),
+        "axes.titlepad": 12,
+        "axes.labelsize": 12,  # 6pt font for axes labels
+        "axes.labelpad": 6,
+        "axes.labelcolor": ink,
+        "text.color": ink,
+        "axes.edgecolor": muted,
+        "axes.linewidth": 1.2,  # 1.2 default linewidth for axes
+        "axes.facecolor": paper,
+        "figure.facecolor": paper,
+        "savefig.facecolor": paper,
+        "axes.grid": grid,
+        "axes.axisbelow": True,
+        "grid.color": FLEXOKI["base150"],
+        "grid.linewidth": 0.8,
+        "grid.alpha": 0.9,
+        "xtick.color": muted,
+        "ytick.color": muted,
+        "xtick.labelcolor": ink,
+        "ytick.labelcolor": ink,
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10,
+        "xtick.direction": "out",
+        "ytick.direction": "out",
+        "xtick.major.size": 4.5,
+        "ytick.major.size": 4.5,
+        "xtick.major.width": 1.0,
+        "ytick.major.width": 1.0,
+        "legend.frameon": False,
+        "legend.fontsize": 10,
+        "legend.handlelength": 1.5,
+        "lines.linewidth": 2.0,  # default linewidth
+        "lines.markersize": 6.5,
+        "lines.solid_capstyle": "round",
+        "lines.markeredgewidth": 0.0,
+        "lines.dash_capstyle": "round",
+        "patch.linewidth": 0.0,
+        "figure.figsize": (2, 2),  # default size when figsize isn't given
+        "figure.dpi": 100,
+        "savefig.dpi": 300,
+        "figure.constrained_layout.use": True,
+        "svg.fonttype": "none",  # keep text as text in the SVG (FluxPlot-friendly)
+    }
+
+
 def use_light(
     ink: str = FLEXOKI["black"],
     muted: str = FLEXOKI["base700"],
@@ -243,6 +297,18 @@ def use_light(
 ) -> None:
     """Apply the paper-background theme (the default look). Call before creating figures."""
     mpl.rcParams.update(_base_rc(ink, muted, grid, paper, serif))
+    mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_LIGHT)
+
+
+def use_lighttable(
+    ink: str = FLEXOKI["black"],
+    muted: str = FLEXOKI["base700"],
+    grid: bool = False,
+    paper: str = "#FFFFFF",  # default needs to be pure white to comply with journals...
+    serif: bool = False,
+) -> None:
+    """Apply the paper-background theme (the default look). Call before creating figures."""
+    mpl.rcParams.update(_exploratory_rc(ink, muted, grid, paper, serif))
     mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_LIGHT)
 
 
