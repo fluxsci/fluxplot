@@ -163,19 +163,31 @@ def colorbar_guides(fig, owner, alloc):
         axis = ax.yaxis if cb.orientation == 'vertical' else ax.xaxis
         parts = []
         artists = [('label', axis.label), ('outline', cb.outline)]
-        artists.extend((f'tick-label.{i}', art) for i, art in enumerate(axis.get_ticklabels()))
-        artists.extend((f'tick.{i}', t.tick1line) for i, t in enumerate(axis.get_major_ticks()))
+        primary_side = 2 if axis.get_ticks_position() in ('right', 'top') else 1
+        artists.extend((suffix.replace('ticklabel', 'tick-label'), art)
+                       for suffix, role, _, art in tagger.axis_tick_artists(axis, primary_side)
+                       if role in ('tick', 'tick-label', 'gridline'))
         if cb.solids is not None: artists.append(('solids', cb.solids))
-        for role, art in artists:
-            part = gid + '.' + role
+        for suffix, art in artists:
+            if not art.get_visible(): continue
+            part = gid + '.' + suffix
             # Surface keys may already have explicit registered identity.
             if art.get_gid(): part = art.get_gid()
             else: art.set_gid(part)
-            parts.append({'svgId': part, 'role': 'colorbar-' + role.split('.')[0]})
-            guides.append(GuideTag(gid=part, role=parts[-1]['role']))
+            role = next(token for token in suffix.split('.')
+                        if token not in ('minor', 'secondary'))
+            kind = {'label': 'text', 'tick-label': 'text', 'tick': 'line',
+                    'gridline': 'line', 'outline': 'line', 'solids': 'shape'}[role]
+            parts.append({'svgId': part, 'role': 'colorbar-' + role, 'kind': kind})
+            guides.append(GuideTag(gid=part, role=parts[-1]['role'], kind=kind))
+        lo, hi = sorted(axis.get_view_interval())
+        visible_ticks = [t.get_loc() for t in axis.get_major_ticks()
+                         if np.isfinite(t.get_loc()) and lo <= t.get_loc() <= hi
+                         and t.get_visible() and any(a.get_visible() for a in
+                             (t.tick1line, t.tick2line, t.label1, t.label2))]
         guides.append(GuideTag(gid=gid, role='colorbar', data={
             'orientation': cb.orientation, 'label': axis.label.get_text(),
-            'ticks': values(cb.get_ticks()), 'normalization': normalization(cb.mappable),
+            'ticks': values(visible_ticks), 'normalization': normalization(cb.mappable),
             'cmap': cb.mappable.get_cmap().name, 'parts': parts,
             'mappable': cb.mappable.get_gid() if hasattr(cb.mappable, 'get_gid') else None}))
     return guides

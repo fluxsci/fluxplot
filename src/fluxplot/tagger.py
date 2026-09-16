@@ -169,6 +169,34 @@ def _resolve_overlay_mark(m: Mark, alloc: "_ids.IdAllocator") -> None:
 # ---------------------------------------------------------------------------
 # scaffold auto-tagging
 # ---------------------------------------------------------------------------
+def axis_tick_artists(mpl_axis, primary_side=1):
+    """Yield visible major/minor tick components with stable, side-aware suffixes.
+
+    Major primary-side IDs retain the original naming. Extra levels/sides gain
+    prefixes so adding top/right marks never renumbers the existing bottom/left
+    marks. The renderer still determines which boundary components survive.
+    """
+    for level, ticks in (("major", mpl_axis.get_major_ticks()),
+                         ("minor", mpl_axis.get_minor_ticks())):
+        prefix = "" if level == "major" else "minor."
+        for k, tick in enumerate(ticks):
+            if not tick.get_visible():
+                continue
+            for side in (primary_side, 3 - primary_side):
+                side_prefix = "" if side == primary_side else "secondary."
+                for part, role, attr in (("tick", "tick", f"tick{side}line"),
+                                         ("ticklabel", "tick-label", f"label{side}")):
+                    art = getattr(tick, attr, None)
+                    if art is None or not art.get_visible():
+                        continue
+                    if role == "tick-label" and not art.get_text():
+                        continue
+                    yield f"{prefix}{side_prefix}{part}.{k}", role, k, art
+            grid = tick.gridline
+            if grid.get_visible():
+                yield f"{prefix}gridline.{k}", "gridline", k, grid
+
+
 def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
     """Name the axes/title/legend/tick-labels so the user never hand-tags scaffold.
 
@@ -203,32 +231,11 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
             GuideTag(gid=title_gid, role="axis-title", axis=which, text=mpl_axis.label.get_text())
         )
 
-        labels = mpl_axis.get_ticklabels()
-        for k, lbl in enumerate(labels):
-            t = lbl.get_text()
-            if not t or not lbl.get_visible():
-                continue
-            g = alloc.take(_ids.axis_id(which, "ticklabel", k))
-            lbl.set_gid(g)
-            guides.append(GuideTag(gid=g, role="tick-label", axis=which, text=t, index=k))
-
-        # tick marks (the little dashes) — keep the enumerate index even when the
-        # boundary ticks get culled at render, so ids stay stable & meaningful.
-        for k, tick in enumerate(mpl_axis.get_major_ticks()):
-            line = getattr(tick, "tick1line", None)
-            if line is None or not line.get_visible():
-                continue
-            g = alloc.take(_ids.axis_id(which, "tick", k))
-            line.set_gid(g)
-            guides.append(GuideTag(gid=g, role="tick", axis=which, index=k))
-
-        # gridlines
-        for k, gl in enumerate(mpl_axis.get_gridlines()):
-            if not gl.get_visible():
-                continue
-            g = alloc.take(_ids.axis_id(which, "gridline", k))
-            gl.set_gid(g)
-            guides.append(GuideTag(gid=g, role="gridline", axis=which, index=k))
+        for suffix, role, k, art in axis_tick_artists(mpl_axis):
+            g = alloc.take(f"axis.{which}.{suffix}")
+            art.set_gid(g)
+            guides.append(GuideTag(gid=g, role=role, axis=which, index=k,
+                                   text=art.get_text() if role == "tick-label" else None))
 
     # spines. Rectangular axes key them bottom/left/top/right; polar axes key them
     # polar/start/end/inner (so the old side list silently dropped every polar spine).

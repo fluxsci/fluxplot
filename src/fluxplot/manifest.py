@@ -302,8 +302,18 @@ def build_manifest(
     )
     for guide in guide_entries:
         if guide['role'] == 'colorbar':
+            children = []
+            grouped = {'colorbar-tick': ('ticks', 'tick'),
+                       'colorbar-tick-label': ('tick-labels', 'tick-label'),
+                       'colorbar-gridline': ('gridlines', 'gridline')}
+            for role, (suffix, group_role) in grouped.items():
+                members = [p['svgId'] for p in guide.get('parts', []) if p['role'] == role]
+                if members:
+                    children.append(_group(guide['id'] + '.' + suffix, group_role, members))
+            children.extend(_ref(p['svgId'], p.get('kind')) for p in guide.get('parts', [])
+                            if p['role'] not in grouped)
             parts['children'].append({'id': guide['id'], 'role': 'colorbar', 'kind': 'container',
-                'children': [_ref(p['svgId']) for p in guide.get('parts', [])]})
+                                      'children': children})
     build = _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles, extra_entries)
 
     out = {

@@ -102,7 +102,7 @@ def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=(), 
             )
 
     # 6. dereference tick <use> → real <path> so Flux's draw-on preset can measure/animate
-    # them (a <use> has no measurable path length). Strictly scoped to data-role="tick"
+    # them (a <use> has no measurable path length). Scoped to axis/colorbar tick
     # groups; point <use> elements (which animate via opacity/transform) are untouched.
     _deref_ticks(root)
 
@@ -227,7 +227,7 @@ def _merge_style(target_style: str | None, use_style: str | None) -> str | None:
 
 
 def _deref_ticks(root) -> None:
-    """Replace every ``<use>`` inside a ``data-role="tick"`` group with an inlined ``<path>``.
+    """Inline ``<use>`` elements in axis and colorbar tick groups as measurable paths.
 
     matplotlib renders a tick as ``<g data-role="tick"><g><use href="#markerPath"/></g></g>`` where
     only the first tick of an axis carries the shared ``<defs><path>``. A ``<use>`` has no measurable
@@ -239,7 +239,7 @@ def _deref_ticks(root) -> None:
     # Document-wide map of path id → element (the target may live in a *different* tick's defs).
     path_by_id = {p.get("id"): p for p in root.iter(f"{{{SVG}}}path") if p.get("id")}
 
-    tick_groups = [el for el in root.iter() if el.get("data-role") == "tick"]
+    tick_groups = [el for el in root.iter() if el.get("data-role") in ("tick", "colorbar-tick")]
 
     for tg in tick_groups:
         for use in list(tg.iter(f"{{{SVG}}}use")):

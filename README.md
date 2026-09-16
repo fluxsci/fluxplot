@@ -529,6 +529,13 @@ insets) use panel namespaces; explicit names produce `panel.baseline.control.lin
 names follow layout order. Name panels explicitly when identities must survive rearrangement.
 Colorbars belong to their source panel and do not masquerade as additional plotting axes.
 
+Axis tick groups include visible major and minor marks on both sides, with matching
+label and gridline groups. Existing major bottom/left IDs are preserved; minor and
+opposite-side components use `minor` and `secondary` ID segments. Named colorbars
+likewise expose `.ticks` and `.tick-labels` groups, include the visible tick side,
+and report only major tick locations inside the displayed range. Colorbar parts
+carry explicit text/line/shape kinds, and tick marks export as measurable paths.
+
 The manifest's `components` inventory includes every repeated role, and both the parts tree
 and build order use that inventory. Coordinates are captured after layout with the SVG renderer.
 `projection`, axis `supported`, and series `capabilities.dataMorph` describe whether data-space
