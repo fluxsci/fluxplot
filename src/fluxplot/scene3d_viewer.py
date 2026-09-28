@@ -116,10 +116,13 @@ class _Camera:
         direction = np.array([np.sin(az)*np.cos(el), np.sin(el), np.cos(az)*np.cos(el)])  # toward the camera
         right = np.array([np.cos(az), 0, -np.sin(az)]); up = np.cross(direction, right)
         right, up = right*np.cos(roll) + up*np.sin(roll), up*np.cos(roll) - right*np.sin(roll)
-        # Framing (Flux orbit.ts boundsSphere/orbitPose): the bounds' circumscribed sphere,
+        # Framing (Flux orbit.ts boundsSphere/orbitPose): the tight ``radius`` when the
+        # bounds carry one (see _framing_bounds), else the circumscribed sphere;
         # radius / zoom across the viewport's smaller side.
+        tight = bounds.get('radius')
         bounds = np.array([bounds['min'], bounds['max']]); center = bounds.mean(axis=0)
-        radius = max(np.linalg.norm((bounds[1] - bounds[0]) / 2), 1e-9)
+        radius = max(tight if tight is not None and np.isfinite(tight) and tight >= 0
+                     else np.linalg.norm((bounds[1] - bounds[0]) / 2), 1e-9)
         target = center + radius * (view.get('panX', 0) * right + view.get('panY', 0) * up)
         half = radius / view['zoom']; half_fov = np.deg2rad(view.get('fov', 30)) / 2
         distance = half / np.sin(half_fov)
@@ -195,14 +198,44 @@ class _Furniture:
         self.ax.add_patch(Polygon(points, closed=True, **kwargs))
 
 
-def _draw_box_axes(draw, manifest, camera, fs):
-    """Back panes and grid behind the mesh; axis lines on silhouette edges, labels outward."""
-    rotation = np.asarray(manifest['toWorld'], dtype=float).reshape(4, 4, order='F')[:3, :3]
+def _rotation(manifest):
+    return np.asarray(manifest['toWorld'], dtype=float).reshape(4, 4, order='F')[:3, :3]
+
+
+def _box_limits(manifest):
+    """Data-space box-axes limits: an axis's ``lim``, else the world bounds carried back
+    into data space (Flux framing.ts ``axesBoxLimits``)."""
     world_bounds = np.array([manifest['bounds']['min'], manifest['bounds']['max']])
     corners = np.array([[world_bounds[(mask >> i) & 1, i] for i in range(3)] for mask in range(8)])
-    data_corners = corners @ rotation  # inverse of a proper rotation is its transpose
+    data_corners = corners @ _rotation(manifest)  # inverse of a proper rotation is its transpose
     axes = [manifest['axes'].get(k, {}) for k in 'xyz']
-    limits = [a.get('lim', [data_corners[:, i].min(), data_corners[:, i].max()]) for i, a in enumerate(axes)]
+    return [a.get('lim', [data_corners[:, i].min(), data_corners[:, i].max()]) for i, a in enumerate(axes)]
+
+
+def _framing_bounds(scene, manifest):
+    """The bounds the camera frames, exactly as Flux frames the saved GLB.
+
+    A bare mesh frames its tight sphere: the largest distance from the AABB centre to
+    any vertex, base shape and every state (Flux glbCore ``framingRadius``). Box axes
+    are part of the figure, so the frame grows to hold the whole axes box and uses its
+    circumscribed sphere (Flux framing.ts ``framingBounds``).
+    """
+    lo, hi = np.array(manifest['bounds']['min'], dtype=float), np.array(manifest['bounds']['max'], dtype=float)
+    rotation = _rotation(manifest)
+    if manifest.get('axes', {}).get('kind') == 'box':
+        limits = _box_limits(manifest)
+        corners = np.array([[limits[i][(mask >> i) & 1] for i in range(3)] for mask in range(8)]) @ rotation.T
+        return {'min': np.minimum(lo, corners.min(axis=0)).tolist(), 'max': np.maximum(hi, corners.max(axis=0)).tolist()}
+    world = np.concatenate([v for p in scene.parts for v in [p.vertices, *p.states.values()]]) @ rotation.T
+    radius = float(np.linalg.norm(world - (lo + hi) / 2, axis=1).max())
+    return {'min': lo.tolist(), 'max': hi.tolist(), 'radius': radius}
+
+
+def _draw_box_axes(draw, manifest, camera, fs):
+    """Back panes and grid behind the mesh; axis lines on silhouette edges, labels outward."""
+    rotation = _rotation(manifest)
+    axes = [manifest['axes'].get(k, {}) for k in 'xyz']
+    limits = _box_limits(manifest)
     center = np.array([sum(lim) / 2 for lim in limits])
     screen = lambda p: camera.screen(np.asarray(p, dtype=float) @ rotation.T)[0]
     back = [0 if rotation[:, axis] @ camera.direction >= 0 else 1 for axis in range(3)]
@@ -414,7 +447,7 @@ def png_preview(scene, *, _manifest=None):
     width, height = scene.figsize[0] * PX_PER_INCH, scene.figsize[1] * PX_PER_INCH
     layout = _layout(man, width, height)
     vp = layout['viewport']
-    camera = _Camera(scene._view, man['bounds'], vp)
+    camera = _Camera(scene._view, _framing_bounds(scene, man), vp)
     dpi = PX_PER_INCH * HIDPI
     fig = Figure(figsize=scene.figsize, dpi=dpi, layout='none'); FigureCanvasAgg(fig)
     fig.patch.set_facecolor('white')

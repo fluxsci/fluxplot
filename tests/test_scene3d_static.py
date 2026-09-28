@@ -40,7 +40,7 @@ def test_png_triad_and_scalebar_use_distinct_corners(monkeypatch):
 
 
 def test_png_box_axes_draw_panes_behind_and_labels_outside_the_mesh(monkeypatch):
-    from fluxplot.scene3d_viewer import png_preview, _layout, _Camera
+    from fluxplot.scene3d_viewer import png_preview, _layout, _Camera, _framing_bounds
     captured = _capture(monkeypatch)
     v, f = sphere(); sc = fp.scene3d(figsize=(3, 3), axes='box'); fp.mesh3d(sc, (v, f), series='s')
     png_preview(sc)
@@ -51,12 +51,38 @@ def test_png_box_axes_draw_panes_behind_and_labels_outside_the_mesh(monkeypatch)
     assert len(under.patches) >= 3  # the back panes sit behind the mesh
     from fluxplot.scene3d_manifest import build_manifest
     man = build_manifest(sc, write_glb(sc), 'x.glb')
-    layout = _layout(man, 360, 360); camera = _Camera(sc._view, man['bounds'], layout['viewport'])
+    layout = _layout(man, 360, 360); camera = _Camera(sc._view, _framing_bounds(sc, man), layout['viewport'])
     center = camera.screen([0, 0, 0])[0][:2]; radius = camera.pixels_per_unit() * 1
     labels = [t for t in under.texts if t.get_text()]
     assert len(labels) >= 12
     for text in labels:
         assert np.linalg.norm(np.array(text.get_position()) - center) > radius
+
+
+def test_png_frames_like_flux_tight_sphere_for_meshes_whole_box_for_box_axes():
+    """Same rule as Flux framing.ts/glbCore: a mesh frames its tight vertex sphere,
+    box axes frame the whole axes box, so the still matches the imported poster."""
+    from fluxplot.scene3d_viewer import _layout, _Camera, _framing_bounds, _rotation
+    from fluxplot.scene3d_manifest import build_manifest
+    v, f = sphere()
+    bare = fp.scene3d(figsize=(3, 3)); fp.mesh3d(bare, (v, f), series='s')
+    man = build_manifest(bare, write_glb(bare), 'x.glb'); framed = _framing_bounds(bare, man)
+    assert framed['radius'] == pytest.approx(np.linalg.norm(v, axis=1).max())
+    assert framed['radius'] < np.linalg.norm(np.subtract(man['bounds']['max'], man['bounds']['min'])) / 2
+    boxed = fp.scene3d(figsize=(3, 3), axes='box'); fp.mesh3d(boxed, (v, f), series='s')
+    boxed.axis('x', lim=(-3, 3))
+    man = build_manifest(boxed, write_glb(boxed), 'x.glb'); framed = _framing_bounds(boxed, man)
+    assert 'radius' not in framed and framed['min'][0] == pytest.approx(-3) and framed['max'][0] == pytest.approx(3)
+    vp = _layout(man, 288, 288)['viewport']
+    limits = [man['axes'][k]['lim'] for k in 'xyz']
+    corners = np.array([[limits[i][(m >> i) & 1] for i in range(3)] for m in range(8)]) @ _rotation(man).T
+    for azimuth in (0, 30, 45, 135, 300):
+        for elevation in (-35, 20, 60):
+            for projection in ('orthographic', 'perspective'):
+                view = {**boxed._view, 'azimuth': azimuth, 'elevation': elevation, 'projection': projection}
+                xy = _Camera(view, framed, vp).screen(corners)[:, :2]
+                assert (xy[:, 0] >= vp['x']).all() and (xy[:, 0] <= vp['x'] + vp['width']).all()
+                assert (xy[:, 1] >= vp['y']).all() and (xy[:, 1] <= vp['y'] + vp['height']).all()
 
 
 def test_png_translucent_parts_have_no_edge_lattice(monkeypatch):
