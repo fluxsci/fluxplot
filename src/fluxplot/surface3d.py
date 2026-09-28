@@ -77,13 +77,14 @@ def surface3d(scene,values,*,series,surfaces,kind='auto',categories=None,palette
         raise ValueError('max_faces must allow at least one triangle per semantic part')
     allstates={k:np.concatenate(a) for k,a in state_parts.items()}
     alloc=deepcopy(scene._alloc); parts=[]; marks=[]; legend_ids=[]
-    for name,mask in sorted(groups.items()):
-        if not mask.any(): continue
+    from ._mesh_reduce import face_budgets
+    nonempty=[(name,mask) for name,mask in sorted(groups.items()) if mask.any()]
+    budgets=face_budgets([mask.sum() for name,mask in nonempty],max_faces)
+    for (name,mask),budget in zip(nonempty,budgets):
         pid=alloc.take(series_id(series,slugify(name)))
         ref=_reference(share_topology_with,pid,single=len(groups)==1)
         # States and reference must use this exact face subset so category boundaries persist.
         localstates={k:(a,f[mask]) for k,a in allstates.items()}
-        budget=max(1,int(max_faces*mask.sum()/len(f))) if max_faces is not None else None
         part=_prepare_part(pid,(v,f[mask]),resolved[name],localstates,reference=ref,max_faces=budget,
                            values=data if kind=='continuous' or name=='missing' else None,
                            colors=rgba if kind=='continuous' and name=='field' else None)

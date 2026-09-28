@@ -205,6 +205,9 @@ def test_static_preview_and_preview_copy_preserve_source():
     original=write_glb(sc);sc.preview_max_faces=200
     png=mimebundle(sc,static=True)
     assert set(png)=={'image/png'} and png['image/png'].startswith(b'\x89PNG\r\n\x1a\n')
+    from PIL import Image
+    import io
+    assert Image.open(io.BytesIO(png['image/png'])).convert('RGBA').getpixel((0,0))==(255,255,255,255)
     assert write_glb(sc)==original
     if __import__('importlib.util').util.find_spec('fast_simplification'):
         reduced=preview_scene(sc);assert sum(len(p.faces) for p in reduced.parts)<=200
@@ -228,3 +231,70 @@ def test_surface_budget_cannot_drop_semantic_parts():
     v,f=sphere();values=np.where(v[:,1]>0,0,1)
     with pytest.raises(ValueError,match='one triangle per semantic part'):
         fp.surface3d(fp.scene3d(),values,series='tiny',surfaces=(v,f),kind='label',max_faces=1)
+
+
+def test_notebook_bundle_stamp_license_and_safe_html():
+    import hashlib
+    from importlib.resources import files
+    from fluxplot.scene3d_viewer import mimebundle,viewer_bundle
+    folder=files('fluxplot').joinpath('_viewer')
+    js=viewer_bundle();stamp=json.loads(folder.joinpath('stamp.json').read_text())
+    assert hashlib.sha256(js.encode()).hexdigest()==stamp['sha256']
+    assert stamp['version'].startswith('m3d-')
+    assert 'MIT' in folder.joinpath('THIRD-PARTY.txt').read_text()
+    sc=scene(title='</script><script>alert(1)</script>')
+    bundle=mimebundle(sc)
+    assert set(bundle)=={'text/html','image/png'}
+    html=bundle['text/html']
+    assert 'document.currentScript' in html and 'script.parentElement' in html
+    assert 'data:image/png;base64,' in html and 'FluxModel3dViewer.mount(host,' in html
+    assert '</script><script>alert(1)' not in html
+    assert html.count('</script>')==1
+
+
+def test_static_perspective_uses_camera_image_plane(monkeypatch):
+    from matplotlib.figure import Figure
+    from fluxplot.scene3d_viewer import png_preview
+    captured=[]; original=Figure.savefig
+    def capture(fig,*args,**kwargs):
+        captured.append(fig)
+        return original(fig,*args,**kwargs)
+    monkeypatch.setattr(Figure,'savefig',capture)
+    sc=fp.scene3d(figsize=(3,3),axes='none',lighting='unlit')
+    fp.mesh3d(sc,([[1,1,0],[-1,1,0],[-1,-1,0],[1,-1,0]],[[0,1,2],[0,2,3]]),series='plane')
+    sc.view(azimuth=0,elevation=0,projection='perspective',fov=90,zoom=1)
+    png_preview(sc)
+    # Radius sqrt(2), fitted camera distance 2; a 90-degree lens spans +/-2 at z=0.
+    np.testing.assert_allclose(captured[-1].axes[0].get_xlim(),[-2,2])
+    sc.view(projection='orthographic');png_preview(sc)
+    np.testing.assert_allclose(captured[-1].axes[0].get_xlim(),[-np.sqrt(2),np.sqrt(2)])
+
+
+def test_uneven_part_budgets_and_production_reduction():
+    from fluxplot._mesh_reduce import face_budgets
+    from fluxplot.scene3d_viewer import preview_scene
+    assert face_budgets([9900]+[1]*99,100)==[1]*100
+    for counts in ([9900]+[1]*99,[1,3,8,100],[1,1]):
+        for budget in (len(counts),len(counts)+1,sum(counts)//2,sum(counts),sum(counts)+100):
+            if budget<len(counts): continue
+            quotas=face_budgets(counts,budget)
+            assert sum(quotas)==min(budget,sum(counts))
+            assert all(1<=q<=n for q,n in zip(quotas,counts))
+    pytest.importorskip('fast_simplification')
+    v,f=sphere(20,30);triangle=(np.array([[0,0,0],[1,0,0],[0,1,0]]),np.array([[0,1,2]]))
+    parts={'large':(v,f),**{f'tiny{i}':triangle for i in range(99)}}
+    sc=fp.scene3d();fp.mesh3d(sc,parts,series='uneven',max_faces=199)
+    assert len(sc.parts)==100 and sum(len(p.faces) for p in sc.parts)<=199
+    original=fp.scene3d(preview_max_faces=199);fp.mesh3d(original,parts,series='uneven')
+    preview=preview_scene(original)
+    assert len(preview.parts)==100 and sum(len(p.faces) for p in preview.parts)<=199
+    assert sum(len(p.faces) for p in original.parts)==len(f)+99
+    original.preview_max_faces=99
+    with pytest.warns(UserWarning,match='one triangle per part'):
+        assert preview_scene(original) is original
+    # Categorical surface groups exercise the same total quota allocation path.
+    vertices=np.concatenate([v]+[triangle[0]+[3+i*2,0,0] for i in range(99)])
+    faces=np.concatenate([f]+[triangle[1]+len(v)+i*3 for i in range(99)])
+    values=np.concatenate([np.zeros(len(v))]+[np.full(3,i+1) for i in range(99)])
+    sc=fp.scene3d();fp.surface3d(sc,values,series='labels',surfaces=(vertices,faces),kind='label',max_faces=199)
+    assert len(sc.parts)==100 and sum(len(p.faces) for p in sc.parts)<=199

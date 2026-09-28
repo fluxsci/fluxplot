@@ -156,13 +156,13 @@ def mesh3d(scene, mesh, *, series, color=None, palette=None, legend=False, label
     default=mpl.rcParams['axes.prop_cycle'].by_key()['color'][len(scene.parts)%len(mpl.rcParams['axes.prop_cycle'].by_key()['color'])]
     alloc=deepcopy(scene._alloc); parts=[]; marks=[]
     loaded={name:load_mesh(spec) for name,spec in meshes.items()}
-    total=sum(len(f) for v,f in loaded.values())
-    for name,(v,f) in loaded.items():
+    from ._mesh_reduce import face_budgets
+    budgets=face_budgets([len(f) for v,f in loaded.values()],max_faces)
+    for (name,(v,f)),budget in zip(loaded.items(),budgets):
         pid=alloc.take(series_id(series,slugify(name)))
         pcolor=(palette or {}).get(name,color or default)
         partstates={k:(val[name] if named and isinstance(val,dict) else val) for k,val in shapes.items()}
         ref=_reference(share_topology_with,pid,single=not named)
-        budget=max(1,int(max_faces*len(f)/total)) if max_faces is not None else None
         part=_prepare_part(pid,(v,f),pcolor,partstates,reference=ref,max_faces=budget)
         parts.append(part)
         marks.append(Mark(role='mesh',series=str(series),name=str(name),kind='mesh',label=label or str(name),gid=pid,

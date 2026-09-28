@@ -1,6 +1,8 @@
 """Generate a scratch neuron, named states, a morph pair and an eight-frame sequence.
 
-uv run --extra mesh python examples/scene3d_demo.py --out /tmp/fluxplot-3d-demo/plots
+uv run --extra mesh python examples/scene3d_demo.py
+
+Defaults to test-results/model3d/demo/plots; --out selects another scratch folder.
 """
 from __future__ import annotations
 import argparse
@@ -50,8 +52,8 @@ def combine(meshes):
     return np.concatenate(v),np.concatenate(f)
 
 
-def build(out):
-    out=Path(out);out.mkdir(parents=True,exist_ok=True);fp.use_paper()
+def neuron_scene(*, states=False):
+    """Named branched neuron with a scale bar, optionally a notebook shape control."""
     v,f=sphere(); soma=(v*[.55,.7,.5],f)
     axon=tube([[0,-.3,0],[.05,-1.4,0],[-.3,-2.5,.1],[.1,-3.7,.3]],.13)
     branches=[]
@@ -59,11 +61,26 @@ def build(out):
         d=np.array([np.cos(angle),.5,np.sin(angle)])
         branches.append(tube([d*.3,d*1.1,d*1.8+[0,.6,0],d*2.3+[.2,.9,0]],.11))
     neuron=fp.scene3d(figsize=(3.5,3),units='µm',title='Neuron-like mesh',scalebar=1)
-    fp.mesh3d(neuron,{'soma':soma,'axon':axon,'dendrites':combine(branches)},series='neuron',palette={'soma':'#D14D41','axon':'#4385BE','dendrites':'#3AA99F'},legend=True)
+    parts={'soma':soma,'axon':axon,'dendrites':combine(branches)}
+    shape_states={'expanded':{name:(vv*[1.18,1,1.18],ff) for name,(vv,ff) in parts.items()}} if states else None
+    fp.mesh3d(neuron,parts,series='neuron',states=shape_states,palette={'soma':'#D14D41','axon':'#4385BE','dendrites':'#3AA99F'},legend=True)
+    return neuron
+
+
+def build(out):
+    out=Path(out);out.mkdir(parents=True,exist_ok=True);fp.use_paper()
+    neuron=neuron_scene()
     fp.save(neuron,out/'neuron',recipe=False)
+    v,f=sphere(24,40)
+    # Deterministic folded surface: the same connectivity supports states and pairs.
+    folds=1+.10*np.sin(12*v[:,0])*np.cos(10*v[:,1])*np.sin(8*v[:,2])
+    v=v*folds[:,None]*[1.15,.9,.8]
     base=fp.scene3d(figsize=(3,3),units='mm',title='Cortex shape states',axes='triad')
     fp.surface3d(base,v[:,1],series='cortex',surfaces=(v,f),kind='continuous',cmap='viridis',colorbar=True,cbar_label='Value',states={'inflated':(v*[1.4,1.2,.8],f),'bent':(v+np.column_stack([.35*v[:,1]**2,np.zeros(len(v)),np.zeros(len(v))]),f)})
     fp.save(base,out/'cortex-states',recipe=False)
+    field=fp.scene3d(figsize=(3,3),units='mm',title='Continuous field',axes='box')
+    fp.surface3d(field,v[:,1]+.3*v[:,0],series='height',surfaces=(v,f),kind='continuous',cmap='viridis',colorbar=True,cbar_label='Value')
+    fp.save(field,out/'continuous-field',recipe=False)
     pial=fp.scene3d();fp.mesh3d(pial,{'left':(v+[-1.2,0,0],f),'right':(v+[1.2,0,0],f)},series='cortex')
     inflated=fp.scene3d();fp.mesh3d(inflated,{'left':(v*[1,1.4,.6]+[-1.2,0,0],f),'right':(v*[1,1.4,.6]+[1.2,0,0],f)},series='cortex',share_topology_with=pial,morph_group='cortex')
     fp.save(pial,out/'cortex-pial',recipe=False);fp.save(inflated,out/'cortex-inflated',recipe=False)
@@ -72,5 +89,5 @@ def build(out):
     return neuron
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--out',type=Path,required=True)
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--out',type=Path,default=Path('test-results/model3d/demo/plots'))
     build(parser.parse_args().out)

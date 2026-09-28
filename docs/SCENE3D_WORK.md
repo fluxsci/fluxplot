@@ -64,3 +64,55 @@ smaller than the number of preserved parts refuse explicitly. Final F1–F3/F5 +
 preview full suite: **190 passed, 1 skipped, 115 existing upstream warnings, 16.79 s**
 (`/tmp/fluxplot-scene3d-final-f135.log`). W-core reviewed the corrective code and accepted
 F1–F3/F5 pending this full pass. F4 remains pending vendored runtime/native frontends.
+
+2026-09-28 F4 final verification in progress: vendored shared Flux viewer through
+scripts/sync_flux_viewer.py, runtime m3d-r1 SHA c1ca36d01dbc859412cff5500fc3c639140d8252a5edfa29d9c14f5ca75ce86c
+(765961 bytes, renderer 72f8fabd85cec94cb26a97aa1b0e63a5d3468f6d). Trusted actual
+VS Code Jupyter + QMD kernels have executed self-contained HTML; earlier sphere pass
+verified pointer/wheel/state/copy/axis/Home and context owners 3→3→0 on rerun/clear.
+Final neuron + scale-bar + copied-view save roundtrip is running in /tmp/flux-model3d-f4-vscode;
+scratch native profiles/kernels only. No real notebooks/config used. Runtime sequence
+Frame controls initially failed to reflect authored2.5 and Home; renderer corrected and
+added independent browser regressions before this sync.
+
+White paper stage + opaque white notebook PNG preserves authored label contrast in dark
+notebook themes (GLB/Flux export transparency unchanged). Static face-colored 0.1pt edges
+close triangle raster seams. Independent renderer review found perspective fallback
+image-plane mismatch; fixed using distance*tan(fov/2), analytic90° test passes. Shared
+production F4 HTML browser gate:4 independent outputs, real pointer, keyboard state,
+authored sequence2.5/Home, zero errors,4 PNGs remain when scripts disabled. Evidence in
+test-results/model3d/notebook/. Actual untrusted VS Code is a documented limitation:
+it suppresses selected mixed HTML+PNG output instead of automatically choosing PNG;
+PNG-only Jupyter output displays. QMD untrusted injected-output probe inconclusive,
+so no claim it displays PNG untrusted. Trusted native acceptance remains valid.
+
+F5 root review identified min-one rounding overshoot with uneven part sizes. Added shared
+integer largest-remainder face_budgets allocator: reserves1 per part then distributes
+remaining capacity(count−1), bounded by source counts and global quota. Applied to mesh,
+semantic surface groups, private preview. Impossible preview budget warns/retains full
+scene; explicit impossible export budget refuses. Regression covers100parts with one
+9900face part +99single triangles, actual simplifiable mesh/surface/preview ≤199faces,
+and unchanged original preview source. Current targeted27pass114upstream warnings.
+Independent root review requested. Expanded checked-in demo now defaults to
+ test-results/model3d/demo/plots and creates named neuron+scale, folded cortex2states,
+shared-topology morph pair, separate continuous field and8frame sequence. All6 demoGLBs
+Khronos Validator0errors0warnings. Full suite/wheel rerun pending.
+
+Final F4 acceptance (2026-09-28 06:53 UTC): real native QMD+Jupyter neuron scenario
+passed against c1ca36d viewer. Both: orbit30→18/elevation20→24, wheel0.9→0.99,
+shape0.01, Top90, Home restoration, Copy view selection. Live QMD scratch applied copied
+view and fp.save; savedmanifest fields identical,27ms. Strengthened rerun waits for
+new actual kernel execution orders and visible remount: owners3→3→0 afterclear.
+Screenshots, final trusted-result.json and copied-view-roundtrip.json preserved under
+ test-results/model3d/notebook/native/. Static PNG visually inspected: notriangle seams,
+readable title/legend/scalebar on white background. It uses120dpi versusCSS96 furniture,
+so no pixel-parity claim. Untrusted limitation remains explicit (root deviationD10).
+Full final suite193pass1skip115upstreamwarnings16.10s. Wheel verified exact765961byte
+c1ca36d renderer hash/stamp and MITnotice. Root independentF5quota review approved,
+27targetedtests. N1 agent independentF4source/visual review pending finalacknowledgment.
+Role/spec coordination explicitly documented: newscene3d0.1 contract carries newroles,
+SVG0.3 unchanged; ROLE_VERSION internalvocabularyrevision only, notwireversion.
+Independent F4 review APPROVED by W-render: final native screenshots/receipt inspected,
+27tests, analytic perspective error4.4e-16, wheel/stamp/license,4script-disabled PNGs.
+Review report in Flux model3d-render/test-results/model3d/F4_REVIEW.md. No remaining
+TrackF blocker; only explicitly documented frontend/static-rendering limitations.

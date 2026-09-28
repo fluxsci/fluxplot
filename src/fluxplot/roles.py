@@ -1,4 +1,4 @@
-"""Role vocabulary v0 (spec §5, §10). A versioned core + a namespaced ``x-`` extension mechanism.
+"""Role vocabulary revision 1 (spec §5, §10). A versioned core + a namespaced ``x-`` extension mechanism.
 
 Unknown roles are NOT rejected — they degrade gracefully (P4): they still get a stable id and a
 ``data-role`` and are listed in the manifest; consumers that don't recognize them treat them as
@@ -6,7 +6,7 @@ opaque addressable groups.
 """
 from __future__ import annotations
 
-ROLE_VERSION = 1  # adds mesh, pane, scalebar
+ROLE_VERSION = 1  # Local vocabulary revision; not a serialized schema version.
 
 CORE_ROLES = frozenset(
     {

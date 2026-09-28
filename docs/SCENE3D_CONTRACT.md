@@ -7,6 +7,13 @@ must dispatch on `spec` **before** selecting a validator. Only `spec`, `schemaVe
 import; they must never prevent importing otherwise valid geometry. Optional blocks, when
 present, must satisfy the schema. Unknown roles remain opaque addressable parts.
 
+The `mesh`, `pane` and `scalebar` role additions belong to the new scene3d **0.1.0**
+contract. The existing SVG `SPEC_VERSION=0.3.0` stays unchanged so 2D files remain byte
+compatible. `roles.ROLE_VERSION` is an internal vocabulary revision only; it is not
+emitted or negotiated on the wire. Consumers use the manifest discriminator and
+`schemaVersion`, and still accept unknown role strings. This is the deliberate
+coordination choice for the plan’s role/spec bump requirement.
+
 ## Coordinate and identity rules
 
 * GLB geometry is right-handed glTF Y-up. `toWorld` is a **column-major** affine 4×4 matrix

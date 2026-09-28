@@ -102,11 +102,19 @@ Scale bars appear only in orthographic projection.
 Notebook output bundles a self-contained viewer and a PNG. Drag orbits, wheel zooms,
 axis keys choose views, and Home restores the saved view. Copy view provides the exact
 Python view arguments. Script-free frontends can show the PNG; `sc.show(static=True)`
-forces the still. Trust is controlled by the notebook frontend.
+forces the still. Trust is controlled by the notebook frontend. Trusted VS Code Jupyter
+and QMD Notebook execute this viewer. In untrusted VS Code, an output containing both
+HTML and PNG can appear blank because the frontend blocks its selected HTML representation;
+it does not automatically select the alternate PNG. Select the PNG representation if the frontend offers that choice, or save a PNG-only
+output with `sc.show(static=True)` before sharing. PNG-only output was verified in untrusted
+VS Code Jupyter; untrusted QMD output restoration remains unverified.
+Frontends that render HTML but disable scripts retain the inline PNG.
 
 `preview_max_faces` defaults to 300,000. With the optional simplifier, only the private
 notebook preview is reduced; `fp.save` keeps your scene's full resolution. Without it,
-previews remain full resolution and warn above 30 MiB. A static PNG uses a global face
+previews remain full resolution and warn above 30 MiB. Notebook previews use a white paper
+background so authored figure labels remain readable in dark notebook themes. This does
+not change the GLB background or Flux export transparency. A static PNG uses a global face
 painter with the surface shading functions; intersecting transparent geometry may look
 different from the WebGL depth-buffer view.
 
@@ -120,6 +128,7 @@ different from the WebGL depth-buffer view.
 - If a large model is slow, use `max_faces` and fewer states. Each state adds 24 bytes
   per vertex before GLB overhead. The notebook preview budget does not shrink saved files.
 
-The runnable `examples/scene3d_demo.py` creates a neuron-like mesh, two shape states,
+`uv run --extra mesh python examples/scene3d_demo.py` writes scratch assets under
+`test-results/model3d/demo/plots/` (override with `--out`). It creates a neuron-like mesh, two shape states,
 a same-topology morph pair, a field map and an eight-frame sequence without downloaded data.
 The schema and binary details are in [SCENE3D_CONTRACT.md](SCENE3D_CONTRACT.md).

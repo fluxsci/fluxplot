@@ -4,6 +4,21 @@ import warnings
 import numpy as np
 
 
+def face_budgets(counts, total):
+    """Apportion one triangle per part, then remaining capacity by largest remainder."""
+    counts=[int(n) for n in counts]
+    if total is None: return [None]*len(counts)
+    if total<len(counts): raise ValueError('max_faces must allow at least one triangle per part')
+    if any(n<1 for n in counts): raise ValueError('mesh parts must contain triangles')
+    target=min(int(total),sum(counts)); remaining=target-len(counts)
+    capacity=sum(n-1 for n in counts)
+    if not capacity: return counts
+    portions=[divmod(remaining*(n-1),capacity) for n in counts]
+    result=[1+q for q,r in portions]
+    for i in sorted(range(len(counts)),key=lambda i:(-portions[i][1],i))[:target-sum(result)]: result[i]+=1
+    return result
+
+
 def reduce_part(part, *, max_faces=None, collapses=None):
     try: import fast_simplification as fs
     except ImportError as exc:
