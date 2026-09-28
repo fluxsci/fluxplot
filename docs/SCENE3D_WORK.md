@@ -116,3 +116,14 @@ Independent F4 review APPROVED by W-render: final native screenshots/receipt ins
 27tests, analytic perspective error4.4e-16, wheel/stamp/license,4script-disabled PNGs.
 Review report in Flux model3d-render/test-results/model3d/F4_REVIEW.md. No remaining
 TrackF blocker; only explicitly documented frontend/static-rendering limitations.
+
+2026-09-28 07:52 UTC shared viewer refresh: canonical sync from Flux model3d
+`945faf2` generated dist, m3d-r1 SHA
+0420ed07a6e5f667c4f80081bd05f5b699a77baea868cd70116eacd72bfec3da, 766030 bytes.
+This includes approved furniture label spacing and the prior canonical-validator
+refactor; no vendored code was edited manually. Focused tests27pass114warnings0.28s;
+uv wheel build and exact bundled SHA/license checks passed. Generated four-output
+browser regression passed real pointer orbit isolation, top view, keyboard state,
+frame2.5→2.51→Home2.5 and four no-script PNGs, zero page errors. Native VS Code
+evidence remains earlier c1ca36d checkpoint. Final full-plan viewer sync may follow
+later approved P3 shared furniture changes.
