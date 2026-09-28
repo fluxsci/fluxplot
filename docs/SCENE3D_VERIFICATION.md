@@ -37,13 +37,18 @@ The 2026-09-28 15:49 UTC refresh follows the approved Flux furniture polish at
 scene3d tests 27/27 (114 upstream warnings), wheel SHA/license checks, and generated
 four-output browser regressions for orbit isolation, axis view,
 shape input, fractional sequence/Home and four script-disabled PNG alternatives.
-The native frontend evidence below remains the earlier `c1ca36d` checkpoint;
-this bundle refresh does not repeat the complete VS Code acceptance run.
+The current bundle also passed the independently reviewed native frontend refresh
+on 2026-09-28 at 16:53 UTC, described below. The older `c1ca36d` native evidence
+is retained as historical evidence.
 
 ## Actual notebook frontend acceptance (N1)
 
-Tested VS Code 1.138.0, QMD Notebook 0.1.0 and Jupyter 2025.9.1 with disposable profiles,
-installed extension copies, and a scratch ipykernel. The frontend extensions executed
+The 2026-09-28 16:53 UTC refresh tested the exact current viewer SHA above in
+VS Code 1.138.0, QMD Notebook 0.1.0, Jupyter 2025.9.1 and Jupyter renderers 1.3.0.
+It used a fresh scratch profile, extension copies, workspace and HOME/XDG, plus the
+disposable Python 3.13.11 kernel and isolated `scene3d` library. The executed notebook
+asserted the viewer hash and size; independent inspection confirmed the saved IPYNB
+HTML literally contains those exact viewer bytes. The frontend extensions executed
 ordinary notebook cells through their normal kernel controllers; the outputs were not
 hand-constructed HTML. Trusted QMD and Jupyter both execute the bundled scripts and
 prefer interactive HTML over the alternate PNG.
@@ -53,9 +58,19 @@ bar and shape slider. Real pointer drag changes azimuth30→18 and elevation20�
 changes zoom0.9→0.99; the native range control sets shape0.01; Top sets elevation90; Home
 restores the authored view. Copy view selects the exact Python dictionary text. The
 selected values were applied through the live QMD scratch kernel with `sc.view(**view)`
-and `fp.save`; all requested camera and state values match the saved manifest. PNG-only
-`sc.show(static=True)` outputs display in both trusted frontends. Clearing outputs
-releases every document viewer owner.
+and `fp.save`; all requested values (azimuth 18, elevation 24, zoom 0.99 and
+`expanded=0.01`) match the saved manifest, and its GLB hash matches the actual saved
+bytes. The scratch execution completed in 28 ms. This verifies readout selection and
+literal roundtrip; OS clipboard transport bytes were not independently inspected.
+PNG-only `sc.show(static=True)` outputs display in both trusted frontends. Viewer
+owners remain 3 before and after actual kernel reruns, then drop to 0 after clearing
+outputs; these are three separate notebook webview instances, each with one context.
+
+The native run used `FLUX_PRIVATE_DISPLAY=1 DISPLAY=:0` and explicit x11. Fresh native
+display observations and PID-scoped X11 sizing placed the 1440×1100 logical window
+inside a nonzero work area, without browser viewport emulation. Both interactive and
+static screenshots were independently inspected. This is trusted frontend functional
+acceptance, not a timing qualification or a new untrusted-notebook result.
 
 A generated HTML page tests four simultaneous outputs (neuron, continuous field,
 shape-state and sequence), pointer isolation, keyboard state controls, authored
@@ -75,7 +90,15 @@ scripts-disabled.png, generated-multi-result.json, wheel-receipt.json, and nativ
 qmd-jupyter-neuron.png, qmd-jupyter-interactive.png, qmd-jupyter-static.png,
 trusted-result.json, copied-view-roundtrip.json, copied-neuron.glb/fluxplot.json,
 and untrusted/ failure evidence. Native probe source is preserved in native/harness/.
-These scratch artifacts are deliberately gitignored.
+The current native refresh is preserved in the Flux `model3d-qa` worktree at
+`test-results/model3d/notebook/current-native/`: `REVIEW.md`, `result.json`,
+`interactive-0.png`, `static-0.png`, native window/stamp receipts, `harness/`, and
+`workspace/` with saved QMD/IPYNB and copied GLB/manifest/recipe. `hashes.json` binds
+those saved files. Independent review is in the Flux `model3d-source` worktree at
+`test-results/model3d/s0-current-review/REVIEW.md`. Both earlier window-adapter failures
+remain separate from the successful refresh. These scratch artifacts are deliberately
+gitignored; the current trusted result supersedes the earlier native bundle coverage,
+while the untrusted limitation above remains unchanged.
 
 ## Reproducible assets and measured serialization
 
