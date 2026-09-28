@@ -147,3 +147,17 @@ PNG alternatives visible; zero page errors. Both screenshots visually inspected:
 `test-results/model3d/notebook/generated-multi.png` and `scripts-disabled.png`.
 This qualifies the new bundle in generated HTML; original native notebook trust
 and rerun/disposal evidence is retained without claiming a new VS Code run.
+
+2026-09-28 15:49 UTC approved furniture viewer refresh: official sync from canonical
+Flux model3d-orbit `4cabc64`, m3d-r1 SHA
+c740ce4ed095b0645c668e19a3d94c68bc93e838622f048604a3ad2be7c27fb9, 767716 bytes.
+No hand edits to the generated viewer. Focused pytest: 27/27 passed (114 upstream
+warnings, 0.27 s). Wheel built; exact JS/stamp/license compared with generated Flux bytes.
+Receipt test-results/model3d/notebook/furniture-wheel-receipt.json. Four-output browser
+regression rerun next; native QMD/Jupyter evidence remains the earlier c1ca36d checkpoint
+until the private display is available, not represented as a fresh native run.
+
+Four-output browser refresh PASS: real pointer orbit changes only the first output,
+Top view, shape range keyboard input, authored sequence 2.5→2.51→Home 2.5, all four script-free
+PNG alternatives and zero page errors. Current screenshots inspected for legible axis titles,
+colorbar spacing and controls. Original native trust/disposal acceptance remains separate.
