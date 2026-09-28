@@ -9,6 +9,7 @@ See ``Flux_SemanticSVG_Spec.md`` for the conceptual spec.
 
 from . import (
     colors,  # noqa: E402,F401  (canonical palette/colormaps — colors.green400, colors.maps.emerald, …)
+    stats,  # noqa: E402,F401  (tests behind the plots — stats.welch_hedges(a, b), …)
     style,  # noqa: E402,F401  (house plotting style — fx.use_light(), fx.FLEXOKI, …)
 )
 from .api import (  # noqa: E402,F401
@@ -35,6 +36,10 @@ from .recipe import (
 from .surface import (  # noqa: E402,F401
     surface,
 )
+from .signature_fluxplots import (  # noqa: E402,F401  (preset plot types unique to Flux)
+    fluxbox,
+    glowbar,
+)
 from .style import (  # noqa: E402,F401  (re-exported for convenience)
     use_dark,
     use_light,
@@ -47,6 +52,8 @@ from .version import SPEC_VERSION, __version__  # noqa: F401
 __all__ = [
     "__version__",
     "surface",
+    "glowbar",
+    "fluxbox",
     "panel",
     "heatmap",
     "contour",
@@ -54,6 +61,7 @@ __all__ = [
     "colorbar",
     "SPEC_VERSION",
     "colors",
+    "stats",
     "style",
     "use_light",
     "use_dark",
