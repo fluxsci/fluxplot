@@ -353,6 +353,132 @@ Rendering is orthographic with back-face culling — a fold cannot paint over th
 it — with optional Lambertian `shading` for relief; a face straddling a boundary takes the majority
 label rather than being dropped.
 
+**Signature fluxplots** — complete, opinionated plot types that are unique to Flux. They take a
+DataFrame (pandas, polars or a dict of columns) plus column names, seaborn-style, and name every
+part for you. The first is the **glowbar**:
+
+```python
+gb = fp.glowbar(df, x="condition", y="APP/GAPDH", units="subject", ax=ax)
+gb = fp.glowbar(df, x="condition", y="signal", units="mouse",          # paired / repeated measures
+                connect_identical_points_across_x_values=True, ax=ax)
+```
+
+Every observation is a dot; beside each group sits a slim bar that *glows* — its ink densest at
+the centre of the distribution and fading to hard caps at the interval ends — with the **mean** as
+a heavy, haloed line across the bar and the **median** as a V-notch cut into both of its edges.
+The interval is mean ± SEM by default, glowing around the mean; `interval="iqr"` spans the box of
+a box plot and glows around the median, `"sd"` gives mean ± SD, and a callable
+`values -> (low, high)` is accepted. Default groups use ColorBrewer's `YlGnBu`, then `YlOrRd`.
+
+With `units=` every unit (animal, subject, cell) keeps a **fixed lane and colour derived from the
+table, never from the values**, so plots of different measures made from one table agree dot for
+dot — even when a unit is missing from one of them. Unit colours are equal *perceptual* steps
+(CAM02-UCS) of each group's ColorBrewer map between `shade_range=(88, 22)` lightness, dealt across
+lanes so neighbours always contrast (`interleave_shades=True`), and rimmed in a deeper shade of
+themselves so the palest dots stay crisp (`point_edge="rim"`). Connectors are a quiet neutral grey
+and break at a unit's missing category rather than bridging it.
+
+| part | default id | role |
+|---|---|---|
+| interval glow | `<category>.glow` | `box` |
+| interval caps | `<category>.caps` | `cap` |
+| mean line | `<category>.mean` | `mean` |
+| median notch | `<category>.median` | `median` |
+| a unit's point(s) / connector | `<unit>.points`, `<unit>.point.<k>` / `<unit>.line` | `point` / `line` |
+| points without `units` | `<category>.points`, `<category>.point.<k>` | `point` |
+
+Each category series carries a `glowbar` manifest payload with the exact statistics drawn (`n`,
+`mean`, `median`, `sd`, `sem`, `q1`, `q3`, `interval`, `low`, `high`, `center`, `x`, `groupColor`),
+and each unit series its identity (`units`, `unit`, `categories`, `colors`); the manifest's
+`plotType` is `"glowbar"`. Series names default to the category / unit values — `series=` and
+`unit_series=` (a mapping or a callable) rename them. Every visual choice is a keyword:
+`bar_width`, `bar_offset`, `bar_side` (`"outer"` — the default: the first category's bar to
+the left of its points, every other to the right — or `"left"` / `"right"` for all), `glow_steps`, `glow_alpha`, `mean_line_width`, `mean_color`,
+`mean_halo_width`, `median_notch_depth`, `median_notch_height`, `cap_width`, `cap_color`,
+`show_mean`/`show_median`/`show_caps`/`show_individual_points`, `point_size`, `jitter`,
+`point_edge`, `point_fill_alpha` (fill only — the rim stays opaque), `palette` (per category: any
+`fp.colors.maps` colormap such as `"cmasher.emerald"`, any `fp.colors.palettes` palette such as
+`"brewer.Set2"` / `"tol.bright"`, a matplotlib map, a list of colours or one colour — glowbar picks
+as many distinct point colours as it needs plus a solid group colour), `group_color`, `group_color_position`, `point_colors`, `shade_range`,
+`interleave_shades`, `connect_line_width`, `connect_color`, `connect_alpha` (see
+`help(fp.glowbar)`). It returns a `GlowbarResult` (`.ax`, `.categories`, `.stats`, `.group_colors`,
+`.point_colors`, `.series`, `.unit_series`, `.artists`). `examples/glowbar_example.py` draws both
+designs.
+
+The **fluxbox** is the glowbar with a box plot for its summary — the same call, the same lanes,
+colours, connectors and names, so the two can be swapped for one another dot for dot:
+
+```python
+fb = fp.fluxbox(df, x="condition", y="APP/GAPDH", units="subject", ax=ax)
+```
+
+Beside each group sits a slim box (Q1–Q3), a half-strength wash of the group colour
+(`box_alpha=0.5`). The **median** is a solid line across it in the group's own hue — deepened, or on
+a dark background lifted, only as far as it takes to differ from the box by `median_contrast=30`
+units of perceived lightness, so it reads for any palette and theme; the whiskers (and fliers) share
+that colour, so the box is the only wash. The **mean** is a V-notch cut
+into both edges of the box — the glowbar's median notch; a mean outside the box (a strongly skewed
+group) keeps its mark as the same two V's drawn solid, pointing in at the whisker. The capless
+whiskers reach the most extreme observations within `whis` × IQR of the box (`1.5` — Tukey's rule,
+exactly `plt.boxplot`'s whiskers), `"range"`, or a `(low, high)` pair of percentiles. Observations
+beyond the whiskers are not drawn again as fliers — the points already show them — unless the
+points are hidden (`show_fliers="auto"`).
+
+| part | default id | role |
+|---|---|---|
+| box (Q1–Q3) | `<category>.box` | `box` |
+| whiskers | `<category>.whiskers` | `whisker` |
+| whisker caps (`show_caps=True`) | `<category>.caps` | `cap` |
+| median line | `<category>.median` | `median` |
+| mean notch | `<category>.mean` | `mean` |
+| fliers (points hidden) | `<category>.fliers` | `flier` |
+| points / connectors | as for the glowbar | `point` / `line` |
+
+Each category series carries a `fluxbox` manifest payload with the exact statistics drawn (`n`,
+`mean`, `median`, `sd`, `sem`, `q1`, `q3`, `iqr`, `whis`, `whiskerLow`, `whiskerHigh`, `outliers`,
+`x`, `groupColor`); the manifest's `plotType` is `"fluxbox"`. The box keywords are `whis`,
+`box_width`, `box_alpha`, `box_offset`, `box_side`, `median_line_width`, `median_color` (sets the
+median outright), `median_contrast`, `mean_notch_depth`, `mean_notch_height`, `whisker_width`, `whisker_color`,
+`cap_size`, `cap_width`, `cap_color`, `flier_size`, `cut_color` and
+`show_mean`/`show_median`/`show_whiskers`/`show_caps`/`show_fliers`; every point, colour, connector
+and naming keyword is the glowbar's. It returns a `FluxboxResult` with the same fields as a
+`GlowbarResult`. `examples/fluxbox_example.py` draws both designs.
+
+**Statistics** — `fp.stats` holds the tests behind the plots, one per branch of the house
+statistics guidance. Each takes `(a, b)`, orients signs as `a - b`, and returns one reporting row
+(a dict keyed by `fp.stats.REPORT_COLUMNS`: `sig_test_used`, `test_statistic_value`, `p-value`,
+`p_corrected_holm`, `dof`, `effect_size_method`, `effect_size_value`, `effect_size_95_CI`), ready
+to save as a CSV in the plot's `_stats` dissection:
+
+```python
+row = fp.stats.welch_hedges(sd_values, sleep_values)
+pl.DataFrame([row]).write_csv("plots/_dissections/app_gapdh/_stats/welch_ttest.csv")
+```
+
+| function | design | test | effect size + 95% CI |
+|---|---|---|---|
+| `welch_hedges` | independent, means | Welch's t-test | Hedges' g, non-pooled SD `sqrt((var_a + var_b) / 2)`; Bonett (2008) CI |
+| `mann_whitney_cliff` | independent, ranks | Mann–Whitney U (`U` of `a`) | Cliff's delta; Newcombe (2006) Method 5 score CI |
+| `paired_t_hedges` | paired, mean difference | paired t-test | Hedges' g_z (SD of the differences); exact noncentral-t CI |
+| `wilcoxon_rank_biserial` | paired, ranks | Wilcoxon signed-rank (`W+`, zeros dropped) | Kerby's matched-pairs rank-biserial r; score CI |
+
+The CIs target the population effect size, so they are never multiplied by Hedges' `J`. Both
+rank-based CIs stay non-degenerate at complete separation (`delta` or `r` = ±1), which is common at
+n = 6. Rank tests report `dof = None`. `tests/test_stats.py` pins each against scipy and against
+the equation that defines its interval.
+
+*Multiple comparisons* — a row on its own has `p_corrected_holm == p-value` (a family of one).
+Holm's step-down correction needs every p-value in the family, so it is a separate pass over the
+rows of the comparisons that belong together (e.g. every measure tested on the same animals in one
+figure); extra keys such as a measure name ride along:
+
+```python
+rows = [dict(measure=m, **fp.stats.welch_hedges(sd[m], sleep[m])) for m in measures]
+rows = fp.stats.holm(rows)   # fills p_corrected_holm across the family; order is kept
+```
+
+`fp.stats.holm_adjusted(p)` does the same for a bare array of p-values.
+
 **Labels are identity** — a *conventional* labeled plot needs no helpers at all. At save time,
 raw artists carrying a public label (`ax.plot(..., label="Control")`, labeled `scatter`/`bar`/
 `fill_between`) are promoted to named series with their exact artist data, marked in the manifest
@@ -478,8 +604,12 @@ fluxplot/
     manifest.py       # assemble *.fluxplot.json
     recipe.py         # assemble *.recipe.json
     roles.py          # the role vocabulary (+ x- extensions)
+    signature_fluxplots/  # preset plot types unique to Flux (fp.glowbar, fp.fluxbox)
+    stats/            # tests behind the plots, returning reporting rows (fp.stats.welch_hedges, …)
     schemas/          # JSON Schemas for the manifest and recipe (validated on every save)
   examples/growth_plot.py     # the worked example above
+  examples/glowbar_example.py # the glowbar signature plot, unpaired + paired
+  examples/fluxbox_example.py # the fluxbox signature plot, unpaired + paired
   tests/                      # determinism, the marker-DOM probe, ids, capture, schema
   NOTES_matplotlib_svg.md     # the verified matplotlib SVG mechanics this rides on
 ```

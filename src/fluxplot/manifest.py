@@ -155,7 +155,7 @@ def build_manifest(
             "data": data,
             "components": components,
         }
-        for field in ("bar", "band", "uncertainty", "field"):
+        for field in ("bar", "band", "uncertainty", "field", "glowbar", "fluxbox"):
             payload = next((m.data[field] for m in marks if m.data.get(field)), None)
             if payload is not None:
                 entry[field] = payload

@@ -1,0 +1,57 @@
+name: publish
+
+# Build the fluxplot wheel + sdist on every push and PR (proves the package
+# builds and imports), and publish to PyPI when a version tag is pushed.
+# Publishing uses PyPI "trusted publishing" (OpenID Connect): no API token is
+# stored anywhere. PyPI trusts this exact repo + workflow file + environment.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"] # tag MUST equal "v" + the version in pyproject.toml
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Tag must match the package version (tags only)
+        if: github.ref_type == 'tag'
+        run: |
+          v="$(uv version --short)"
+          test "v$v" = "$GITHUB_REF_NAME" || { echo "::error::tag $GITHUB_REF_NAME != pyproject version v$v"; exit 1; }
+          grep -q "__version__ = \"$v\"" src/fluxplot/version.py || { echo "::error::src/fluxplot/version.py does not say $v"; exit 1; }
+
+      - run: uv build
+
+      - name: Install the built wheel into a clean venv and import it
+        run: |
+          uv venv /tmp/wheeltest
+          VIRTUAL_ENV=/tmp/wheeltest uv pip install dist/*.whl
+          /tmp/wheeltest/bin/python -c "import fluxplot, matplotlib; print('fluxplot', fluxplot.__version__, 'spec', fluxplot.SPEC_VERSION)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    environment: pypi # must match the environment named in PyPI's trusted-publisher entry
+    permissions:
+      id-token: write # lets this job mint the OIDC token PyPI verifies
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
