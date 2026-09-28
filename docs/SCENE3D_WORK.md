@@ -210,3 +210,22 @@ upstream warnings, 0.25 s. The full suite reproduces all fixtures; generated
 fixtures and viewer are unchanged. Receipt: test-results/model3d/size-warning/
 pytest-receipt.json. Notebook 300k first-frame qualification remains a separate
 pending measurement; no performance claim is added by this correction.
+
+2026-09-28 notebook300k qualification: actual trusted QMD/Jupyter clean7d2a578e
+frontend checks10/10 pass (activation→next paint517.6/569.3ms), but MIME preparation
+1106.58/1103.56ms leaves whole-representation lower bounds1624.18/1672.86ms.
+Native probe failures retained; no complete one-second pass claimed. Independent
+source/receipt/screenshot review approved that limited conclusion.
+
+Safe preparation optimization computes GLB+manifest once per representation, passes
+that immutable snapshot to PNG, and skips PolyCollection automatic bounds immediately
+replaced by camera limits. No cross-call cache, triangle reduction, viewer change or
+rasterization difference. Quiet CPU samples950.57/909.79/917.16ms; complete PNG and HTML
+byte parity passed against the old path. Core source review approved. Tests pin one
+preparation per call, mutable-scene updates, static MIME, and old-auto-bounds PNG parity
+for orthographic/perspective scenes with state, alpha, continuous missing values and
+colorbar. Final full suite200passed1skip115existingwarnings15.89s; independent corefocused3/3
+passed and sourceAPPROVED. Quiet same-process warmed ABBA old1165.66/1137.15ms versus
+optimized878.72/866.88ms; PNG+completeHTML exact on every run. Receipts and baseline
+loader are under test-results/model3d/mime-preparation. Separate scratch-only batched
+Agg prototype is not included in this change or its parity claim.

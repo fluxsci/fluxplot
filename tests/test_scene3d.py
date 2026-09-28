@@ -252,6 +252,56 @@ def test_notebook_bundle_stamp_license_and_safe_html():
     assert html.count('</script>')==1
 
 
+def test_notebook_prepares_once_per_call_and_observes_mutation(monkeypatch):
+    import base64
+    import fluxplot.glb as glb_module
+    import fluxplot.scene3d_manifest as manifest_module
+    from fluxplot.scene3d_viewer import mimebundle, png_preview
+    counts={'glb':0,'manifest':0}
+    original_glb=glb_module.write_glb; original_manifest=manifest_module.build_manifest
+    def glb(sc):
+        counts['glb']+=1
+        return original_glb(sc)
+    def manifest(*args,**kwargs):
+        counts['manifest']+=1
+        return original_manifest(*args,**kwargs)
+    monkeypatch.setattr(glb_module,'write_glb',glb)
+    monkeypatch.setattr(manifest_module,'build_manifest',manifest)
+    sc=scene(title='Prepared once')
+    def payload(bundle):
+        return json.loads(bundle['text/html'].split('FluxModel3dViewer.mount(host,',1)[1].split(').then(view=>',1)[0])
+    first=mimebundle(sc); before=payload(first)
+    assert counts=={'glb':1,'manifest':1}
+    assert base64.b64decode(before['glb'])==original_glb(sc)
+    sc.parts[0].vertices[0,0]+=.125
+    sc.view(azimuth=92)
+    second=mimebundle(sc); after=payload(second)
+    assert counts=={'glb':2,'manifest':2}
+    assert after['glb']!=before['glb'] and after['manifest']['view']['azimuth']==92
+    assert second['image/png']==png_preview(sc)
+    counts.update(glb=0,manifest=0)
+    assert set(mimebundle(sc,static=True))=={'image/png'}
+    assert counts=={'glb':1,'manifest':1}
+
+
+@pytest.mark.parametrize('projection',['orthographic','perspective'])
+def test_preview_explicit_camera_limits_match_autoscale_bytes(monkeypatch,projection):
+    from matplotlib.axes import Axes
+    from fluxplot.scene3d_viewer import png_preview
+    v,f=sphere(8,12)
+    sc=fp.scene3d(title='Static parity',axes='box')
+    fp.mesh3d(sc,(v,f),series='shape',states={'expanded':(v*1.2,f)},color='#4385be88')
+    values=v[:,1].copy();values[0]=np.nan
+    fp.surface3d(sc,values,series='field',surfaces=(v+[3,0,0],f),kind='continuous',colorbar=True)
+    sc.view(azimuth=67,elevation=13,projection=projection,states={'expanded':.4})
+    direct=png_preview(sc)
+    add_collection=Axes.add_collection
+    def with_unused_autoscale(self,collection,autolim=True):
+        return add_collection(self,collection,autolim=True)
+    monkeypatch.setattr(Axes,'add_collection',with_unused_autoscale)
+    assert png_preview(sc)==direct
+
+
 def test_static_perspective_uses_camera_image_plane(monkeypatch):
     from matplotlib.figure import Figure
     from fluxplot.scene3d_viewer import png_preview

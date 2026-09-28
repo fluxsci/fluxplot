@@ -101,6 +101,33 @@ remain separate from the successful refresh. These scratch artifacts are deliber
 gitignored; the current trusted result supersedes the earlier native bundle coverage,
 while the untrusted limitation above remains unchanged.
 
+## Actual 300000-triangle notebook timing
+
+The trusted native QMD/Jupyter probe at clean source `7d2a578e` used the current
+`c740ce4e…` viewer and exactly 300000 triangles without simplification. Activation
+through a subsequent paint opportunity measured 517.6/569.3 ms, with one fresh NVIDIA
+context, visible mesh and furniture, and 67691 colored mesh pixels in each frontend.
+The observer starts before parsing/evaluating the unchanged viewer IIFE; HTML transport
+before that marker is excluded. Ten frontend checks passed. Exact canvas ownership was
+confirmed by a trusted pointer hover after timing, with unchanged native geometry.
+
+Python MIME preparation, including the PNG alternative, measured 1106.58/1103.56 ms.
+The MIME-plus-viewer lower bounds were therefore 1624.18/1672.86 ms: the complete
+one-second representation budget remains open. Kernel dispatch through frame measured
+3005/2574 ms and also includes fixture/probe/transport work. Earlier hit-oracle and
+Code GPU-crash attempts remain preserved; PNG fallback timings are not counted as
+successful interactive frames. Receipts, source hashes, notebooks and screenshots are
+in Flux `test-results/model3d/notebook/300k/`.
+
+Subsequent preparation optimization reuses GLB/manifest data within one representation
+and skips discarded automatic plot bounds. It retains all faces and rendering choices;
+a quiet same-process ABBA comparison measured old 1165.66/1137.15 ms and optimized
+878.72/866.88 ms. The entire PNG and HTML were byte-identical on every run. There is no cross-call cache, so later
+scene edits remain visible. Evidence is `test-results/model3d/mime-preparation/`.
+Full suite: 200 passed, 1 skipped, 115 existing upstream warnings in 15.89 s; independent
+focused preparation/camera parity tests: 3 passed. This CPU improvement does not claim
+a new complete native one-second pass.
+
 ## Reproducible assets and measured serialization
 
 ```sh

@@ -41,7 +41,7 @@ def preview_scene(scene):
     return out
 
 
-def png_preview(scene):
+def png_preview(scene, *, _manifest=None):
     """Static orthographic/perspective painter preview using surface's projection/shading law.
 
     The interactive notebook and Flux views use a depth buffer. This fallback sorts all
@@ -56,7 +56,7 @@ def png_preview(scene):
     from .scene3d_manifest import build_manifest
     from .glb import write_glb
     if not scene.parts: raise ValueError('add a mesh before displaying a Scene3D')
-    man=build_manifest(scene,write_glb(scene),'preview.glb')
+    man=_manifest if _manifest is not None else build_manifest(scene,write_glb(scene),'preview.glb')
     view=scene._view; az,el,roll=np.deg2rad([view['azimuth']%360,view['elevation'],view.get('roll',0)])
     direction=np.array([np.sin(az)*np.cos(el),np.sin(el),np.cos(az)*np.cos(el)])
     right=np.array([np.cos(az),0,-np.sin(az)]); up=np.cross(direction,right)
@@ -91,7 +91,9 @@ def png_preview(scene):
         colors.append(rgba)
     polygons=np.concatenate(polygons); colors=np.concatenate(colors); depths=np.concatenate(depths)
     order=np.argsort(depths,kind='stable')
-    ax.add_collection(PolyCollection(polygons[order],facecolors=colors[order],edgecolors='face',linewidths=.1,antialiased=True))
+    # The camera sets both limits below. Avoid scanning every triangle a second
+    # time to derive automatic limits that would immediately be overwritten.
+    ax.add_collection(PolyCollection(polygons[order],facecolors=colors[order],edgecolors='face',linewidths=.1,antialiased=True),autolim=False)
     w,h=scene.figsize[0]*(.67 if has_key else .84),scene.figsize[1]*(.8 if scene.title else .84)
     ax.set_xlim(-half*max(w/h,1),half*max(w/h,1)); ax.set_ylim(-half*max(h/w,1),half*max(h/w,1)); ax.set_aspect('equal'); ax.set_axis_off()
     ink=scene.style['ink']; font=dict(fontsize=scene.style['fontSizePt'],color=ink,fontfamily=scene.style['font'])
@@ -141,17 +143,20 @@ def viewer_bundle():
 def mimebundle(scene,*,static=False):
     from .glb import write_glb
     from .scene3d_manifest import build_manifest
-    preview=preview_scene(scene); png=png_preview(preview)
+    preview=preview_scene(scene)
+    # One immutable preparation per representation; Scene3D remains mutable
+    # between calls, so this must never become a cross-call cache.
+    data=write_glb(preview)
+    manifest=build_manifest(preview,data,'preview.glb')
+    png=png_preview(preview,_manifest=manifest)
     bundle={'image/png':png}
     if static: return bundle
-    data=write_glb(preview)
     if len(data)>30*1024**2: warnings.warn(f'Notebook preview is {len(data)/1024**2:.1f} MiB; install fluxplot[mesh] or lower preview_max_faces',stacklevel=3)
     try: runtime=viewer_bundle()
     except FileNotFoundError:
         warnings.warn('Interactive 3D viewer is not bundled yet; displaying PNG fallback',stacklevel=3)
         return bundle
     if '</script' in runtime.lower(): raise RuntimeError('viewer bundle contains an unsafe script terminator')
-    manifest=build_manifest(preview,data,'preview.glb')
     payload=json.dumps({'glb':base64.b64encode(data).decode(),'manifest':manifest,'width':round(scene.figsize[0]*120),'height':round(scene.figsize[1]*120)},allow_nan=False).replace('<','\\u003c').replace('\u2028','\\u2028').replace('\u2029','\\u2029')
     fallback=base64.b64encode(png).decode()
     # currentScript belongs to each output even in a renderer's shadow root. Capture it
