@@ -130,6 +130,7 @@ def _publish(scene, parts, descriptors, alloc, *, legend=False, sequence=False, 
     if morph_group is not None and scene.morph_group not in (None,str(morph_group)): raise ValueError('one scene cannot belong to two morph groups')
     reg.marks=candidate.marks; reg._series_slugs=candidate._series_slugs
     scene.parts.extend(parts); scene._alloc=alloc
+    scene._max_call_parts=max(scene._max_call_parts,len(parts))
     if legend: scene._legend_entries.extend(p.id for p in parts)
     scene.sequence=scene.sequence or sequence
     if morph_group is not None: scene.morph_group=str(morph_group)

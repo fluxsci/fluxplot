@@ -83,11 +83,12 @@ def save_scene3d(scene,path,*,recipe=None,validate=True,_now=None):
         result.skipped=True; result.warnings.append(f'skipped by FLUXPLOT_ONLY={only}'); return result
     data=write_glb(scene)
     triangles=sum(len(p.faces) for p in scene.parts)
-    if len(data)>50*1024**2 or triangles>2_000_000:
-        message=f'3D plot has {triangles:,} triangles and {len(data)/1024**2:.1f} MiB; use max_faces=400000 for a smaller Flux asset'
+    from ._scene3d_size import WARN_BYTES, WARN_TRIANGLES, face_cap_recommendation
+    if len(data)>WARN_BYTES or triangles>WARN_TRIANGLES:
+        message=f'3D plot has {triangles:,} triangles and {len(data)/1024**2:.1f} MiB; '+face_cap_recommendation(scene,data)
         result.warnings.append(message); warnings.warn(message,stacklevel=2)
-    if len(scene.state_names)>20 or len(data)>100*1024**2:
-        message='Shape states add 24 bytes per vertex per state; use fewer frames or max_faces=400000'
+    if len(scene.state_names)>20 or (scene.state_names and len(data)>100*1024**2):
+        message=f'{len(scene.state_names)} shape states add 24 bytes per vertex per state; use fewer frames to reduce saved size'
         result.warnings.append(message); warnings.warn(message,stacklevel=2)
     man=build_manifest(scene,data,os.path.basename(result.glb))
     rec=build_recipe(recipe,plot_name=os.path.basename(base),glb_filename=os.path.basename(result.glb),

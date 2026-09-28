@@ -32,10 +32,13 @@ def reduce_part(part, *, max_faces=None, collapses=None):
     if len(outfaces)==0: raise ValueError(f'{part.id}: max_faces removed every triangle; choose a larger budget')
     if max_faces is not None and len(outfaces)>max_faces:
         warnings.warn(f'{part.id}: simplifier retained {len(outfaces)} faces above requested max_faces={max_faces}',stacklevel=3)
+    # Some backends leave unused output vertices. Compact by index only, in the
+    # same order for all states and fields; this bounds stored vertices by 3F.
+    used=np.unique(outfaces)
     for name,target in list(part.states.items()):
         sv,sf,_=fs.replay_simplification(target.astype(np.float32),faces,collapses)
         if not np.array_equal(outfaces,sf): raise ValueError(f'state {name}: collapse replay changed topology')
-        part.states[name]=np.asarray(sv,dtype=float)
+        part.states[name]=np.asarray(sv,dtype=float)[used]
     def remap(array):
         a=np.asarray(array,dtype=float); scalar=a.ndim==1
         if scalar: a=a[:,None]
@@ -45,7 +48,7 @@ def reduce_part(part, *, max_faces=None, collapses=None):
         np.add.at(count,mapping[good],valid[good].astype(float))
         result=np.divide(sums,count,out=np.full_like(sums,np.nan),where=count>0)
         return result[:,0] if scalar else result
-    if part.values is not None: part.values=remap(part.values)
-    if part.colors is not None: part.colors=remap(part.colors)
-    part.vertices=np.asarray(out,dtype=float); part.faces=np.asarray(outfaces,dtype=np.int64)
+    if part.values is not None: part.values=remap(part.values)[used]
+    if part.colors is not None: part.colors=remap(part.colors)[used]
+    part.vertices=np.asarray(out,dtype=float)[used]; part.faces=np.searchsorted(used,outfaces).astype(np.int64)
     part.collapses=collapses.copy()

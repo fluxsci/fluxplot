@@ -128,6 +128,17 @@ different from the WebGL depth-buffer view.
 - If a large model is slow, use `max_faces` and fewer states. Each state adds 24 bytes
   per vertex before GLB overhead. The notebook preview budget does not shrink saved files.
 
+When a save exceeds Flux's 50 MiB or two-million-triangle warning limits, its warning
+gives a scene-specific `max_faces=N` to apply to **each** `mesh3d`/`surface3d` call.
+The cap conservatively accounts for every part, value/color channel, shape state and
+GLB metadata; it preserves each call's minimum of one triangle per part. It assumes
+the simplifier reaches the cap: retained-face warnings still require attention.
+If fixed part/state overhead cannot fit, the warning says to remove parts/states or
+split the scene. If the conservative bound cannot guarantee a cap, it says so instead
+of promising one. Simplification also drops backend-produced unused vertices in
+original index order, applying the same map to states, values and colors; it does not
+weld vertices or disturb shared-topology correspondence.
+
 `uv run --extra mesh python examples/scene3d_demo.py` writes scratch assets under
 `test-results/model3d/demo/plots/` (override with `--out`). It creates a neuron-like mesh, two shape states,
 a same-topology morph pair, a field map and an eight-frame sequence without downloaded data.

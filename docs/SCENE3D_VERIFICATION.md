@@ -16,11 +16,12 @@ UV_CACHE_DIR=/tmp/fluxplot-scene3d-cache FLUX_NO_MIGRATE=1 \
 uv run --extra dev --extra mesh pytest -q
 ```
 
-Final suite: **193 passed, 1 skipped**, 115 existing upstream warnings, 16.10 s. The
-focused scene3d suite has 27 tests, including exact fixture reproduction, transforms,
+Final suite: **197 passed, 1 skipped**, 115 existing upstream warnings, 16.15 s. The
+focused scene3d suite has 31 tests, including exact fixture reproduction, transforms,
 values/missing masks, stable named parts, states/sequence, morph pairing, optional
 collapse replay, uneven semantic-part budgets, preview source preservation, safe HTML,
-vendored SHA/license and perspective/orthographic PNG framing. Independent reviewers
+vendored SHA/license, perspective/orthographic PNG framing, scene-specific size-cap
+recommendations and backend-orphan compaction across morphs and data channels. Independent reviewers
 ran the focused suite and cross-parsed all 11 production-library fixtures in Flux.
 
 The P0.0 independent oracle has 11 separate GLB/manifest fixtures. Khronos glTF Validator
@@ -125,3 +126,11 @@ white paper behind authored ink for dark-theme readability; GLB and Flux export
 transparency remain unchanged. Optional simplification can alter categorical boundaries
 within parts and can retain more faces than requested when the backend cannot reach
 a quota; it warns explicitly. Allocation itself never exceeds the total quota.
+Size warnings now provide a conservative scene-specific cap for every helper call,
+accounting for original face counts, all states/channels and GLB metadata. Tests
+serialize worst-case disjoint triangles and a real simplified 24-state mesh under
+the recommended limit, and check impossible fixed-overhead cases. Independent focused
+review passed 5 tests in 0.25 s; full-suite receipt is
+`test-results/model3d/size-warning/pytest-receipt.json`. Unused vertices returned by
+the simplifier are compacted with the same sorted index map for geometry, states,
+values and colors; the reference/follower regression remains morph-compatible.

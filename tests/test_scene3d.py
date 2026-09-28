@@ -298,3 +298,116 @@ def test_uneven_part_budgets_and_production_reduction():
     values=np.concatenate([np.zeros(len(v))]+[np.full(3,i+1) for i in range(99)])
     sc=fp.scene3d();fp.surface3d(sc,values,series='labels',surfaces=(vertices,faces),kind='label',max_faces=199)
     assert len(sc.parts)==100 and sum(len(p.faces) for p in sc.parts)<=199
+
+
+def test_face_cap_accounts_for_state_and_part_costs(tmp_path, monkeypatch):
+    import re
+    from fluxplot import _scene3d_size as sizing
+    # Disjoint triangles exercise the worst possible referenced-vertex ratio.
+    f=np.arange(900).reshape(-1,3)
+    v=np.column_stack([np.arange(900),np.arange(900)%3,np.arange(900)%7]).astype(float)
+    def make(cap, count=3, states=24):
+        sc=fp.scene3d()
+        for i in range(count):
+            values=v[:,1].copy(); values[0]=np.nan
+            fp.surface3d(sc,values,series=f'part{i}',surfaces=(v,f[:cap]),kind='continuous',
+                         states={f'state{n}':(v+[n*.123456789,0,0],f[:cap]) for n in range(states)})
+        return sc
+    sc=make(300); original=write_glb(sc)
+    limit=480_000
+    hint=sizing.face_cap_recommendation(sc,original,max_bytes=limit)
+    cap=int(re.search(r'max_faces=(\d+)',hint)[1])
+    assert 1<=cap<300 and 'each mesh3d/surface3d call' in hint
+    # Apply the recommendation independently to every call, not as a total
+    # divided among them. Serialize with the real writer and all field masks.
+    reduced=make(cap)
+    assert len(write_glb(reduced))<=limit
+    simpler=make(300,states=0)
+    simple_cap=int(re.search(r'max_faces=(\d+)',sizing.face_cap_recommendation(simpler,write_glb(simpler),max_bytes=limit))[1])
+    assert simple_cap>cap
+    more_parts=make(300,count=5)
+    more_cap=int(re.search(r'max_faces=(\d+)',sizing.face_cap_recommendation(more_parts,write_glb(more_parts),max_bytes=limit))[1])
+    assert more_cap<cap and len(write_glb(make(more_cap,count=5)))<=limit
+    monkeypatch.setattr(sizing,'WARN_BYTES',limit)
+    with pytest.warns(UserWarning): saved=fp.save(sc,tmp_path/'large',recipe=False)
+    assert any(f'max_faces={cap}' in warning for warning in saved.warnings)
+    assert all('400000' not in warning for warning in saved.warnings)
+
+
+def test_face_cap_impossible_metadata_and_part_floor():
+    import re
+    from fluxplot._scene3d_size import face_cap_recommendation
+    v=np.array([[0,0,0],[1,0,0],[0,1,0]],float); f=np.array([[0,1,2]])
+    sc=fp.scene3d()
+    fp.mesh3d(sc,{f'part{i}':(v,f) for i in range(12)},series='many',
+              states={f'state{i}':{f'part{j}':(v+i,f) for j in range(12)} for i in range(25)})
+    data=write_glb(sc)
+    hint=face_cap_recommendation(sc,data,max_bytes=len(data)-1)
+    assert 'No max_faces cap can fit' in hint and 'one triangle' in hint and 'max_faces=' not in hint
+    assert 'preserving all 12 parts' in face_cap_recommendation(sc,data,max_triangles=11)
+    # Large fixed state-name metadata cannot be reduced by changing faces.
+    large=fp.scene3d(); vf=np.concatenate([v,v+2]); ff=np.array([[0,1,2],[3,4,5]])
+    fp.mesh3d(large,(vf,ff),series='named',states={'a'*5000:(vf,ff)})
+    hint=face_cap_recommendation(large,write_glb(large),max_bytes=4000)
+    assert 'fixed GLB part/state metadata' in hint and 'max_faces=' not in hint
+    # A successful multi-part call cannot receive a cap below its part census.
+    assert sc._max_call_parts==12
+    permitted=face_cap_recommendation(sc,data,max_bytes=10_000_000)
+    assert int(re.search(r'max_faces=(\d+)',permitted)[1])>=12
+
+
+def test_recommended_cap_reduces_real_state_mesh_below_limit():
+    import re
+    pytest.importorskip('fast_simplification')
+    from fluxplot._scene3d_size import face_cap_recommendation
+    v,f=sphere(20,30)
+    states={f'shape{i}':(v*(1+i*.01),f) for i in range(24)}
+    source=fp.scene3d(); fp.mesh3d(source,(v,f),series='cortex',states=states)
+    limit=100_000
+    assert len(write_glb(source))>limit
+    hint=face_cap_recommendation(source,write_glb(source),max_bytes=limit)
+    cap=int(re.search(r'max_faces=(\d+)',hint)[1])
+    reduced=fp.scene3d(); fp.mesh3d(reduced,(v,f),series='cortex',states=states,max_faces=cap)
+    assert len(reduced.parts[0].faces)<=cap and len(write_glb(reduced))<=limit
+    # Recommendations for an already-reduced scene still describe rerunning
+    # the authored source, not just its smaller current vertex/face arrays.
+    assert face_cap_recommendation(reduced,write_glb(reduced),max_bytes=limit)==hint
+    follower=fp.scene3d(); fp.mesh3d(follower,(v*2,f),series='cortex',share_topology_with=reduced)
+    assert fp.can_morph(reduced,follower)
+
+
+def test_reduction_compacts_backend_orphans_in_every_channel(monkeypatch):
+    import sys
+    from fluxplot._mesh_reduce import reduce_part
+    from fluxplot.scene3d import MeshPart
+    vertices=np.arange(15,dtype=float).reshape(5,3)
+    faces=np.array([[0,2,4]])
+    values=np.arange(5,dtype=float); values[2]=np.nan
+    colors=np.tile(np.arange(5,dtype=float)[:,None]/4,(1,4))
+    part=MeshPart('mesh',vertices.copy(),faces.copy(),'#123456',{'large':vertices*2},values.copy(),colors.copy())
+    def replay(points,_faces,_collapses): return points.copy(),faces.copy(),np.arange(5)
+    monkeypatch.setitem(sys.modules,'fast_simplification',SimpleNamespace(replay_simplification=replay,
+        simplify=lambda *_args,**_kw:(None,None,np.empty((0,2),dtype=np.int32))))
+    reduce_part(part,collapses=np.empty((0,2),dtype=np.int32))
+    np.testing.assert_array_equal(part.vertices,vertices[[0,2,4]])
+    np.testing.assert_array_equal(part.faces,[[0,1,2]])
+    np.testing.assert_array_equal(part.states['large'],vertices[[0,2,4]]*2)
+    np.testing.assert_array_equal(part.values,[0,np.nan,4])
+    np.testing.assert_array_equal(part.colors,colors[[0,2,4]])
+    field_scene=fp.scene3d(); field_scene.parts.append(part)
+    doc,read=read_glb(write_glb(field_scene)); attrs=doc['meshes'][0]['primitives'][0]['attributes']
+    np.testing.assert_array_equal(read(attrs['_VALID']),[1,0,1])
+    np.testing.assert_array_equal(read(attrs['_VALUE']),[0,0,4])
+    # Public reference/follower replay takes the same surviving-index map even
+    # when the backend leaves two orphan vertices in both shape outputs.
+    original_faces=np.array([[0,1,2],[2,3,4]])
+    reference=fp.scene3d(); follower=fp.scene3d()
+    fp.mesh3d(reference,(vertices,original_faces),series='pair',max_faces=1,
+              states={'large':(vertices*2,original_faces)})
+    fp.mesh3d(follower,(vertices*3,original_faces),series='pair',share_topology_with=reference,
+              states={'large':(vertices*6,original_faces)})
+    assert fp.can_morph(reference,follower) and len(reference.parts[0].vertices)==3
+    np.testing.assert_array_equal(follower.parts[0].states['large'],vertices[[0,2,4]]*6)
+    for current in (reference,follower):
+        doc,read=read_glb(write_glb(current))
+        np.testing.assert_array_equal(read(doc['meshes'][0]['primitives'][0]['indices']),[0,1,2])

@@ -75,6 +75,7 @@ class Scene3D:
         self.scalebar = None if scalebar is None else _number(scalebar,'scalebar',np.finfo(float).tiny)
         self.preview_max_faces, self.lighting = preview_max_faces, lighting
         self.parts: list[MeshPart] = []
+        self._max_call_parts = 1
         self._alloc = IdAllocator()
         self._view = dict(azimuth=30.,elevation=20.,roll=0.,zoom=.9,panX=0.,panY=0.,projection='orthographic',fov=30.)
         self._legend_entries: list[str] = []
