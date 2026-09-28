@@ -1,0 +1,118 @@
+{
+  "axes": {
+    "kind": "none"
+  },
+  "bounds": {
+    "max": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "min": [
+      -1.0,
+      -1.0,
+      -1.0
+    ]
+  },
+  "build": {
+    "generator": "fluxplot scene3d contract 0.1.0"
+  },
+  "glb": "continuous.glb",
+  "glbSha256": "fe23a5a1fb419c2b8f61e4019d559f06788d83dad44302144b6c153388df422f",
+  "layout": {
+    "colorbar": "right"
+  },
+  "lighting": "studio",
+  "order": [
+    "height.field",
+    "height.colorbar"
+  ],
+  "parts": [
+    {
+      "field": {
+        "cmap": {
+          "name": "contract-blue-red",
+          "stops": [
+            [
+              0,
+              "#0000FF"
+            ],
+            [
+              1,
+              "#FF0000"
+            ]
+          ]
+        },
+        "label": "Height",
+        "missingColor": "#D8D8D8",
+        "range": [
+          -1,
+          1
+        ],
+        "rule": {
+          "percentile": [
+            0,
+            100
+          ]
+        },
+        "ticks": [
+          -1,
+          0,
+          1
+        ]
+      },
+      "id": "height.field",
+      "kind": "field",
+      "node": "height.field",
+      "role": "surface-field",
+      "series": "height"
+    },
+    {
+      "field": "height.field",
+      "id": "height.colorbar",
+      "kind": "furniture",
+      "role": "colorbar"
+    }
+  ],
+  "plotType": "scene3d",
+  "schemaVersion": "0.1.0",
+  "size": {
+    "height": 3,
+    "unit": "in",
+    "width": 3.5
+  },
+  "spec": "fluxplot/scene3d",
+  "style": {
+    "font": "Inter",
+    "fontSizePt": 7,
+    "ink": "#100F0F",
+    "lineWidthPt": 0.6,
+    "muted": "#6F6E69",
+    "titleSizePt": 8
+  },
+  "toWorld": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "units": "µm",
+  "view": {
+    "azimuth": 30,
+    "elevation": 20,
+    "projection": "orthographic",
+    "zoom": 0.9
+  }
+}

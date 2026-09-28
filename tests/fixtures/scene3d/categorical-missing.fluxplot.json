@@ -1,0 +1,98 @@
+{
+  "axes": {
+    "kind": "none"
+  },
+  "bounds": {
+    "max": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "min": [
+      -1.0,
+      -1.0,
+      -1.0
+    ]
+  },
+  "build": {
+    "generator": "fluxplot scene3d contract 0.1.0"
+  },
+  "glb": "categorical-missing.glb",
+  "glbSha256": "0bc70de5f3fc77366b5a15baf44989b3e755f7d1e7827b659fe81247a683e159",
+  "lighting": "studio",
+  "order": [
+    "atlas.frontal",
+    "atlas.parietal",
+    "atlas.missing"
+  ],
+  "parts": [
+    {
+      "color": "#D14D41",
+      "id": "atlas.frontal",
+      "kind": "mesh",
+      "label": "frontal",
+      "node": "atlas.frontal",
+      "role": "surface-region",
+      "series": "atlas"
+    },
+    {
+      "color": "#4385BE",
+      "id": "atlas.parietal",
+      "kind": "mesh",
+      "label": "parietal",
+      "node": "atlas.parietal",
+      "role": "surface-region",
+      "series": "atlas"
+    },
+    {
+      "color": "#D8D8D8",
+      "id": "atlas.missing",
+      "kind": "missing",
+      "label": "missing",
+      "node": "atlas.missing",
+      "role": "surface-region",
+      "series": "atlas"
+    }
+  ],
+  "plotType": "scene3d",
+  "schemaVersion": "0.1.0",
+  "size": {
+    "height": 3,
+    "unit": "in",
+    "width": 3.5
+  },
+  "spec": "fluxplot/scene3d",
+  "style": {
+    "font": "Inter",
+    "fontSizePt": 7,
+    "ink": "#100F0F",
+    "lineWidthPt": 0.6,
+    "muted": "#6F6E69",
+    "titleSizePt": 8
+  },
+  "toWorld": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "units": "µm",
+  "view": {
+    "azimuth": 30,
+    "elevation": 20,
+    "projection": "orthographic",
+    "zoom": 0.9
+  }
+}

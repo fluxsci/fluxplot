@@ -1,0 +1,461 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://flux.dev/schemas/fluxplot-scene3d-0.1.0.json",
+  "title": "FluxPlot scene3d 0.1.0",
+  "type": "object",
+  "properties": {
+    "spec": {
+      "const": "fluxplot/scene3d"
+    },
+    "schemaVersion": {
+      "const": "0.1.0"
+    },
+    "plotType": {
+      "const": "scene3d"
+    },
+    "glb": {
+      "type": "string",
+      "pattern": "^[^/\\\\\\x00]+\\.glb$"
+    },
+    "glbSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "size": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "unit": {
+          "const": "in"
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "unit"
+      ],
+      "additionalProperties": false
+    },
+    "units": {
+      "type": "string"
+    },
+    "toWorld": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 16,
+      "maxItems": 16
+    },
+    "bounds": {
+      "$ref": "#/definitions/bounds"
+    },
+    "view": {
+      "type": "object",
+      "properties": {
+        "azimuth": {
+          "type": "number"
+        },
+        "elevation": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "roll": {
+          "type": "number"
+        },
+        "zoom": {
+          "type": "number",
+          "minimum": 0.02,
+          "maximum": 50
+        },
+        "panX": {
+          "type": "number"
+        },
+        "panY": {
+          "type": "number"
+        },
+        "projection": {
+          "enum": [
+            "orthographic",
+            "perspective"
+          ]
+        },
+        "fov": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 120
+        },
+        "states": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "lighting": {
+      "enum": [
+        "studio",
+        "unlit"
+      ]
+    },
+    "style": {
+      "type": "object",
+      "properties": {
+        "font": {
+          "type": "string"
+        },
+        "fontSizePt": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "titleSizePt": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "ink": {
+          "$ref": "#/definitions/color"
+        },
+        "muted": {
+          "$ref": "#/definitions/color"
+        },
+        "lineWidthPt": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "parts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/part"
+      }
+    },
+    "axes": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "none",
+            "box",
+            "triad"
+          ]
+        },
+        "x": {
+          "$ref": "#/definitions/axis"
+        },
+        "y": {
+          "$ref": "#/definitions/axis"
+        },
+        "z": {
+          "$ref": "#/definitions/axis"
+        },
+        "grid": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "colorbar": {
+          "enum": [
+            "right",
+            "none"
+          ]
+        },
+        "legend": {
+          "enum": [
+            "right",
+            "none"
+          ]
+        },
+        "title": {
+          "enum": [
+            "top",
+            "none"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "morphGroup": {
+      "type": "string"
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/state"
+      }
+    },
+    "sequence": {
+      "type": "boolean"
+    },
+    "order": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/id"
+      }
+    },
+    "build": {
+      "type": "object",
+      "properties": {
+        "generator": {
+          "type": "string"
+        },
+        "provenance": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "spec",
+    "schemaVersion",
+    "glb"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+(?:\\.[a-z0-9-]+)*$"
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$"
+    },
+    "pair": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "vec3": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "bounds": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "$ref": "#/definitions/vec3"
+        },
+        "max": {
+          "$ref": "#/definitions/vec3"
+        }
+      },
+      "required": [
+        "min",
+        "max"
+      ],
+      "additionalProperties": false
+    },
+    "state": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "axis": {
+      "type": "object",
+      "properties": {
+        "lim": {
+          "$ref": "#/definitions/pair"
+        },
+        "ticks": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "tickLabels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cmap": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stops": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "$ref": "#/definitions/color"
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        }
+      },
+      "required": [
+        "name",
+        "stops"
+      ],
+      "additionalProperties": false
+    },
+    "field": {
+      "type": "object",
+      "properties": {
+        "cmap": {
+          "$ref": "#/definitions/cmap"
+        },
+        "range": {
+          "$ref": "#/definitions/pair"
+        },
+        "rule": {
+          "type": "object",
+          "properties": {
+            "percentile": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        "label": {
+          "type": "string"
+        },
+        "ticks": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "missingColor": {
+          "$ref": "#/definitions/color"
+        }
+      },
+      "required": [
+        "cmap",
+        "range"
+      ],
+      "additionalProperties": false
+    },
+    "part": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/id"
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "series": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "parent": {
+          "$ref": "#/definitions/id"
+        },
+        "kind": {
+          "enum": [
+            "mesh",
+            "field",
+            "missing",
+            "furniture"
+          ]
+        },
+        "node": {
+          "type": "string",
+          "minLength": 1
+        },
+        "color": {
+          "$ref": "#/definitions/color"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "hidden": {
+          "type": "boolean"
+        },
+        "field": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/field"
+            },
+            {
+              "$ref": "#/definitions/id"
+            }
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "length": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/id"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "role"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
