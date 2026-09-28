@@ -2,12 +2,22 @@
 from __future__ import annotations
 import base64
 from copy import deepcopy
+from functools import cmp_to_key
 import hashlib
 import io
 import json
+import math
 from importlib.resources import files
 import warnings
 import numpy as np
+
+#: CSS pixels per figure inch of the notebook viewer (its HTML payload uses the same).
+PX_PER_INCH = 120
+#: The static PNG is rendered at this multiple of its CSS size for HiDPI screens.
+HIDPI = 2
+
+EMPTY_MESSAGE = ('Scene3D: nothing to show yet; add a mesh with fp.mesh3d(sc, (vertices, faces), '
+                 "series='name') or a value map with fp.surface3d(sc, values, series=..., surfaces=...)")
 
 
 def preview_scene(scene):
@@ -41,94 +51,390 @@ def preview_scene(scene):
     return out
 
 
-def png_preview(scene, *, _manifest=None):
-    """Static orthographic/perspective painter preview using surface's projection/shading law.
+# ---- static still ------------------------------------------------------------------------
+# The PNG mirrors the notebook viewer: the same CSS-pixel layout rules as Flux's
+# furnitureLayout.ts / furniture.ts (text in physical points, 4/3 CSS px per point),
+# a camera matching orbit.ts, and a painter's sort instead of a depth buffer.
 
-    The interactive notebook and Flux views use a depth buffer. This fallback sorts all
-    faces together; intersecting transparent surfaces remain an approximate painter view.
+def _tick_label(value):
+    """Flux ticks.ts tickLabel: compact decimals, exponent outside [1e-3, 1e5)."""
+    if value == 0:
+        return '0'
+    if abs(value) >= 1e5 or abs(value) < 1e-3:
+        mantissa, exponent = f'{value:.2e}'.split('e')
+        if set(mantissa.split('.')[-1]) == {'0'}:
+            mantissa = mantissa.split('.')[0]
+        exponent = int(exponent)
+        return f'{mantissa}e{"+" if exponent >= 0 else "-"}{abs(exponent)}'
+    return f'{value:.6g}'
+
+
+def _layout(manifest, width, height):
+    """Python twin of Flux ``furnitureLayout`` for one unhidden manifest (CSS px, y down)."""
+    style = manifest.get('style', {})
+    parts = manifest.get('parts', [])
+    fs = style.get('fontSizePt', 7) * 4 / 3
+    line_height = fs * 1.4
+    layout = manifest.get('layout', {})
+    titles = [] if layout.get('title') == 'none' else [p for p in parts if p['role'] == 'title']
+    bars = [] if layout.get('colorbar') == 'none' else [p for p in parts if p['role'] == 'colorbar']
+    legends = [] if layout.get('legend') == 'none' else [p for p in parts if p['role'] == 'legend']
+    scales = [p for p in parts if p['role'] == 'scalebar']
+    title_h = 0
+    if titles:
+        title_h = max(line_height, style.get('titleSizePt', 8) * 4 / 3 * 1.5) + 4
+    guide_w = min(width * .4, max(64, fs * 9)) if bars or legends else 0
+    margin = min(3 * fs, width * .15, height * .15) if manifest.get('axes', {}).get('kind') == 'box' else 0
+    viewport = dict(x=margin, y=title_h + margin, width=max(1, width - guide_w - 2 * margin),
+                    height=max(1, height - title_h - 2 * margin))
+    slot_h = (height - title_h) / max(1, len(bars) + len(legends))
+    out = dict(width=width, height=height, fs=fs, line_height=line_height, viewport=viewport,
+               colorbars=[], legends=[], scalebars=[], title=None)
+    slot = 0
+    for part in bars:
+        top = fs * 2.1
+        out['colorbars'].append(dict(part=part, x=width - guide_w + fs, y=title_h + slot * slot_h + top,
+                                     width=max(6, fs), height=max(1, slot_h - top - 2 * max(line_height, fs * 1.4))))
+        slot += 1
+    for part in legends:
+        out['legends'].append(dict(part=part, x=width - guide_w + fs, y=title_h + slot * slot_h + line_height,
+                                   width=max(1, guide_w - fs * 2), height=max(line_height, slot_h - line_height)))
+        slot += 1
+    for i, part in enumerate(scales):
+        out['scalebars'].append(dict(part=part, x=viewport['x'] + 12,
+                                     y=viewport['y'] + viewport['height'] - 12 - i * (line_height + 10)))
+    if titles:
+        out['title'] = dict(part=titles[0], x=0, y=0, width=width, height=title_h)
+    return out
+
+
+class _Camera:
+    """Orbit camera of Flux ``orbitPose`` over the manifest's world bounds."""
+
+    def __init__(self, view, bounds, viewport):
+        az, el, roll = np.deg2rad([view['azimuth'] % 360, view['elevation'], view.get('roll', 0)])
+        direction = np.array([np.sin(az)*np.cos(el), np.sin(el), np.cos(az)*np.cos(el)])  # toward the camera
+        right = np.array([np.cos(az), 0, -np.sin(az)]); up = np.cross(direction, right)
+        right, up = right*np.cos(roll) + up*np.sin(roll), up*np.cos(roll) - right*np.sin(roll)
+        # Framing (Flux orbit.ts boundsSphere/orbitPose): the bounds' circumscribed sphere,
+        # radius / zoom across the viewport's smaller side.
+        bounds = np.array([bounds['min'], bounds['max']]); center = bounds.mean(axis=0)
+        radius = max(np.linalg.norm((bounds[1] - bounds[0]) / 2), 1e-9)
+        target = center + radius * (view.get('panX', 0) * right + view.get('panY', 0) * up)
+        half = radius / view['zoom']; half_fov = np.deg2rad(view.get('fov', 30)) / 2
+        distance = half / np.sin(half_fov)
+        self.perspective = view['projection'] == 'perspective'
+        if self.perspective:
+            half = distance * np.tan(half_fov)
+            self.near = max(.001 * distance, distance - 1.2 * radius * max(1, 1 / view['zoom']))
+        else:
+            distance = 3 * radius
+            self.near = -math.inf
+        aspect = viewport['width'] / viewport['height']
+        self.half_width, self.half_height = half * max(aspect, 1), half * max(1 / aspect, 1)
+        self.direction, self.right, self.up, self.target = direction, right, up, target
+        self.distance, self.viewport = distance, viewport
+
+    def project(self, points):
+        """Camera-plane coordinates (image plane at the target) and depth toward the camera."""
+        delta = np.asarray(points, dtype=float) - self.target
+        xy = np.column_stack([delta @ self.right, delta @ self.up]); toward = delta @ self.direction
+        if self.perspective:
+            xy *= self.distance / np.maximum(self.distance - toward, 1e-9)[:, None]
+        return xy, toward
+
+    def screen(self, points):
+        """CSS-pixel positions (y down) and distance from the camera, like Flux ``project``."""
+        xy, toward = self.project(np.atleast_2d(points))
+        vp = self.viewport
+        x = vp['x'] + vp['width'] * (.5 + xy[:, 0] / (2 * self.half_width))
+        y = vp['y'] + vp['height'] * (.5 - xy[:, 1] / (2 * self.half_height))
+        return np.column_stack([x, y, self.distance - toward])
+
+    def visible(self, point):
+        return bool(np.isfinite(point[:2]).all() and point[2] >= self.near)
+
+    def pixels_per_unit(self):
+        return None if self.perspective else self.viewport['height'] / (2 * self.half_height)
+
+
+class _Furniture:
+    """Draws Flux furniture nodes into one matplotlib axes whose data units are CSS px."""
+
+    def __init__(self, ax, style, fs):
+        self.ax, self.style, self.fs = ax, style, fs
+        self.ink = style.get('ink', '#100F0F'); self.muted = style.get('muted', '#6F6E69')
+        self.lw = style.get('lineWidthPt', .6) * 4 / 3
+        self.font = style.get('font')
+
+    @staticmethod
+    def pt(px):
+        """CSS px -> matplotlib points at the viewer's PX_PER_INCH."""
+        return px * 72 / PX_PER_INCH
+
+    def line(self, a, b, *, color=None, alpha=1, width=None):
+        self.ax.plot([a[0], b[0]], [a[1], b[1]], color=color or self.ink, alpha=alpha,
+                     lw=self.pt(width or self.lw), solid_capstyle='butt')
+
+    def text(self, x, y, label, *, anchor='middle', size=None, rotation=0, center=None):
+        """SVG-style text: (x, y) is the baseline point; optional rotation about ``center``."""
+        ha = {'start': 'left', 'middle': 'center', 'end': 'right'}[anchor]
+        kwargs = dict(ha=ha, va='baseline', fontsize=self.pt(size or self.fs), color=self.ink)
+        if self.font:
+            kwargs['fontfamily'] = self.font
+        if rotation:
+            cx, cy = center
+            theta = np.deg2rad(rotation); dx, dy = x - cx, y - cy
+            x = cx + dx * np.cos(theta) - dy * np.sin(theta)
+            y = cy + dx * np.sin(theta) + dy * np.cos(theta)
+            kwargs.update(rotation=-rotation, rotation_mode='anchor')
+        self.ax.text(x, y, label, **kwargs)
+
+    def polygon(self, points, **kwargs):
+        from matplotlib.patches import Polygon
+        self.ax.add_patch(Polygon(points, closed=True, **kwargs))
+
+
+def _draw_box_axes(draw, manifest, camera, fs):
+    """Back panes and grid behind the mesh; axis lines on silhouette edges, labels outward."""
+    rotation = np.asarray(manifest['toWorld'], dtype=float).reshape(4, 4, order='F')[:3, :3]
+    world_bounds = np.array([manifest['bounds']['min'], manifest['bounds']['max']])
+    corners = np.array([[world_bounds[(mask >> i) & 1, i] for i in range(3)] for mask in range(8)])
+    data_corners = corners @ rotation  # inverse of a proper rotation is its transpose
+    axes = [manifest['axes'].get(k, {}) for k in 'xyz']
+    limits = [a.get('lim', [data_corners[:, i].min(), data_corners[:, i].max()]) for i, a in enumerate(axes)]
+    center = np.array([sum(lim) / 2 for lim in limits])
+    screen = lambda p: camera.screen(np.asarray(p, dtype=float) @ rotation.T)[0]
+    back = [0 if rotation[:, axis] @ camera.direction >= 0 else 1 for axis in range(3)]
+    parts = {p['id']: p for p in manifest.get('parts', [])}
+    for axis in range(3):
+        other = [i for i in range(3) if i != axis]
+        quad = []
+        for a, b in ((0, 0), (1, 0), (1, 1), (0, 1)):
+            p = center.copy(); p[axis] = limits[axis][back[axis]]
+            p[other[0]] = limits[other[0]][a]; p[other[1]] = limits[other[1]][b]
+            quad.append(screen(p))
+        if all(camera.visible(q) for q in quad):
+            points = [q[:2] for q in quad]
+            draw.polygon(points, facecolor=draw.muted, alpha=.06, edgecolor='none')
+            draw.polygon(points, facecolor='none', edgecolor=draw.muted, alpha=.25, lw=draw.pt(draw.lw))
+    box = [screen([limits[i][(mask >> i) & 1] for i in range(3)]) for mask in range(8)]
+    box = [c for c in box if camera.visible(c)]
+    labelled = []
+    for axis, name in enumerate('xyz'):
+        other = [i for i in range(3) if i != axis]
+        candidates = []
+        for k in range(4):
+            a = center.copy(); b = center.copy(); a[axis] = limits[axis][0]; b[axis] = limits[axis][1]
+            for j in range(2):
+                a[other[j]] = b[other[j]] = limits[other[j]][(k >> j) & 1]
+            mid = screen((a + b) / 2)
+            if camera.visible(mid) and camera.visible(screen(a)) and camera.visible(screen(b)):
+                candidates.append(dict(a=a, b=b, y=mid[1], depth=mid[2]))
+        if not candidates:
+            continue
+
+        def silhouette(edge):
+            sa, sb = screen(edge['a']), screen(edge['b'])
+            length = math.hypot(sb[0] - sa[0], sb[1] - sa[1])
+            if length < 1:
+                return False
+            d = [((sb[0]-sa[0]) * (p[1]-sa[1]) - (sb[1]-sa[1]) * (p[0]-sa[0])) / length for p in box]
+            return all(v >= -1e-6 for v in d) or all(v <= 1e-6 for v in d)
+
+        def overlaps(edge):
+            sa, sb = screen(edge['a']), screen(edge['b'])
+            dx, dy = sb[0] - sa[0], sb[1] - sa[1]; length = math.hypot(dx, dy)
+            for e in labelled:
+                ex, ey = e[2] - e[0], e[3] - e[1]
+                if (abs(dx*ey - dy*ex) < 1e-6 * length * math.hypot(ex, ey)
+                        and abs(dx*(e[1]-sa[1]) - dy*(e[0]-sa[0])) < fs * length):
+                    return 1
+            return 0
+
+        def order(e1, e2):
+            first = overlaps(e1) - overlaps(e2)
+            if first:
+                return first
+            return e2['y'] - e1['y'] if abs(e2['y'] - e1['y']) > 1e-6 else e1['depth'] - e2['depth']
+
+        edges = [e for e in candidates if silhouette(e)] or candidates
+        edge = sorted(edges, key=cmp_to_key(order))[0]
+        sa, sb = screen(edge['a']), screen(edge['b'])
+        length = math.hypot(sb[0] - sa[0], sb[1] - sa[1])
+        if length < 1:
+            continue
+        mid = (sa[:2] + sb[:2]) / 2; origin = screen(center)
+        ox, oy = -(sb[1] - sa[1]) / length, (sb[0] - sa[0]) / length
+        if ox * (mid[0] - origin[0]) + oy * (mid[1] - origin[1]) < 0:
+            ox, oy = -ox, -oy
+        labelled.append((sa[0], sa[1], sb[0], sb[1]))
+        draw.line(sa, sb)
+        anchor = 'end' if ox < -.5 else 'start' if ox > .5 else 'middle'
+        spec = axes[axis]
+        for value in spec.get('ticks', []):
+            if not limits[axis][0] <= value <= limits[axis][1]:
+                continue
+            p = edge['a'].copy(); p[axis] = value; at = screen(p)
+            if not camera.visible(at):
+                continue
+            draw.line(at, (at[0] + ox * 4, at[1] + oy * 4))
+            draw.text(at[0] + ox * (fs*.9 + 4), at[1] + oy * (fs*.9 + 4) + fs*.3, _tick_label(value), anchor=anchor)
+            if manifest['axes'].get('grid') is not False:
+                for plane in other:
+                    across = next(i for i in other if i != plane)
+                    p1 = center.copy(); p2 = center.copy(); p1[axis] = p2[axis] = value
+                    p1[plane] = p2[plane] = limits[plane][back[plane]]
+                    p1[across] = limits[across][0]; p2[across] = limits[across][1]
+                    g1, g2 = screen(p1), screen(p2)
+                    if camera.visible(g1) and camera.visible(g2):
+                        draw.line(g1, g2, color=draw.muted, alpha=.3)
+        title_x, title_y = mid[0] + ox * fs * 3.4, mid[1] + oy * fs * 3.4
+        angle = math.degrees(math.atan2(sb[1] - sa[1], sb[0] - sa[0]))
+        upright = angle - 180 if angle > 90 else angle + 180 if angle < -90 else angle
+        text = parts.get(f'axes.{name}.label', {}).get('text') or spec.get('label') or name
+        draw.text(title_x, title_y + fs * .3, text, rotation=upright, center=(title_x, title_y))
+
+
+def _draw_mesh(ax, scene, camera):
+    from matplotlib.collections import PolyCollection
+    from matplotlib.colors import to_rgba
+    from .surface import _face_shading, _shade_rgba
+    view = scene._view
+    polygons = []; colors = []; depths = []
+    for part in scene.parts:
+        vertices = part.vertices.copy()
+        for name, weight in view.get('states', {}).items():
+            if name in part.states: vertices += weight * (part.states[name] - part.vertices)
+        world = vertices @ scene.to_world[:3, :3].T
+        xy, depth = camera.project(world)
+        polygons.append(xy[part.faces]); depths.append(depth[part.faces].mean(axis=1))
+        if part.colors is not None:
+            rgba = part.colors[part.faces].mean(axis=1)
+            rgba[:, 3] *= to_rgba(part.color)[3]  # alpha= on a coloured field
+        else:
+            rgba = np.tile(to_rgba(part.color), (len(part.faces), 1))
+        if scene.lighting == 'studio':
+            # Reframe into surface's (toward viewer, right, up) convention.
+            camera_vertices = np.column_stack([world @ camera.direction, world @ camera.right, world @ camera.up])
+            rgba = _shade_rgba(rgba, _face_shading(camera_vertices, part.faces, 1, (.8, -.4, .6), .35))
+        colors.append(rgba)
+    polygons = np.concatenate(polygons); colors = np.concatenate(colors); depths = np.concatenate(depths)
+    order = np.argsort(depths, kind='stable')
+    colors = colors[order]
+    # Opaque faces draw hairline edges in their own colour to close raster seams.
+    # Translucent faces must not: each edge would be blended twice and etch a
+    # triangle lattice into the part. (Aliased fills double-cover shared edges too.)
+    opaque = colors[:, 3] >= 1
+    edges = colors.copy(); edges[~opaque] = 0
+    # The camera sets both limits. Avoid scanning every triangle a second time to
+    # derive automatic limits that would immediately be overwritten.
+    ax.add_collection(PolyCollection(polygons[order], facecolors=colors, edgecolors=edges,
+                                     linewidths=np.where(opaque, .1, 0.), antialiased=True),
+                      autolim=False)
+
+
+def _draw_guides(draw, manifest, layout, camera):
+    """Title, legend, colorbar, scale bar and triad in Flux's slots."""
+    from matplotlib.colors import LinearSegmentedColormap, to_rgba
+    fs, line_height, vp = layout['fs'], layout['line_height'], layout['viewport']
+    style = manifest.get('style', {})
+    parts = {p['id']: p for p in manifest.get('parts', [])}
+    rotation = np.asarray(manifest['toWorld'], dtype=float).reshape(4, 4, order='F')[:3, :3]
+    triad = manifest.get('axes', {}).get('kind') == 'triad'
+    if triad:
+        # Bottom-left orientation gizmo (Flux: viewport corner inset by 30 px).
+        origin = (vp['x'] + 30, vp['y'] + vp['height'] - 30)
+        for axis, name in enumerate('xyz'):
+            direction = rotation[:, axis]
+            dx, dy = float(direction @ camera.right), -float(direction @ camera.up)
+            draw.line(origin, (origin[0] + dx * 22, origin[1] + dy * 22))
+            draw.text(origin[0] + dx * 32, origin[1] + dy * 32 + fs * .3, name)
+    ppu = camera.pixels_per_unit()
+    for slot in layout['scalebars']:
+        part = slot['part']
+        if not part.get('length') or ppu is None:
+            continue
+        length = part['length'] * ppu * float(np.linalg.norm(rotation[:, 0]))
+        x, y = slot['x'], slot['y']
+        if triad:
+            # The triad owns the bottom-left corner; the scale bar takes the bottom-right.
+            x = vp['x'] + vp['width'] - 12 - length
+        draw.line((x, y), (x + length, y), width=max(draw.lw, 1.5))
+        draw.text(x + length / 2, y - fs * .7, part.get('label') or _tick_label(part['length']))
+    for slot in layout['legends']:
+        for i, pid in enumerate(slot['part'].get('entries', [])):
+            entry = parts.get(pid)
+            if entry is None:
+                continue
+            y = slot['y'] + i * line_height
+            color = to_rgba(entry.get('color', '#4385BE'))
+            color = (*color[:3], color[3] * entry.get('opacity', 1))
+            draw.polygon([(slot['x'], y - fs*.7), (slot['x'] + fs, y - fs*.7), (slot['x'] + fs, y + fs*.3),
+                          (slot['x'], y + fs*.3)], facecolor=color, edgecolor='none')
+            draw.text(slot['x'] + fs * 1.5, y + fs * .2, entry.get('label', pid), anchor='start')
+    for slot in layout['colorbars']:
+        field = parts.get(slot['part'].get('field'), {}).get('field')
+        if not isinstance(field, dict):
+            continue
+        lo, hi = field['range']
+        x, y, w, h = slot['x'], slot['y'], slot['width'], slot['height']
+        cmap = LinearSegmentedColormap.from_list('preview', field['cmap']['stops'])
+        ramp = cmap(np.linspace(1, 0, 256))[:, None, :]
+        draw.ax.imshow(ramp, extent=(x, x + w, y + h, y), aspect='auto', interpolation='bilinear', zorder=1)
+        draw.polygon([(x, y), (x + w, y), (x + w, y + h), (x, y + h)], facecolor='none',
+                     edgecolor=draw.muted, lw=draw.pt(draw.lw), zorder=2)
+        for value in field.get('ticks', []):
+            if not lo <= value <= hi:
+                continue
+            ty = y + h * (.5 if hi == lo else 1 - (value - lo) / (hi - lo))
+            draw.line((x + w, ty), (x + w + 3, ty))
+            draw.text(x + w + 6, ty + fs * .3, _tick_label(value), anchor='start')
+        if field.get('label'):
+            draw.text(x, y - fs * 1.05, field['label'], anchor='start')
+    if layout['title']:
+        slot = layout['title']; part = slot['part']
+        draw.text(slot['x'] + slot['width'] / 2, slot['y'] + slot['height'] * .7,
+                  part.get('text') or part.get('label') or '', size=style.get('titleSizePt', 8) * 4 / 3)
+
+
+def png_preview(scene, *, _manifest=None):
+    """Static orthographic/perspective painter still of the notebook viewer, at 2× (HiDPI).
+
+    Furniture follows Flux's layout rules. The interactive notebook and Flux views
+    use a depth buffer; this fallback sorts all faces together, so intersecting
+    transparent surfaces remain an approximate painter view.
     """
     from matplotlib.figure import Figure
     from matplotlib.backends.backend_agg import FigureCanvasAgg
-    from matplotlib.collections import PolyCollection
-    from matplotlib.colors import to_rgba, Normalize, LinearSegmentedColormap
-    from matplotlib.patches import Patch
-    from .surface import _face_shading, _shade_rgba
     from .scene3d_manifest import build_manifest
     from .glb import write_glb
-    if not scene.parts: raise ValueError('add a mesh before displaying a Scene3D')
-    man=_manifest if _manifest is not None else build_manifest(scene,write_glb(scene),'preview.glb')
-    view=scene._view; az,el,roll=np.deg2rad([view['azimuth']%360,view['elevation'],view.get('roll',0)])
-    direction=np.array([np.sin(az)*np.cos(el),np.sin(el),np.cos(az)*np.cos(el)])
-    right=np.array([np.cos(az),0,-np.sin(az)]); up=np.cross(direction,right)
-    right,up=right*np.cos(roll)+up*np.sin(roll),up*np.cos(roll)-right*np.sin(roll)
-    bounds=np.array([man['bounds']['min'],man['bounds']['max']]); center=bounds.mean(axis=0)
-    radius=max(np.linalg.norm((bounds[1]-bounds[0])/2),1e-9)
-    target=center+radius*(view.get('panX',0)*right+view.get('panY',0)*up)
-    half=radius/view['zoom']; half_fov=np.deg2rad(view.get('fov',30))/2
-    distance=half/np.sin(half_fov)
-    if view['projection']=='perspective': half=distance*np.tan(half_fov)
-    def project(points):
-        delta=points-target; xy=np.column_stack([delta@right,delta@up]); depth=delta@direction
-        if view['projection']=='perspective': xy*=distance/np.maximum(distance-depth,1e-9)[:,None]
-        return xy,depth
-    fig=Figure(figsize=scene.figsize,dpi=120,layout="none"); FigureCanvasAgg(fig); fig.patch.set_facecolor("white")
-    # Keep margins in physical inches: axes text never grows when the scene is resized.
-    has_key=bool(scene._legend_entries or any(p.get('role')=='colorbar' for p in man['parts']))
-    ax=fig.add_axes([.08,.08,.67 if has_key else .84,.8 if scene.title else .84]); ax.patch.set_alpha(0)
-    polygons=[]; colors=[]; depths=[]
-    for part in scene.parts:
-        vertices=part.vertices.copy()
-        for name,weight in view.get('states',{}).items():
-            if name in part.states: vertices+=weight*(part.states[name]-part.vertices)
-        world=vertices@scene.to_world[:3,:3].T
-        xy,depth=project(world)
-        polygons.append(xy[part.faces]); depths.append(depth[part.faces].mean(axis=1))
-        rgba=part.colors[part.faces].mean(axis=1) if part.colors is not None else np.tile(to_rgba(part.color),(len(part.faces),1))
-        if scene.lighting=='studio':
-            # Reframe into surface's (toward viewer, right, up) convention.
-            camera_vertices=np.column_stack([world@direction,world@right,world@up])
-            rgba=_shade_rgba(rgba,_face_shading(camera_vertices,part.faces,1,(.8,-.4,.6),.35))
-        colors.append(rgba)
-    polygons=np.concatenate(polygons); colors=np.concatenate(colors); depths=np.concatenate(depths)
-    order=np.argsort(depths,kind='stable')
-    # The camera sets both limits below. Avoid scanning every triangle a second
-    # time to derive automatic limits that would immediately be overwritten.
-    ax.add_collection(PolyCollection(polygons[order],facecolors=colors[order],edgecolors='face',linewidths=.1,antialiased=True),autolim=False)
-    w,h=scene.figsize[0]*(.67 if has_key else .84),scene.figsize[1]*(.8 if scene.title else .84)
-    ax.set_xlim(-half*max(w/h,1),half*max(w/h,1)); ax.set_ylim(-half*max(h/w,1),half*max(h/w,1)); ax.set_aspect('equal'); ax.set_axis_off()
-    ink=scene.style['ink']; font=dict(fontsize=scene.style['fontSizePt'],color=ink,fontfamily=scene.style['font'])
-    if scene.title: ax.set_title(scene.title,fontsize=scene.style['titleSizePt'],color=ink,fontfamily=scene.style['font'])
-    if scene.axes=='box':
-        low=np.array([man['axes'][k]['lim'][0] for k in 'xyz'])
-        for i,k in enumerate('xyz'):
-            spec=man['axes'][k]; start=low.copy(); end=low.copy(); end[i]=spec['lim'][1]
-            line,_=project(np.array([start,end])@scene.to_world[:3,:3].T)
-            ax.plot(line[:,0],line[:,1],color=ink,lw=scene.style['lineWidthPt'],zorder=0)
-            ax.text(*line[1],spec['label'],ha='center',va='top',**font)
-            for tick in spec['ticks']:
-                p=low.copy();p[i]=tick; pos,_=project((p@scene.to_world[:3,:3].T)[None,:])
-                ax.annotate(f'{tick:g}',pos[0],xytext=(0,-5),textcoords='offset points',ha='center',**font)
-    elif scene.axes=='triad':
-        for i,k in enumerate('xyz'):
-            axis=scene.to_world[:3,i]; dx,dy=float(axis@right),float(axis@up)
-            ax.annotate('',xy=(.12+.08*dx,.12+.08*dy),xytext=(.12,.12),xycoords='axes fraction',arrowprops={'arrowstyle':'->','color':ink,'lw':scene.style['lineWidthPt']})
-            ax.text(.12+.10*dx,.12+.10*dy,k,transform=ax.transAxes,ha='center',va='center',**font)
-    if scene.scalebar is not None and view['projection']=='orthographic':
-        left=ax.get_xlim()[0]+half*.15; bottom=ax.get_ylim()[0]+half*.15
-        ax.plot([left,left+scene.scalebar],[bottom,bottom],color=ink,lw=scene.style['lineWidthPt']*2)
-        ax.annotate(f'{scene.scalebar:g} {scene.units}'.strip(),(left+scene.scalebar/2,bottom),xytext=(0,4),textcoords='offset points',ha='center',**font)
-    byid={p['id']:p for p in man['parts']}
-    if scene._legend_entries:
-        handles=[Patch(facecolor=byid[pid].get('color','#4385BE'),label=byid[pid].get('label',pid)) for pid in scene._legend_entries]
-        ax.legend(handles=handles,loc='upper left',bbox_to_anchor=(1,1),frameon=False,fontsize=scene.style['fontSizePt'],labelcolor=ink)
-    bars=[p for p in man['parts'] if p['role']=='colorbar']
-    if bars:
-        import matplotlib.cm as cm
-        field=byid[bars[0]['field']]['field']; cmap=LinearSegmentedColormap.from_list('preview',field['cmap']['stops'])
-        cax=fig.add_axes([.81,.2,.035,.55]); cb=fig.colorbar(cm.ScalarMappable(norm=Normalize(*field['range']),cmap=cmap),cax=cax,ticks=field['ticks'])
-        cb.ax.tick_params(labelsize=scene.style['fontSizePt'],colors=ink)
-        if field.get('label'): cb.set_label(field['label'],fontsize=scene.style['fontSizePt'],color=ink)
-    stream=io.BytesIO();fig.savefig(stream,format='png',transparent=False,facecolor='white',dpi=120)
+    if not scene.parts: raise ValueError(EMPTY_MESSAGE)
+    man = _manifest if _manifest is not None else build_manifest(scene, write_glb(scene), 'preview.glb')
+    width, height = scene.figsize[0] * PX_PER_INCH, scene.figsize[1] * PX_PER_INCH
+    layout = _layout(man, width, height)
+    vp = layout['viewport']
+    camera = _Camera(scene._view, man['bounds'], vp)
+    dpi = PX_PER_INCH * HIDPI
+    fig = Figure(figsize=scene.figsize, dpi=dpi, layout='none'); FigureCanvasAgg(fig)
+    fig.patch.set_facecolor('white')
+    # Mesh axes first (fig.axes[0]): camera-plane units over exactly the viewport.
+    ax = fig.add_axes([vp['x'] / width, 1 - (vp['y'] + vp['height']) / height,
+                       vp['width'] / width, vp['height'] / height], zorder=1)
+    ax.set_xlim(-camera.half_width, camera.half_width); ax.set_ylim(-camera.half_height, camera.half_height)
+    ax.set_axis_off(); ax.patch.set_alpha(0)
+    # Furniture layers in CSS px (y down): 'under' sits behind the mesh, 'over' in front.
+    layers = []
+    for zorder in (0, 2):
+        layer = fig.add_axes([0, 0, 1, 1], zorder=zorder)
+        layer.set_xlim(0, width); layer.set_ylim(height, 0); layer.set_axis_off(); layer.patch.set_alpha(0)
+        layers.append(_Furniture(layer, man.get('style', scene.style), layout['fs']))
+    under, over = layers
+    _draw_mesh(ax, scene, camera)
+    if man.get('axes', {}).get('kind') == 'box':
+        _draw_box_axes(under, man, camera, layout['fs'])
+    _draw_guides(over, man, layout, camera)
+    stream = io.BytesIO(); fig.savefig(stream, format='png', transparent=False, facecolor='white', dpi=dpi)
     return stream.getvalue()
 
 
@@ -140,9 +446,24 @@ def viewer_bundle():
     return source.decode('utf8')
 
 
+def display_size(scene):
+    """CSS size of the notebook viewer and of its PNG still."""
+    return round(scene.figsize[0] * PX_PER_INCH), round(scene.figsize[1] * PX_PER_INCH)
+
+
+def mimebundle_metadata(scene, bundle):
+    """Show the 2× PNG at its CSS size (Jupyter/VS Code honour image width/height)."""
+    if 'image/png' not in bundle:
+        return {}
+    width, height = display_size(scene)
+    return {'image/png': {'width': width, 'height': height}}
+
+
 def mimebundle(scene,*,static=False):
     from .glb import write_glb
     from .scene3d_manifest import build_manifest
+    if not scene.parts:
+        return {'text/plain': EMPTY_MESSAGE}
     preview=preview_scene(scene)
     # One immutable preparation per representation; Scene3D remains mutable
     # between calls, so this must never become a cross-call cache.
@@ -157,22 +478,11 @@ def mimebundle(scene,*,static=False):
         warnings.warn('Interactive 3D viewer is not bundled yet; displaying PNG fallback',stacklevel=3)
         return bundle
     if '</script' in runtime.lower(): raise RuntimeError('viewer bundle contains an unsafe script terminator')
-    payload=json.dumps({'glb':base64.b64encode(data).decode(),'manifest':manifest,'width':round(scene.figsize[0]*120),'height':round(scene.figsize[1]*120)},allow_nan=False).replace('<','\\u003c').replace('\u2028','\\u2028').replace('\u2029','\\u2029')
+    width,height=display_size(scene)
+    payload=json.dumps({'glb':base64.b64encode(data).decode(),'manifest':manifest,'width':width,'height':height},allow_nan=False).replace('<','\\u003c').replace('\u2028','\\u2028').replace('\u2029','\\u2029')
     fallback=base64.b64encode(png).decode()
+    image=f'<img alt="3D plot preview" width="{width}" height="{height}" style="max-width:100%;height:auto" src="data:image/png;base64,{fallback}" />'
     # currentScript belongs to each output even in a renderer's shadow root. Capture it
     # synchronously; a document-global id lookup can select another notebook output.
-    bundle['text/html']=f'''<div class="fluxplot-scene3d"><div data-fluxplot-scene3d-host><img alt="3D plot preview" src="data:image/png;base64,{fallback}" /></div><script>(()=>{{const script=document.currentScript;const host=script.parentElement.querySelector('[data-fluxplot-scene3d-host]');const fallback=host.innerHTML;{runtime}\nFluxModel3dViewer.mount(host,{payload}).then(view=>{{if(view.available===false)host.innerHTML=fallback;}}).catch(error=>{{host.innerHTML=fallback;host.title=String(error);}});}})();</script></div>'''
+    bundle['text/html']=f'''<div class="fluxplot-scene3d"><div data-fluxplot-scene3d-host>{image}</div><script>(()=>{{const script=document.currentScript;const host=script.parentElement.querySelector('[data-fluxplot-scene3d-host]');const fallback=host.innerHTML;{runtime}\nFluxModel3dViewer.mount(host,{payload}).then(view=>{{if(view.available===false)host.innerHTML=fallback;}}).catch(error=>{{host.innerHTML=fallback;host.title=String(error);}});}})();</script></div>'''
     return bundle
-
-
-def display_size(scene):
-    """CSS size of the notebook viewer and of its PNG still."""
-    return round(scene.figsize[0] * 120), round(scene.figsize[1] * 120)
-
-
-def mimebundle_metadata(scene, bundle):
-    """Show the PNG at the viewer's CSS size (Jupyter/VS Code honour image width/height)."""
-    if 'image/png' not in bundle:
-        return {}
-    width, height = display_size(scene)
-    return {'image/png': {'width': width, 'height': height}}
