@@ -86,10 +86,20 @@ with hex sRGB colors. `field.missingColor` is the missing fallback. A colorbar p
 `field: "<series>.field"`; it never embeds a second mapping. The runtime normalizes/clips
 values, interpolates sRGB stops, then converts to linear RGB for glTF shading.
 
-Axis ticks and limits are authored in Python using matplotlib locators. Labels, legend,
-colorbar and title are SVG furniture in Flux. Text uses physical pt; resizing changes the
-viewport, not fonts. `axes.kind="triad"` uses original data axes after `toWorld`; a scale
-bar is shown only for orthographic projection. Layout positions are right/top in v1.
+Axis ticks and limits are authored in Python using matplotlib locators; computed tick
+values are rounded to 12 significant digits (`0.6`, not `0.6000000000000001`). Labels,
+legend, colorbar and title are SVG furniture in Flux. Text uses physical pt; resizing
+changes the viewport, not fonts. `axes.kind="triad"` uses original data axes after
+`toWorld`; a scale bar is shown only for orthographic projection. Layout positions are
+right/top in v1. The triad sits in the viewport's bottom-left corner; a scale bar sits
+bottom-left, or bottom-right (right-aligned, same inset) when a triad is shown, so the
+two never overlap. The scale-bar part's `length` is in data units; its `label` is the
+display text (Python simplifies metric units: `10000` nm is labelled `10 µm`).
+
+Part opacity is carried by the alpha of `color` (8-digit hex), mirrored in the material's
+baseColorFactor alpha with `alphaMode: BLEND`; a vertex-coloured field keeps a white
+base colour and carries only that alpha. The optional `opacity` part field remains
+available to consumers but is not emitted by Python.
 
 ## Golden fixtures
 
