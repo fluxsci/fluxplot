@@ -18,6 +18,19 @@ def _resolve_range(finite,color_range,percentile):
     return float(np.min(finite)),float(np.max(finite))
 
 
+def category_name(code, categories=None):
+    """Name of one integer label code: ``categories[code]``, else ``category-<code>``.
+
+    Negative codes are spelled ``category-m<abs>`` (``-1`` -> ``category-m1``). A plain
+    ``category--1`` would slugify to ``category-1`` and collide with code ``+1``, so the
+    id of one category would shift depending on whether the other is present.
+    """
+    code = int(code)
+    if categories and code in categories:
+        return categories[code]
+    return f'category-{code}' if code >= 0 else f'category-m{-code}'
+
+
 def categorical_colors(names,palette=None,categories=None):
     """Resolve the fixed category-name/code palette in stable sorted-name order."""
     resolved={}
@@ -40,8 +53,32 @@ def continuous_mapping(finite,cmap=None,color_range=None,percentile=None):
     if finite.size==0 and color_range is None: lo,hi=0.,1.
     else: lo,hi=_resolve_range(finite,color_range,percentile)
     if not np.isfinite([lo,hi]).all() or lo>hi: raise ValueError('color_range must be finite and nondecreasing')
-    obj=mpl.colormaps[mpl.rcParams['image.cmap']] if cmap is None else (mpl.colormaps[cmap] if isinstance(cmap,str) else cmap)
-    return obj,Normalize(vmin=lo,vmax=hi)
+    return resolve_colormap(cmap),Normalize(vmin=lo,vmax=hi)
+
+
+def resolve_colormap(cmap=None):
+    """A Colormap from ``None`` (the style default), a Colormap, or a name.
+
+    Names resolve through matplotlib first (so existing names keep their exact maps),
+    then through fluxplot's shipped collections: ``'emerald'``, ``'crameri.batlow'``,
+    ``'batlow_r'``, or a map added with ``fp.colors.maps.register``.
+    """
+    import matplotlib as mpl
+    if cmap is None:
+        return mpl.colormaps[mpl.rcParams['image.cmap']]
+    if not isinstance(cmap, str):
+        return cmap
+    try:
+        return mpl.colormaps[cmap]
+    except KeyError:
+        pass
+    from .colors import maps
+    try:
+        return maps.get(cmap)
+    except KeyError:
+        raise ValueError(f"unknown colormap {cmap!r}: use a matplotlib name ('viridis') or a "
+                         "fluxplot map ('emerald', 'crameri.batlow'); list them with "
+                         "fp.colors.maps.collections()") from None
 
 
 def infer_kind(finite,kind):

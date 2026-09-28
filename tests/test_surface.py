@@ -276,3 +276,35 @@ def test_colorbar_does_not_orphan_the_whole_plot(mesh, tmp_path):
     for gid in refs.values():
         assert f'id="{gid}"' in svg, f"{gid} must exist in the SVG to be addressable"
     plt.close(fig)
+
+
+def test_negative_category_codes_never_collide_with_positive_ones(mesh, tmp_path):
+    """-1 and +1 must get distinct, stable ids: ``category--1`` used to slugify onto ``category-1``."""
+    import re
+
+    def region_ids(codes):
+        fig, ax = plt.subplots()
+        fp.surface(ax, _labels(mesh, codes), series="atlas", surfaces=mesh, kind="label")
+        _, svg = _manifest(fig, tmp_path, name="neg")
+        plt.close(fig)
+        return set(re.findall(r'id="(atlas\.category-[a-z0-9-]+)"', svg))
+
+    both = region_ids((-1, 1))
+    assert {"atlas.category-m1", "atlas.category-1"} <= both
+    assert not any(i.startswith("atlas.category-1-") for i in both)
+    # The +1 id does not shift when -1 is absent.
+    assert "atlas.category-1" in region_ids((1, 2))
+
+
+def test_cmap_names_resolve_through_fluxplot_collections(mesh, tmp_path):
+    n = mesh["left"][0].shape[0]
+    values = {h: np.linspace(0, 1, n) for h in mesh}
+    fig, ax = plt.subplots()
+    fp.surface(ax, values, series="field", surfaces=mesh, kind="continuous", cmap="emerald")
+    man, _ = _manifest(fig, tmp_path, name="emerald")
+    plt.close(fig)
+    assert "cmasher.emerald" in json.dumps(man)
+    fig, ax = plt.subplots()
+    with pytest.raises(ValueError, match="unknown colormap"):
+        fp.surface(ax, values, series="field", surfaces=mesh, kind="continuous", cmap="not-a-map")
+    plt.close(fig)

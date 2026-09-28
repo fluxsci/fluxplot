@@ -185,7 +185,7 @@ def _face_labels(values, faces):
     return out
 
 
-from ._fieldmap import _normalise_missing, _resolve_range, categorical_colors, continuous_mapping
+from ._fieldmap import _normalise_missing, _resolve_range, categorical_colors, category_name, continuous_mapping
 
 
 def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palette=None,
@@ -215,12 +215,15 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
         ``"label"``, ``"continuous"``, or ``"auto"`` (label when the data are integral and few-valued).
     categories
         ``{code: name}`` for label maps. Codes absent from the data are ignored; data codes absent
-        here get a ``category-<code>`` name so nothing is silently dropped.
+        here get a ``category-<code>`` name so nothing is silently dropped (negative codes are
+        ``category-m<abs>``, e.g. ``category-m1``, so ``-1`` and ``+1`` never share an id).
     palette
         ``{name_or_code: colour}`` for label maps — a fixed mapping, never remapped.
     cmap, color_range, percentile
-        Continuous styling. ``percentile=(2, 98)`` clips to those percentiles of the finite data;
-        ``color_range`` wins if both are given. The resolved range is recorded in the manifest.
+        Continuous styling. ``cmap`` is a Colormap or a name: matplotlib names first, then
+        fluxplot's collections (``"emerald"``, ``"crameri.batlow"``). ``percentile=(2, 98)``
+        clips to those percentiles of the finite data; ``color_range`` wins if both are given.
+        The resolved range is recorded in the manifest.
     missing_below, missing_values
         Sentinel handling (e.g. ``missing_below=0`` turns a −1 off-hemisphere sentinel into missing).
     colorbar, cbar_label, cbar_ticks
@@ -326,7 +329,7 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
             parts_shade.setdefault("missing", []).append(shade_o[missing])
         if kind == "label":
             for code in np.unique(fv[~missing]):
-                name = (categories or {}).get(int(code), f"category-{int(code)}")
+                name = category_name(code, categories)
                 sel = fv == code
                 parts.setdefault(name, []).append(polys[sel])
                 if shade_o is not None:
