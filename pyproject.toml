@@ -23,7 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
-mesh = ["fast-simplification>=0.1.13,<0.2", "trimesh>=4,<5"]
+mesh = ["fast-simplification>=0.1.13,<0.2", "trimesh>=4,<5", "nibabel>=5"]
 
 
 [tool.hatch.build.targets.wheel]
