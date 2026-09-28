@@ -163,3 +163,16 @@ def mimebundle(scene,*,static=False):
     # synchronously; a document-global id lookup can select another notebook output.
     bundle['text/html']=f'''<div class="fluxplot-scene3d"><div data-fluxplot-scene3d-host><img alt="3D plot preview" src="data:image/png;base64,{fallback}" /></div><script>(()=>{{const script=document.currentScript;const host=script.parentElement.querySelector('[data-fluxplot-scene3d-host]');const fallback=host.innerHTML;{runtime}\nFluxModel3dViewer.mount(host,{payload}).then(view=>{{if(view.available===false)host.innerHTML=fallback;}}).catch(error=>{{host.innerHTML=fallback;host.title=String(error);}});}})();</script></div>'''
     return bundle
+
+
+def display_size(scene):
+    """CSS size of the notebook viewer and of its PNG still."""
+    return round(scene.figsize[0] * 120), round(scene.figsize[1] * 120)
+
+
+def mimebundle_metadata(scene, bundle):
+    """Show the PNG at the viewer's CSS size (Jupyter/VS Code honour image width/height)."""
+    if 'image/png' not in bundle:
+        return {}
+    width, height = display_size(scene)
+    return {'image/png': {'width': width, 'height': height}}

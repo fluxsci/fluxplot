@@ -32,7 +32,8 @@ def _finite32(a, name):
 
 def write_glb(scene):
     """Serialize one GLB. No timestamps, external resources, textures, or vertex welding."""
-    if not scene.parts: raise ValueError('cannot save an empty Scene3D; add a mesh first')
+    if not scene.parts: raise ValueError('cannot save an empty Scene3D; add a mesh first with fp.mesh3d(sc, ...)')
+    scene._resolve_pending_view(strict=True)
     binary=bytearray()
     doc=dict(asset={'version':'2.0','generator':f'fluxplot {__version__}'},buffers=[{}],bufferViews=[],accessors=[],meshes=[],nodes=[],materials=[],scenes=[{'nodes':list(range(len(scene.parts)))}],scene=0)
     def accessor(a, kind, component, *, bounds=False, normalized=False, target=None, stride=None):
@@ -62,7 +63,8 @@ def write_glb(scene):
             attrs['COLOR_0']=accessor(np.rint(np.clip(rgba,0,1)*255).astype('u1'),'VEC4',5121,normalized=True,target=34962)
         rgba=to_rgba(part.color); base=[*linear_rgb(rgba[:3]).tolist(),rgba[3]]
         # Vertex colors already carry the complete map; white avoids tinting them twice.
-        if part.colors is not None: base=[1,1,1,1]
+        # The part colour's alpha (fp.surface3d(alpha=...)) still applies as opacity.
+        if part.colors is not None: base=[1,1,1,rgba[3] if rgba[3]<1 else 1]
         material={'name':part.id,'pbrMetallicRoughness':{'baseColorFactor':base,'metallicFactor':0,'roughnessFactor':.6},'doubleSided':True}
         if rgba[3]<1 or (part.colors is not None and (part.colors[:,3]<1).any()): material['alphaMode']='BLEND'
         doc['materials'].append(material)

@@ -38,7 +38,7 @@
     {
       "id": "scalebar",
       "kind": "furniture",
-      "label": "0.5 µm",
+      "label": "500 nm",
       "length": 0.5,
       "role": "scalebar"
     }

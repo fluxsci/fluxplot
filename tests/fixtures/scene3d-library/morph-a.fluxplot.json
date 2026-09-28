@@ -18,7 +18,7 @@
     "generator": "fluxplot 0.1.0"
   },
   "glb": "morph-a.glb",
-  "glbSha256": "2c601aef2b10478d26549911418c25117bdfd91405a527fb5798ecb628fdf511",
+  "glbSha256": "9089ff73b35541fecff46f02e985392b4fb38b34fd6c5a3dd5d50be1d2912d24",
   "layout": {},
   "lighting": "studio",
   "morphGroup": "cortex",
@@ -37,7 +37,7 @@
       "series": "cortex"
     },
     {
-      "color": "#205ea6",
+      "color": "#bc5215",
       "id": "cortex.right",
       "kind": "mesh",
       "label": "right",

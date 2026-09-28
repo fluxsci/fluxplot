@@ -551,6 +551,12 @@ def _save(
 ) -> SaveResult:
     """Emit ``<path>.svg`` + ``<path>.fluxplot.json`` + ``<path>.recipe.json`` for ``fig``.
 
+    ``fig`` may also be a 3D scene from :func:`fp.scene3d <fluxplot.scene3d>`: it then writes
+    ``<path>.glb`` + ``<path>.fluxplot.json`` (the scene3d manifest) + ``<path>.recipe.json``,
+    always at full mesh resolution (``preview_max_faces`` only affects notebook previews).
+    ``path`` is a stem or ends in ``.glb``. ``recipe``, ``validate`` and ``FLUXPLOT_ONLY``
+    behave as below; the SVG rasterization options do not apply.
+
     ``recipe`` controls the provenance sidecar:
 
     - ``None`` (default) — automatic: the producing script is discovered from the running

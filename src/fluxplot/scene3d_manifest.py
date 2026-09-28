@@ -3,13 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 from importlib.resources import files
 from copy import deepcopy
 from dataclasses import dataclass, field
 import warnings
 import numpy as np
 from matplotlib.ticker import MaxNLocator
-from .scene3d import SCENE3D_SPEC_VERSION
+from .scene3d import SCENE3D_SPEC_VERSION, _clean_float, scalebar_text
 from .tagger import registry_for, Registry
 from .descriptors import Mark
 from .ids import IdAllocator
@@ -18,6 +19,7 @@ from .version import __version__, SPEC_VERSION
 
 
 def build_manifest(scene, glb, filename):
+    scene._resolve_pending_view(strict=True)
     parts=[deepcopy(m.data['scene3d']) for m in registry_for(scene).marks if 'scene3d' in m.data]
     allv=np.concatenate([v for p in scene.parts for v in [p.vertices,*p.states.values()]])
     world=allv@scene.to_world[:3,:3].T
@@ -35,12 +37,15 @@ def build_manifest(scene, glb, filename):
             spec={'lim':[lo,hi],'label':f'{k} ({scene.units})' if scene.units else k}
             spec.update(scene._axis_specs.get(k,{}))
             if 'ticks' not in spec:
-                ticks=MaxNLocator(nbins=4).tick_values(*spec['lim'])
-                spec['ticks']=[float(x) for x in ticks if spec['lim'][0]<=x<=spec['lim'][1]]
+                ticks=[_clean_float(x) for x in MaxNLocator(nbins=4).tick_values(*spec['lim'])]
+                spec['ticks']=[x for x in ticks if spec['lim'][0]<=x<=spec['lim'][1]]
             axes[k]=spec
             for suffix,role in [('axis','axis'),('pane','pane'),('grid','gridline'),('ticks','tick-label')]: guide(f'axes.{k}.{suffix}',role)
             guide(f'axes.{k}.label','axis-title',text=spec['label'])
-    if scene.scalebar is not None: guide('scalebar','scalebar',length=scene.scalebar,label=f'{scene.scalebar:g}'+(f' {scene.units}' if scene.units else ''))
+    if scene.scalebar is not None:
+        # length stays in data units; only the label is simplified (10000 nm -> 10 µm).
+        text=scene.scalebar_label if scene.scalebar_label is not None else scalebar_text(scene.scalebar,scene.units)
+        guide('scalebar','scalebar',length=scene.scalebar,label=text)
     layout={}
     if scene.title:
         guide('title','title',text=str(scene.title)); layout['title']='top'
@@ -79,7 +84,11 @@ def save_scene3d(scene,path,*,recipe=None,validate=True,_now=None):
     if base.lower().endswith(('.svg','.png','.pdf')): raise ValueError('save a Scene3D to a stem or .glb path')
     result=Scene3DSaveResult(base+'.glb',base+'.fluxplot.json',base+'.recipe.json')
     only=os.environ.get('FLUXPLOT_ONLY','').strip()
-    if only and not any(fnmatch.fnmatchcase(os.path.basename(base),p.strip()) for p in only.split(',') if p.strip()):
+    patterns=[p.strip() for p in only.split(',') if p.strip()]
+    plot_name=os.path.basename(base)
+    if patterns and not any(fnmatch.fnmatchcase(plot_name,p) for p in patterns):
+        # Same targeted-rerun report as the 2D save.
+        print(f"fluxplot: skipped '{plot_name}' (FLUXPLOT_ONLY={only})",file=sys.stderr)
         result.skipped=True; result.warnings.append(f'skipped by FLUXPLOT_ONLY={only}'); return result
     data=write_glb(scene)
     triangles=sum(len(p.faces) for p in scene.parts)
