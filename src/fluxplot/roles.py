@@ -6,6 +6,8 @@ opaque addressable groups.
 """
 from __future__ import annotations
 
+ROLE_VERSION = 1  # adds mesh, pane, scalebar
+
 CORE_ROLES = frozenset(
     {
         # containers
@@ -26,6 +28,7 @@ CORE_ROLES = frozenset(
         "background",
         # data marks (geoms)
         "series",
+        "mesh", "pane", "scalebar",
         "line",
         "point",
         "bar",
@@ -67,6 +70,7 @@ CORE_ROLES = frozenset(
 # the concrete artist at sweep time (see ``descriptors.artist_kind``). Unknown / ``x-``
 # roles are likewise inferred per-artist where possible, else the hint is omitted.
 KIND_BY_ROLE = {
+    "mesh": "shape", "pane": "shape", "scalebar": "line",
     # containers
     "figure": "container",
     "panel": "container",

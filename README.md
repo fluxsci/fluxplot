@@ -628,3 +628,19 @@ meshes can have cross-part occlusion differences. This limitation is recorded in
 Old saved projects remain readable. Schema 0.3 output should be used with the accompanying Flux
 reader update. New imports and reloads verify SVG checksums before legacy geometry repair;
 a mismatched pair leaves the last accepted plot intact. No existing project is bulk-regenerated.
+
+### 3D fluxplots
+
+`fp.scene3d()` holds an actual mesh with named parts, value fields and shape states:
+
+```python
+sc = fp.scene3d(figsize=(3.5, 3), units='µm', axes='triad')
+fp.mesh3d(sc, (vertices, faces), series='cell')
+sc.view(azimuth=30, elevation=20)
+fp.save(sc, 'plots/cell')  # GLB + semantic manifest + regeneration recipe
+```
+
+Scenes display interactively in trusted notebooks with a PNG fallback. Flux can choose
+another angle, restyle parts and remap fields without rerunning Python. See the
+[3D guide](docs/SCENE3D.md) for shape states, same-topology morphs, supported mesh inputs,
+optional decimation and a self-contained neuron demo.

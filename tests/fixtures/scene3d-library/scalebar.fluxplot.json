@@ -1,0 +1,91 @@
+{
+  "axes": {
+    "kind": "none"
+  },
+  "bounds": {
+    "max": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "min": [
+      -1.0,
+      -1.0,
+      -1.0
+    ]
+  },
+  "build": {
+    "generator": "fluxplot 0.1.0"
+  },
+  "glb": "scalebar.glb",
+  "glbSha256": "323b4defc94658390c0a7dfa22db2b650d6bb1ec06b9cc26c3a2c23105f99c6b",
+  "layout": {},
+  "lighting": "studio",
+  "order": [
+    "sample.mesh",
+    "scalebar"
+  ],
+  "parts": [
+    {
+      "color": "#205ea6",
+      "id": "sample.mesh",
+      "kind": "mesh",
+      "label": "mesh",
+      "node": "sample.mesh",
+      "role": "mesh",
+      "series": "sample"
+    },
+    {
+      "id": "scalebar",
+      "kind": "furniture",
+      "label": "0.5 µm",
+      "length": 0.5,
+      "role": "scalebar"
+    }
+  ],
+  "plotType": "scene3d",
+  "schemaVersion": "0.1.0",
+  "size": {
+    "height": 3.0,
+    "unit": "in",
+    "width": 3.5
+  },
+  "spec": "fluxplot/scene3d",
+  "style": {
+    "font": "Arial",
+    "fontSizePt": 6.0,
+    "ink": "#100f0f",
+    "lineWidthPt": 1.2,
+    "muted": "#100f0f",
+    "titleSizePt": 6.0
+  },
+  "toWorld": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "units": "µm",
+  "view": {
+    "azimuth": 30.0,
+    "elevation": 20.0,
+    "fov": 30.0,
+    "panX": 0.0,
+    "panY": 0.0,
+    "projection": "orthographic",
+    "roll": 0.0,
+    "zoom": 0.9
+  }
+}

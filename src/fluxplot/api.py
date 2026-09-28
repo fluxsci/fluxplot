@@ -711,6 +711,10 @@ def _save(
 
 def save(fig, path, *, recipe=None, validate=True, force_vectors=False,
          raster_threshold=None, raster_dpi=None, _now=None) -> SaveResult:
+    from .scene3d import Scene3D
+    if isinstance(fig, Scene3D):
+        from .scene3d_manifest import save_scene3d
+        return save_scene3d(fig, path, recipe=recipe, validate=validate, _now=_now)
     base, _ext = os.path.splitext(path)
     plot_name = os.path.basename(base)
     svg_path, manifest_path, recipe_path = base + '.svg', base + '.fluxplot.json', base + '.recipe.json'

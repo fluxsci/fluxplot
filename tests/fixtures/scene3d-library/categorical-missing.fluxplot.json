@@ -1,0 +1,115 @@
+{
+  "axes": {
+    "kind": "none"
+  },
+  "bounds": {
+    "max": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "min": [
+      -1.0,
+      -1.0,
+      -1.0
+    ]
+  },
+  "build": {
+    "generator": "fluxplot 0.1.0"
+  },
+  "glb": "categorical-missing.glb",
+  "glbSha256": "7f53730b72f3703e1ed6ebc2f8f68976a88990e0c0cd2c33ef5fc6f63b5d14a1",
+  "layout": {
+    "legend": "right"
+  },
+  "lighting": "studio",
+  "order": [
+    "atlas.frontal",
+    "atlas.missing",
+    "atlas.parietal",
+    "legend"
+  ],
+  "parts": [
+    {
+      "color": "#d14d41",
+      "id": "atlas.frontal",
+      "kind": "mesh",
+      "label": "frontal",
+      "node": "atlas.frontal",
+      "role": "surface-region",
+      "series": "atlas"
+    },
+    {
+      "color": "#d8d8d8",
+      "id": "atlas.missing",
+      "kind": "missing",
+      "label": "missing",
+      "node": "atlas.missing",
+      "role": "surface-region",
+      "series": "atlas"
+    },
+    {
+      "color": "#4385be",
+      "id": "atlas.parietal",
+      "kind": "mesh",
+      "label": "parietal",
+      "node": "atlas.parietal",
+      "role": "surface-region",
+      "series": "atlas"
+    },
+    {
+      "entries": [
+        "atlas.frontal",
+        "atlas.parietal"
+      ],
+      "id": "legend",
+      "kind": "furniture",
+      "role": "legend"
+    }
+  ],
+  "plotType": "scene3d",
+  "schemaVersion": "0.1.0",
+  "size": {
+    "height": 3.0,
+    "unit": "in",
+    "width": 3.5
+  },
+  "spec": "fluxplot/scene3d",
+  "style": {
+    "font": "Arial",
+    "fontSizePt": 6.0,
+    "ink": "#100f0f",
+    "lineWidthPt": 1.2,
+    "muted": "#100f0f",
+    "titleSizePt": 6.0
+  },
+  "toWorld": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "units": "µm",
+  "view": {
+    "azimuth": 30.0,
+    "elevation": 20.0,
+    "fov": 30.0,
+    "panX": 0.0,
+    "panY": 0.0,
+    "projection": "orthographic",
+    "roll": 0.0,
+    "zoom": 0.9
+  }
+}

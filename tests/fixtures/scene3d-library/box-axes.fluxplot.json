@@ -1,0 +1,219 @@
+{
+  "axes": {
+    "grid": true,
+    "kind": "box",
+    "x": {
+      "label": "x (µm)",
+      "lim": [
+        -1.0,
+        1.0
+      ],
+      "ticks": [
+        -1.0,
+        -0.5,
+        0.0,
+        0.5,
+        1.0
+      ]
+    },
+    "y": {
+      "label": "y (µm)",
+      "lim": [
+        -1.0,
+        1.0
+      ],
+      "ticks": [
+        -1.0,
+        -0.5,
+        0.0,
+        0.5,
+        1.0
+      ]
+    },
+    "z": {
+      "label": "z (µm)",
+      "lim": [
+        -1.0,
+        1.0
+      ],
+      "ticks": [
+        -1.0,
+        -0.5,
+        0.0,
+        0.5,
+        1.0
+      ]
+    }
+  },
+  "bounds": {
+    "max": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "min": [
+      -1.0,
+      -1.0,
+      -1.0
+    ]
+  },
+  "build": {
+    "generator": "fluxplot 0.1.0"
+  },
+  "glb": "box-axes.glb",
+  "glbSha256": "323b4defc94658390c0a7dfa22db2b650d6bb1ec06b9cc26c3a2c23105f99c6b",
+  "layout": {},
+  "lighting": "studio",
+  "order": [
+    "sample.mesh",
+    "axes.x.axis",
+    "axes.x.pane",
+    "axes.x.grid",
+    "axes.x.ticks",
+    "axes.x.label",
+    "axes.y.axis",
+    "axes.y.pane",
+    "axes.y.grid",
+    "axes.y.ticks",
+    "axes.y.label",
+    "axes.z.axis",
+    "axes.z.pane",
+    "axes.z.grid",
+    "axes.z.ticks",
+    "axes.z.label"
+  ],
+  "parts": [
+    {
+      "color": "#205ea6",
+      "id": "sample.mesh",
+      "kind": "mesh",
+      "label": "mesh",
+      "node": "sample.mesh",
+      "role": "mesh",
+      "series": "sample"
+    },
+    {
+      "id": "axes.x.axis",
+      "kind": "furniture",
+      "role": "axis"
+    },
+    {
+      "id": "axes.x.pane",
+      "kind": "furniture",
+      "role": "pane"
+    },
+    {
+      "id": "axes.x.grid",
+      "kind": "furniture",
+      "role": "gridline"
+    },
+    {
+      "id": "axes.x.ticks",
+      "kind": "furniture",
+      "role": "tick-label"
+    },
+    {
+      "id": "axes.x.label",
+      "kind": "furniture",
+      "role": "axis-title",
+      "text": "x (µm)"
+    },
+    {
+      "id": "axes.y.axis",
+      "kind": "furniture",
+      "role": "axis"
+    },
+    {
+      "id": "axes.y.pane",
+      "kind": "furniture",
+      "role": "pane"
+    },
+    {
+      "id": "axes.y.grid",
+      "kind": "furniture",
+      "role": "gridline"
+    },
+    {
+      "id": "axes.y.ticks",
+      "kind": "furniture",
+      "role": "tick-label"
+    },
+    {
+      "id": "axes.y.label",
+      "kind": "furniture",
+      "role": "axis-title",
+      "text": "y (µm)"
+    },
+    {
+      "id": "axes.z.axis",
+      "kind": "furniture",
+      "role": "axis"
+    },
+    {
+      "id": "axes.z.pane",
+      "kind": "furniture",
+      "role": "pane"
+    },
+    {
+      "id": "axes.z.grid",
+      "kind": "furniture",
+      "role": "gridline"
+    },
+    {
+      "id": "axes.z.ticks",
+      "kind": "furniture",
+      "role": "tick-label"
+    },
+    {
+      "id": "axes.z.label",
+      "kind": "furniture",
+      "role": "axis-title",
+      "text": "z (µm)"
+    }
+  ],
+  "plotType": "scene3d",
+  "schemaVersion": "0.1.0",
+  "size": {
+    "height": 3.0,
+    "unit": "in",
+    "width": 3.5
+  },
+  "spec": "fluxplot/scene3d",
+  "style": {
+    "font": "Arial",
+    "fontSizePt": 6.0,
+    "ink": "#100f0f",
+    "lineWidthPt": 1.2,
+    "muted": "#100f0f",
+    "titleSizePt": 6.0
+  },
+  "toWorld": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "units": "µm",
+  "view": {
+    "azimuth": 30.0,
+    "elevation": 20.0,
+    "fov": 30.0,
+    "panX": 0.0,
+    "panY": 0.0,
+    "projection": "orthographic",
+    "roll": 0.0,
+    "zoom": 0.9
+  }
+}

@@ -11,3 +11,6 @@ examples/sizing/
 examples/basic_example_output/
 tests/_tmp/
 
+
+# verification screenshots and reports
+test-results/

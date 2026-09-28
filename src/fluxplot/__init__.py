@@ -40,12 +40,16 @@ from .style import (  # noqa: E402,F401  (re-exported for convenience)
     use_light,
     use_paper,
 )
+from .scene3d import Scene3D, scene3d, SCENE3D_SPEC_VERSION
+from .mesh3d import mesh3d, can_morph
+from .surface3d import surface3d
 from .fields import heatmap, contour, contourf, colorbar
 from .panels import panel
 from .version import SPEC_VERSION, __version__  # noqa: F401
 
 __all__ = [
     "__version__",
+    "Scene3D", "scene3d", "mesh3d", "surface3d", "can_morph", "SCENE3D_SPEC_VERSION",
     "surface",
     "panel",
     "heatmap",

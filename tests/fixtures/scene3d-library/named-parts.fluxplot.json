@@ -1,0 +1,105 @@
+{
+  "axes": {
+    "kind": "none"
+  },
+  "bounds": {
+    "max": [
+      1.0,
+      1.1,
+      0.44999998807907104
+    ],
+    "min": [
+      -1.199999988079071,
+      -1.1,
+      -0.44999998807907104
+    ]
+  },
+  "build": {
+    "generator": "fluxplot 0.1.0"
+  },
+  "glb": "named-parts.glb",
+  "glbSha256": "954a38870758302e85f11133525b5ab68816ab6e5d0a2626da5eab357b9abb84",
+  "layout": {
+    "legend": "right"
+  },
+  "lighting": "studio",
+  "order": [
+    "neuron.soma",
+    "neuron.dendrites",
+    "legend"
+  ],
+  "parts": [
+    {
+      "color": "#d14d41",
+      "id": "neuron.soma",
+      "kind": "mesh",
+      "label": "soma",
+      "node": "neuron.soma",
+      "role": "mesh",
+      "series": "neuron"
+    },
+    {
+      "color": "#3aa99f",
+      "id": "neuron.dendrites",
+      "kind": "mesh",
+      "label": "dendrites",
+      "node": "neuron.dendrites",
+      "role": "mesh",
+      "series": "neuron"
+    },
+    {
+      "entries": [
+        "neuron.soma",
+        "neuron.dendrites"
+      ],
+      "id": "legend",
+      "kind": "furniture",
+      "role": "legend"
+    }
+  ],
+  "plotType": "scene3d",
+  "schemaVersion": "0.1.0",
+  "size": {
+    "height": 3.0,
+    "unit": "in",
+    "width": 3.5
+  },
+  "spec": "fluxplot/scene3d",
+  "style": {
+    "font": "Arial",
+    "fontSizePt": 6.0,
+    "ink": "#100f0f",
+    "lineWidthPt": 1.2,
+    "muted": "#100f0f",
+    "titleSizePt": 6.0
+  },
+  "toWorld": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "units": "µm",
+  "view": {
+    "azimuth": 30.0,
+    "elevation": 20.0,
+    "fov": 30.0,
+    "panX": 0.0,
+    "panY": 0.0,
+    "projection": "orthographic",
+    "roll": 0.0,
+    "zoom": 0.9
+  }
+}

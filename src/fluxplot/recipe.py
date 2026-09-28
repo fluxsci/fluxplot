@@ -61,13 +61,17 @@ def build_recipe(
     recipe: dict | bool | None,
     *,
     plot_name: str,
-    svg_filename: str,
+    svg_filename: str | None = None,
+    glb_filename: str | None = None,
     manifest_filename: str,
     spec_version: str,
     base_dir: str | None = None,
     recipe_dir: str | None = None,
     now: str | None = None,
 ) -> dict:
+    if (svg_filename is None) == (glb_filename is None):
+        raise ValueError("provide exactly one svg_filename or glb_filename")
+    output_name = glb_filename if glb_filename is not None else svg_filename
     # recipe semantics (plan §1): None → automatic provenance; False → explicitly suppress it
     # (still writes a valid, non-rerunnable recipe); a dict → explicit fields win, an inferred
     # script only fills a *missing* script. Inputs are never discovered automatically.
@@ -92,7 +96,7 @@ def build_recipe(
         "spec": "fluxplot/recipe",
         "schemaVersion": spec_version,
         "plot": plot_name,
-        "outputs": {"svg": svg_filename, "manifest": manifest_filename},
+        "outputs": {("glb" if glb_filename is not None else "svg"): output_name, "manifest": manifest_filename},
         "generatedAt": now or _now_iso(),
         "script": script,
         "params": recipe.get("params", {}),
@@ -114,7 +118,7 @@ def build_recipe(
     if script and script.get("path") and recipe_dir is not None:
         cwd_now = os.path.abspath(os.path.join(recipe_dir, recipe["cwd"])) if recipe.get("cwd") else os.getcwd()
         script_abs = os.path.abspath(script["path"])
-        svg_abs = os.path.join(recipe_dir, svg_filename)
+        svg_abs = os.path.join(recipe_dir, output_name)
         out["command"] = recipe.get("command") or sys.executable or "python"
         out["args"] = list(recipe["args"]) if "args" in recipe else [os.path.relpath(script_abs, cwd_now)]
         out["cwd"] = os.path.relpath(cwd_now, recipe_dir)

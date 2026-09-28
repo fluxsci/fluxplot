@@ -1,0 +1,98 @@
+{
+  "axes": {
+    "kind": "none"
+  },
+  "bounds": {
+    "max": [
+      1.35,
+      1.2,
+      1.1
+    ],
+    "min": [
+      -1.35,
+      -1.2,
+      -1.1
+    ]
+  },
+  "build": {
+    "generator": "fluxplot 0.1.0"
+  },
+  "glb": "states.glb",
+  "glbSha256": "a72349429ca3c36de17acd33fd3fee17db856f05ebc836008d38b3e8752ad5de",
+  "layout": {},
+  "lighting": "studio",
+  "order": [
+    "sample.mesh"
+  ],
+  "parts": [
+    {
+      "color": "#205ea6",
+      "id": "sample.mesh",
+      "kind": "mesh",
+      "label": "mesh",
+      "node": "sample.mesh",
+      "role": "mesh",
+      "series": "sample"
+    }
+  ],
+  "plotType": "scene3d",
+  "schemaVersion": "0.1.0",
+  "sequence": false,
+  "size": {
+    "height": 3.0,
+    "unit": "in",
+    "width": 3.5
+  },
+  "spec": "fluxplot/scene3d",
+  "states": [
+    {
+      "label": "inflated",
+      "name": "inflated"
+    },
+    {
+      "label": "bent",
+      "name": "bent"
+    }
+  ],
+  "style": {
+    "font": "Arial",
+    "fontSizePt": 6.0,
+    "ink": "#100f0f",
+    "lineWidthPt": 1.2,
+    "muted": "#100f0f",
+    "titleSizePt": 6.0
+  },
+  "toWorld": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "units": "µm",
+  "view": {
+    "azimuth": 30.0,
+    "elevation": 20.0,
+    "fov": 30.0,
+    "panX": 0.0,
+    "panY": 0.0,
+    "projection": "orthographic",
+    "roll": 0.0,
+    "states": {
+      "bent": 0.0,
+      "inflated": 0.25
+    },
+    "zoom": 0.9
+  }
+}

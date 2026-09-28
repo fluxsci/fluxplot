@@ -12,6 +12,7 @@
       "type": "object",
       "properties": {
         "svg": { "type": "string" },
+        "glb": { "type": "string" },
         "manifest": { "type": "string" }
       }
     },

@@ -1,0 +1,94 @@
+{
+  "axes": {
+    "kind": "none"
+  },
+  "bounds": {
+    "max": [
+      2.2,
+      1.4500000000000002,
+      0.65
+    ],
+    "min": [
+      -2.2,
+      -1.25,
+      -0.65
+    ]
+  },
+  "build": {
+    "generator": "fluxplot 0.1.0"
+  },
+  "glb": "morph-b.glb",
+  "glbSha256": "02c7ca4aebf2b29f65fdcf92dd7c93decff849930325d527e109a5d5ce61c7e8",
+  "layout": {},
+  "lighting": "studio",
+  "morphGroup": "cortex",
+  "order": [
+    "cortex.left",
+    "cortex.right"
+  ],
+  "parts": [
+    {
+      "color": "#205ea6",
+      "id": "cortex.left",
+      "kind": "mesh",
+      "label": "left",
+      "node": "cortex.left",
+      "role": "mesh",
+      "series": "cortex"
+    },
+    {
+      "color": "#205ea6",
+      "id": "cortex.right",
+      "kind": "mesh",
+      "label": "right",
+      "node": "cortex.right",
+      "role": "mesh",
+      "series": "cortex"
+    }
+  ],
+  "plotType": "scene3d",
+  "schemaVersion": "0.1.0",
+  "size": {
+    "height": 3.0,
+    "unit": "in",
+    "width": 3.5
+  },
+  "spec": "fluxplot/scene3d",
+  "style": {
+    "font": "Arial",
+    "fontSizePt": 6.0,
+    "ink": "#100f0f",
+    "lineWidthPt": 1.2,
+    "muted": "#100f0f",
+    "titleSizePt": 6.0
+  },
+  "toWorld": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "units": "µm",
+  "view": {
+    "azimuth": 30.0,
+    "elevation": 20.0,
+    "fov": 30.0,
+    "panX": 0.0,
+    "panY": 0.0,
+    "projection": "orthographic",
+    "roll": 0.0,
+    "zoom": 0.9
+  }
+}

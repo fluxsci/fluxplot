@@ -1,0 +1,14 @@
+{
+  "env": null,
+  "generatedAt": "2000-01-01T00:00:00Z",
+  "inputs": [],
+  "outputs": {
+    "glb": "morph-b.glb",
+    "manifest": "morph-b.fluxplot.json"
+  },
+  "params": {},
+  "plot": "morph-b",
+  "schemaVersion": "0.3.0",
+  "script": null,
+  "spec": "fluxplot/recipe"
+}

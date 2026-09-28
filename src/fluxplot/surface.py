@@ -185,29 +185,7 @@ def _face_labels(values, faces):
     return out
 
 
-def _normalise_missing(values, missing_below=None, missing_values=()):
-    """Return a float copy with every 'missing' convention collapsed to NaN.
-
-    ``missing_below`` catches sentinel encodings (the common one is −1 for the off-hemisphere half of
-    a single-hemisphere map); ``missing_values`` catches explicit codes. Zero is never treated as
-    missing — an on-cortex 0 is a real measurement.
-    """
-    v = np.asarray(values, dtype=float).copy()
-    if missing_below is not None:
-        v[v < missing_below] = np.nan
-    for mv in missing_values:
-        v[v == mv] = np.nan
-    return v
-
-
-def _resolve_range(finite, color_range, percentile):
-    if color_range is not None:
-        return float(color_range[0]), float(color_range[1])
-    if percentile is not None:
-        lo = float(np.percentile(finite, percentile[0]))
-        hi = float(np.percentile(finite, percentile[1]))
-        return lo, hi
-    return float(np.min(finite)), float(np.max(finite))
+from ._fieldmap import _normalise_missing, _resolve_range, categorical_colors, continuous_mapping
 
 
 def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palette=None,
@@ -398,20 +376,9 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
 
     if kind == "label":
         # One collection per category → each block is independently selectable and recolourable.
-        resolved = {}
+        resolved = categorical_colors(parts, palette, categories)
         for name in sorted(parts):
-            colour = None
-            if palette:
-                colour = palette.get(name)
-                if colour is None and categories:
-                    for code, nm in categories.items():
-                        if nm == name and code in palette:
-                            colour = palette[code]
-                            break
-            if colour is None:
-                colour = f"C{len(resolved) % 10}"
-            colour = to_hex(colour)
-            resolved[name] = colour
+            colour = resolved[name]
             # The artist carries the category name as its matplotlib label, so a plain ax.legend()
             # builds a real legend that the scaffold auto-tagger names like any other plot's.
             if shading:
@@ -433,17 +400,8 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
         summary = {"kind": "label", "palette": resolved, **style_common}
     else:
         import matplotlib as mpl
-        if finite.size == 0 and color_range is None:
-            vmin, vmax = 0.0, 1.0          # nothing to scale; the field below is empty anyway
-        else:
-            vmin, vmax = _resolve_range(finite, color_range, percentile)
-        norm = Normalize(vmin=vmin, vmax=vmax)
-        if cmap is None:
-            cmap_obj = mpl.colormaps[mpl.rcParams["image.cmap"]]
-        elif isinstance(cmap, str):
-            cmap_obj = mpl.colormaps[cmap]
-        else:
-            cmap_obj = cmap
+        cmap_obj, norm = continuous_mapping(finite, cmap, color_range, percentile)
+        vmin, vmax = norm.vmin, norm.vmax
         fv = np.concatenate(part_vals["field"])
         fcol = cmap_obj(norm(fv))
         if shading and parts_shade.get("field"):

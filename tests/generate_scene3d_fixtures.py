@@ -101,7 +101,7 @@ def cases():
     values=v[:,1].copy(); rgba=np.column_stack([(values+1)/2,np.full(len(v),.35),(1-values)/2,np.ones(len(v))])
     field={'cmap':{'name':'contract-blue-red','stops':[[0,'#0000FF'],[1,'#FF0000']]},'range':[-1,1],'rule':{'percentile':[0,100]},'ticks':[-1,0,1],'label':'Height','missingColor':'#D8D8D8'}
     yield 'continuous',[dict(base,id='height.field',values=values,colors=rgba)],{'parts':[{'id':'height.field','role':'surface-field','series':'height','node':'height.field','kind':'field','field':field},{'id':'height.colorbar','role':'colorbar','kind':'furniture','field':'height.field'}],'layout':{'colorbar':'right'}}
-    # Contract fixture intentionally gives missing its own mesh with NaN _VALUE.
+    # Missing has its own mesh; nonfinite API values serialize as finite _VALUE + _VALID.
     cats=[dict(base,id='atlas.frontal',f=f[:len(f)//3],color='#D14D41'),dict(base,id='atlas.parietal',f=f[len(f)//3:2*len(f)//3],color='#4385BE'),dict(base,id='atlas.missing',f=f[2*len(f)//3:],color='#D8D8D8',values=np.full(len(v),np.nan))]
     yield 'categorical-missing',cats,{}
     axes={'kind':'box','grid':True,**{k:{'lim':[-1,1],'ticks':[-1,0,1],'label':k+' (µm)'} for k in 'xyz'}}

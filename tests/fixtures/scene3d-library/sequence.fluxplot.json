@@ -1,0 +1,114 @@
+{
+  "axes": {
+    "kind": "none"
+  },
+  "bounds": {
+    "max": [
+      1.42,
+      1.0,
+      1.0
+    ],
+    "min": [
+      -1.42,
+      -1.0,
+      -1.0
+    ]
+  },
+  "build": {
+    "generator": "fluxplot 0.1.0"
+  },
+  "glb": "sequence.glb",
+  "glbSha256": "641433fb773abbe18d8d10b6637ee55d4e1e3d596c0ce14da108d8da24c4aba4",
+  "layout": {},
+  "lighting": "studio",
+  "order": [
+    "sample.mesh"
+  ],
+  "parts": [
+    {
+      "color": "#205ea6",
+      "id": "sample.mesh",
+      "kind": "mesh",
+      "label": "mesh",
+      "node": "sample.mesh",
+      "role": "mesh",
+      "series": "sample"
+    }
+  ],
+  "plotType": "scene3d",
+  "schemaVersion": "0.1.0",
+  "sequence": true,
+  "size": {
+    "height": 3.0,
+    "unit": "in",
+    "width": 3.5
+  },
+  "spec": "fluxplot/scene3d",
+  "states": [
+    {
+      "label": "frame-1",
+      "name": "frame-1"
+    },
+    {
+      "label": "frame-2",
+      "name": "frame-2"
+    },
+    {
+      "label": "frame-3",
+      "name": "frame-3"
+    },
+    {
+      "label": "frame-4",
+      "name": "frame-4"
+    },
+    {
+      "label": "frame-5",
+      "name": "frame-5"
+    },
+    {
+      "label": "frame-6",
+      "name": "frame-6"
+    },
+    {
+      "label": "frame-7",
+      "name": "frame-7"
+    }
+  ],
+  "style": {
+    "font": "Arial",
+    "fontSizePt": 6.0,
+    "ink": "#100f0f",
+    "lineWidthPt": 1.2,
+    "muted": "#100f0f",
+    "titleSizePt": 6.0
+  },
+  "toWorld": [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0
+  ],
+  "units": "µm",
+  "view": {
+    "azimuth": 30.0,
+    "elevation": 20.0,
+    "fov": 30.0,
+    "panX": 0.0,
+    "panY": 0.0,
+    "projection": "orthographic",
+    "roll": 0.0,
+    "zoom": 0.9
+  }
+}
