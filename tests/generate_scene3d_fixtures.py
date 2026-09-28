@@ -31,11 +31,12 @@ def contract_glb(parts, weights=None):
     doc = dict(asset={'version':'2.0','generator':'fluxplot scene3d contract 0.1.0'},
                buffers=[{}], bufferViews=[], accessors=[], meshes=[], nodes=[], materials=[],
                scenes=[{'nodes':list(range(len(parts)))}], scene=0)
-    def accessor(a, kind, component, bounds=False, normalized=False, target=None):
+    def accessor(a, kind, component, bounds=False, normalized=False, target=None, stride=None):
         a = np.ascontiguousarray(a)
         binary.extend(b'\0' * (-len(binary) % 4))
         bv = {'buffer':0,'byteOffset':len(binary),'byteLength':a.nbytes}
         if target is not None: bv['target'] = target
+        if stride is not None: bv['byteStride'] = stride
         doc['bufferViews'].append(bv)
         binary.extend(a.tobytes())
         out = {'bufferView':len(doc['bufferViews'])-1,'componentType':component,'count':len(a),'type':kind}
@@ -52,7 +53,7 @@ def contract_glb(parts, weights=None):
         if 'values' in p:
             value=np.asarray(p['values'],dtype='<f4'); valid=np.isfinite(value)
             attrs['_VALUE']=accessor(np.where(valid,value,0).astype('<f4'),'SCALAR',5126,target=34962)
-            if not valid.all(): attrs['_VALID']=accessor(valid.astype('u1'),'SCALAR',5121,target=34962)
+            if not valid.all(): attrs['_VALID']=accessor(np.column_stack([valid,np.zeros((len(valid),3),dtype='u1')]).astype('u1'),'SCALAR',5121,target=34962,stride=4)
         if 'colors' in p:
             rgba=np.asarray(p['colors'],dtype=float).copy(); rgba[:,:3]=_linear(rgba[:,:3])
             attrs['COLOR_0']=accessor(np.rint(rgba*255).astype('u1'),'VEC4',5121,normalized=True,target=34962)

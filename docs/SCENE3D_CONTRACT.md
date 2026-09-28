@@ -29,7 +29,9 @@ present, must satisfy the schema. Unknown roles remain opaque addressable parts.
 The file is GLB 2.0: 12-byte little-endian header, JSON then BIN chunk, each 4-byte aligned.
 JSON is UTF-8 and space-padded; BIN is zero-padded. The JSON buffer byteLength excludes
 terminal chunk padding. There is one embedded buffer, no URI and no extensions. All
-buffer views and accessors are tightly packed with 4-byte-aligned starts.
+buffer views and accessors have 4-byte-aligned starts. Attributes are tightly packed,
+except uint8 SCALAR `_VALID`: each value is padded to a 4-byte stride, recorded as
+`bufferView.byteStride=4`, so vertex alignment satisfies glTF.
 
 Each primitive has little-endian float32 POSITION and NORMAL VEC3 accessors; positions
 carry min/max. Normals are area-weighted vertex normals normalized to unit length

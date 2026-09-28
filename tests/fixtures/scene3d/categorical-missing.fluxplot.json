@@ -18,7 +18,7 @@
     "generator": "fluxplot scene3d contract 0.1.0"
   },
   "glb": "categorical-missing.glb",
-  "glbSha256": "0bc70de5f3fc77366b5a15baf44989b3e755f7d1e7827b659fe81247a683e159",
+  "glbSha256": "f10a99d83ad83415a287836f49d8e8cd4d991ef163f42923958e4db18dd9a14e",
   "lighting": "studio",
   "order": [
     "atlas.frontal",
