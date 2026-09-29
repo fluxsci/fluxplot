@@ -242,3 +242,14 @@ Final full suite340passed2skipped116upstreamwarnings20.74s; independent static8/
 passed0.25s. Three TS/Python source fixtures match exact viewport/guide geometry.
 Core source review and n1 source/actual screenshot review APPROVED. Native notebook
 acceptance awaits the final canonical viewer rebuild/sync and a working display.
+
+2026-09-29 08:25 UTC Stage 2 canonical viewer refresh: official sync from Flux
+model3d-slides c4223650, m3d-r4, SHA37bfb01419cfeae2d53b74561964a1ae798d6f1e3849c9432ca85a94f3ef577d,
+776454 bytes. Full scratch uv pytest340passed2skipped116upstreamwarnings19.43s.
+Built wheel5dd356c935fae804b1883825be11a6613107dbb1cb42d2d873721f79a34cc434
+contains exact viewer/stamp/license and _scene3d_size.py bytes. Independent n1 wheel/source/browser review APPROVED: four actual outputs have isolated
+orbit/Top, shape0.25→0.26, Frame2.5→2.51→Home2.5; four script-disabled PNGs visible
+and zero page errors. Both screenshots inspected. Reused QA generator adapted to
+current MIME tuple in ignored evidence; no product change. Actual current native
+notebook acceptance remains blocked by0×0display.
+Historical c740 native/timing receipts are explicitly separated in verification docs.
