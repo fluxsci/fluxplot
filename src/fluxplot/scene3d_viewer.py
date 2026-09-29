@@ -69,42 +69,124 @@ def _tick_label(value):
     return f'{value:.6g}'
 
 
+# Deterministic Arial advance estimates shared with Flux textMetrics.ts; unknown
+# code points use 600/1000 em. The shared 20% reserve covers common sans fonts;
+# custom fonts remain estimates. Physical rendered sizes do not change.
+_ADVANCE = tuple(map(int, '278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584'.split(',')))
+_EXTRA = {'µ':576,'°':400,'±':549,'−':584,'×':584,'÷':549,'²':333,'³':333,'¹':333,'·':278,'–':556,'—':1000,'λ':500,'Å':667,'π':690,'σ':617,'Δ':668,'α':578,'β':575,'γ':500,'θ':556,'…':1000,'’':222}
+
+
+def _text_width(text, font_px):
+    return sum(_ADVANCE[ord(ch)-32] if 32 <= ord(ch) < 127 else _EXTRA.get(ch, 600) for ch in text) * font_px / 1000 * 1.2
+
+
+def _wrap_words(text, font_px, max_width):
+    lines = []; line = ''
+    for word in text.split():
+        if line and _text_width(line + ' ' + word, font_px) <= max_width:
+            line += ' ' + word
+            continue
+        if line:
+            lines.append(line); line = ''
+        for ch in word:
+            if line and _text_width(line + ch, font_px) > max_width:
+                lines.append(line); line = ''
+            line += ch
+    if line:
+        lines.append(line)
+    return lines or ['']
+
+
+def _nice_ticks(lo, hi, count=5):
+    if lo == hi:
+        return [lo]
+    raw = (hi-lo)/(count-1); power = 10 ** math.floor(math.log10(raw)); error = raw/power
+    step = (10 if error >= math.sqrt(50) else 5 if error >= math.sqrt(10) else 2 if error >= math.sqrt(2) else 1)*power
+    first = math.ceil(lo/step-1e-10); last = math.floor(hi/step+1e-10)
+    return [float(f'{i*step:.12g}') or 0 for i in range(first, min(last+1, first+1000))]
+
+
+def _field_ticks(field):
+    lo, hi = field['range']
+    return [v for v in field.get('ticks', _nice_ticks(lo, hi)) if lo <= v <= hi]
+
+
 def _layout(manifest, width, height):
-    """Python twin of Flux ``furnitureLayout`` for one unhidden manifest (CSS px, y down)."""
-    style = manifest.get('style', {})
-    parts = manifest.get('parts', [])
-    fs = style.get('fontSizePt', 7) * 4 / 3
-    line_height = fs * 1.4
-    layout = manifest.get('layout', {})
-    titles = [] if layout.get('title') == 'none' else [p for p in parts if p['role'] == 'title']
-    bars = [] if layout.get('colorbar') == 'none' else [p for p in parts if p['role'] == 'colorbar']
-    legends = [] if layout.get('legend') == 'none' else [p for p in parts if p['role'] == 'legend']
-    scales = [p for p in parts if p['role'] == 'scalebar']
-    title_h = 0
-    if titles:
-        title_h = max(line_height, style.get('titleSizePt', 8) * 4 / 3 * 1.5) + 4
-    guide_w = min(width * .4, max(64, fs * 9)) if bars or legends else 0
-    margin = min(3 * fs, width * .15, height * .15) if manifest.get('axes', {}).get('kind') == 'box' else 0
-    viewport = dict(x=margin, y=title_h + margin, width=max(1, width - guide_w - 2 * margin),
-                    height=max(1, height - title_h - 2 * margin))
-    slot_h = (height - title_h) / max(1, len(bars) + len(legends))
-    out = dict(width=width, height=height, fs=fs, line_height=line_height, viewport=viewport,
-               colorbars=[], legends=[], scalebars=[], title=None)
-    slot = 0
+    """Source-layout twin of Flux furnitureLayout (CSS px, y down; physical fonts)."""
+    width, height = max(1, width), max(1, height)
+    style = manifest.get('style', {}); parts = manifest.get('parts', [])
+    by_id = {p['id']: p for p in parts}
+    def hidden(part):
+        return part.get('hidden', False) or bool(part.get('parent') in by_id and hidden(by_id[part['parent']]))
+    def visible(role):
+        return [p for p in parts if p['role'] == role and not hidden(p)]
+    fs = style.get('fontSizePt', 7)*4/3; line_height = fs*1.4; pad = fs*.5
+    rules = manifest.get('layout', {})
+    titles = [] if rules.get('title') == 'none' else visible('title')
+    bars = [] if rules.get('colorbar') == 'none' else visible('colorbar')
+    legends = [] if rules.get('legend') == 'none' else visible('legend')
+    scales = visible('scalebar')
+    title_h = max(line_height, style.get('titleSizePt', 8)*4/3*1.5)+4 if titles else 0
+    def field_of(part):
+        return by_id.get(part.get('field'), {}).get('field')
+    def entries_of(part):
+        return [pid for pid in part.get('entries', []) if pid in by_id and not hidden(by_id[pid])]
+    need_w = 0
     for part in bars:
-        top = fs * 2.1
-        out['colorbars'].append(dict(part=part, x=width - guide_w + fs, y=title_h + slot * slot_h + top,
-                                     width=max(6, fs), height=max(1, slot_h - top - 2 * max(line_height, fs * 1.4))))
-        slot += 1
+        field = field_of(part)
+        if not isinstance(field, dict):
+            continue
+        tick_w = max([0] + [_text_width(_tick_label(v), fs) for v in _field_ticks(field)])
+        need_w = max(need_w, fs + max(_text_width(field.get('label', ''), fs), max(6, fs)+6+tick_w)+pad)
     for part in legends:
-        out['legends'].append(dict(part=part, x=width - guide_w + fs, y=title_h + slot * slot_h + line_height,
-                                   width=max(1, guide_w - fs * 2), height=max(line_height, slot_h - line_height)))
-        slot += 1
+        need_w = max(need_w, fs*2.5+max([0]+[_text_width(by_id[pid].get('label', pid), fs) for pid in entries_of(part)])+pad)
+    guide_w = min(width*.4, max(64, fs*9, need_w)) if bars or legends else 0
+    margin = min(3*fs, width*.15, height*.15) if manifest.get('axes', {}).get('kind') == 'box' else 0
+    vp = dict(x=margin, y=title_h+margin, width=max(1, width-guide_w-2*margin), height=max(1, height-title_h-2*margin))
+    out = dict(width=width, height=height, fs=fs, line_height=line_height, viewport=vp,
+               colorbars=[], legends=[], scalebars=[], title=None, overflow=False, overflowParts=[])
+    def overflow(pid):
+        if pid not in out['overflowParts']:
+            out['overflowParts'].append(pid)
+    guides = []
+    for part in bars:
+        field = field_of(part) or {}; label = field.get('label')
+        lines = _wrap_words(label, fs, guide_w-fs-pad) if label else []
+        top = fs*(2.1+1.25*max(0, len(lines)-1)); bottom = 2*line_height
+        if any(_text_width(line, fs) > guide_w-fs-pad for line in lines) or any(fs+max(6, fs)+6+_text_width(_tick_label(v), fs)+pad > guide_w for v in (_field_ticks(field) if field else [])):
+            overflow(part['id'])
+        guides.append(dict(part=part, top=top, bottom=bottom, minHeight=top+bottom+max(fs*2, (len(_field_ticks(field))-1)*fs*1.4 if field else 0), titleLines=lines))
+    for part in legends:
+        rows = []; offset = 0
+        for pid in entries_of(part):
+            lines = _wrap_words(by_id[pid].get('label', pid), fs, guide_w-fs*2.5-pad)
+            rows.append(dict(id=pid, lines=lines, offset=offset)); offset += len(lines)*line_height
+            if any(_text_width(line, fs) > guide_w-fs*2.5-pad for line in lines):
+                overflow(part['id'])
+        guides.append(dict(part=part, top=line_height, bottom=line_height, minHeight=line_height+max(line_height, offset), legendRows=rows))
+    available = max(0, height-title_h); equal = available/max(1, len(guides))
+    heights = [max(equal, g['minHeight']) for g in guides]; deficit = sum(heights)-available
+    for i, g in enumerate(guides):
+        if deficit <= 0:
+            break
+        take = min(deficit, heights[i]-g['minHeight']); heights[i] -= take; deficit -= take
+    offset = 0
+    for g, slot_h in zip(guides, heights):
+        if offset+slot_h > available+1e-9:
+            overflow(g['part']['id'])
+        slot = dict(part=g['part'], x=width-guide_w+fs, y=title_h+offset+g['top'])
+        if 'titleLines' in g:
+            slot.update(width=max(6, fs), height=max(1, slot_h-g['top']-g['bottom']), titleLines=g['titleLines'])
+            out['colorbars'].append(slot)
+        else:
+            slot.update(width=max(1, guide_w-fs*2), height=max(g['top'], slot_h-g['top']), legendRows=g['legendRows'])
+            out['legends'].append(slot)
+        offset += slot_h
     for i, part in enumerate(scales):
-        out['scalebars'].append(dict(part=part, x=viewport['x'] + 12,
-                                     y=viewport['y'] + viewport['height'] - 12 - i * (line_height + 10)))
+        out['scalebars'].append(dict(part=part, x=vp['x']+12, y=vp['y']+vp['height']-12-i*(line_height+10)))
     if titles:
         out['title'] = dict(part=titles[0], x=0, y=0, width=width, height=title_h)
+    out['overflow'] = bool(out['overflowParts'])
     return out
 
 
@@ -396,16 +478,18 @@ def _draw_guides(draw, manifest, layout, camera):
         draw.line((x, y), (x + length, y), width=max(draw.lw, 1.5))
         draw.text(x + length / 2, y - fs * .7, part.get('label') or _tick_label(part['length']))
     for slot in layout['legends']:
-        for i, pid in enumerate(slot['part'].get('entries', [])):
+        for row in slot['legendRows']:
+            pid = row['id']
             entry = parts.get(pid)
             if entry is None:
                 continue
-            y = slot['y'] + i * line_height
+            y = slot['y'] + row['offset']
             color = to_rgba(entry.get('color', '#4385BE'))
             color = (*color[:3], color[3] * entry.get('opacity', 1))
             draw.polygon([(slot['x'], y - fs*.7), (slot['x'] + fs, y - fs*.7), (slot['x'] + fs, y + fs*.3),
                           (slot['x'], y + fs*.3)], facecolor=color, edgecolor='none')
-            draw.text(slot['x'] + fs * 1.5, y + fs * .2, entry.get('label', pid), anchor='start')
+            for i, label in enumerate(row['lines']):
+                draw.text(slot['x'] + fs * 1.5, y + fs * .2 + i*line_height, label, anchor='start')
     for slot in layout['colorbars']:
         field = parts.get(slot['part'].get('field'), {}).get('field')
         if not isinstance(field, dict):
@@ -417,14 +501,14 @@ def _draw_guides(draw, manifest, layout, camera):
         draw.ax.imshow(ramp, extent=(x, x + w, y + h, y), aspect='auto', interpolation='bilinear', zorder=1)
         draw.polygon([(x, y), (x + w, y), (x + w, y + h), (x, y + h)], facecolor='none',
                      edgecolor=draw.muted, lw=draw.pt(draw.lw), zorder=2)
-        for value in field.get('ticks', []):
+        for value in _field_ticks(field):
             if not lo <= value <= hi:
                 continue
             ty = y + h * (.5 if hi == lo else 1 - (value - lo) / (hi - lo))
             draw.line((x + w, ty), (x + w + 3, ty))
             draw.text(x + w + 6, ty + fs * .3, _tick_label(value), anchor='start')
-        if field.get('label'):
-            draw.text(x, y - fs * 1.05, field['label'], anchor='start')
+        for i, label in enumerate(slot['titleLines']):
+            draw.text(x, y-fs*(1.05+1.25*(len(slot['titleLines'])-1-i)), label, anchor='start')
     if layout['title']:
         slot = layout['title']; part = slot['part']
         draw.text(slot['x'] + slot['width'] / 2, slot['y'] + slot['height'] * .7,
@@ -446,6 +530,8 @@ def png_preview(scene, *, _manifest=None):
     man = _manifest if _manifest is not None else build_manifest(scene, write_glb(scene), 'preview.glb')
     width, height = scene.figsize[0] * PX_PER_INCH, scene.figsize[1] * PX_PER_INCH
     layout = _layout(man, width, height)
+    if layout['overflow']:
+        warnings.warn('Enlarge scene3d figsize to fit guide labels at the current font size', stacklevel=2)
     vp = layout['viewport']
     camera = _Camera(scene._view, _framing_bounds(scene, man), vp)
     dpi = PX_PER_INCH * HIDPI

@@ -109,3 +109,48 @@ def test_empty_scene_display_explains_what_to_do():
     with pytest.raises(ValueError, match='nothing to show yet'):
         png_preview(sc)
     assert 'empty' in repr(sc) and 'fp.mesh3d' in repr(sc)
+
+
+def test_guide_wrap_preserves_tokens_ticks_and_full_text(monkeypatch):
+    from fluxplot.scene3d_viewer import _layout, _text_width, _wrap_words, _nice_ticks, png_preview
+    from fluxplot.scene3d_manifest import build_manifest
+    token = 'LongUnbrokenScientificIdentifierαβγ'
+    assert ''.join(_wrap_words(token, 12, 48)) == token
+    assert all(_text_width(line, 12) <= 48 for line in _wrap_words(token, 12, 48))
+    assert _nice_ticks(-1, 1) == [-1, -.5, 0, .5, 1]
+    assert _nice_ticks(1.21, 3.82) == [1.5, 2, 2.5, 3, 3.5]
+    assert _nice_ticks(2, 2) == [2]
+    v, f = sphere(); sc = fp.scene3d(figsize=(2.5, 4))
+    fp.surface3d(sc, v[:, 2], series='Height', surfaces=(v, f), colorbar=True, cbar_label=token)
+    manifest = build_manifest(sc, write_glb(sc), 'preview.glb')
+    field = next(p for p in manifest['parts'] if isinstance(p.get('field'), dict))['field']
+    field.pop('ticks', None)
+    layout = _layout(manifest, 300, 480)
+    assert not layout['overflow']
+    assert ''.join(layout['colorbars'][0]['titleLines']) == token
+    captured = _capture(monkeypatch); png_preview(sc, _manifest=manifest)
+    texts = max(captured[-1].axes, key=lambda a: a.get_zorder()).texts
+    actual = [t.get_text() for t in texts]
+    assert all(line in actual for line in layout['colorbars'][0]['titleLines'])
+    assert '0' in actual  # absent source ticks still get the same deterministic Flux ticks
+    # Actual matplotlib text bounds, in figure pixels, fit this sufficiently sized box.
+    captured[-1].canvas.draw(); renderer = captured[-1].canvas.get_renderer()
+    for text in texts:
+        bounds = text.get_window_extent(renderer)
+        assert bounds.x0 >= 0 and bounds.y0 >= 0
+        assert bounds.x1 <= captured[-1].bbox.width and bounds.y1 <= captured[-1].bbox.height
+
+
+def test_guide_legend_reflows_and_impossible_boxes_are_explicit():
+    from fluxplot.scene3d_viewer import _layout, _text_width
+    token = 'LongUnbrokenScientificIdentifierαβγ'
+    manifest = {'parts': [{'id': 'a', 'role': 'mesh', 'label': token},
+                          {'id': 'b', 'role': 'mesh', 'label': 'Hidden label', 'hidden': True},
+                          {'id': 'legend', 'role': 'legend', 'entries': ['a', 'b']}]}
+    layout = _layout(manifest, 200, 300)
+    rows = layout['legends'][0]['legendRows']
+    assert len(rows) == 1 and ''.join(rows[0]['lines']) == token
+    assert all(layout['legends'][0]['x'] + layout['fs'] * 1.5 + _text_width(line, layout['fs']) <= 200 for line in rows[0]['lines'])
+    tiny = _layout(manifest, 60, 20)
+    assert tiny['overflow'] and tiny['overflowParts'] == ['legend']
+    assert ''.join(tiny['legends'][0]['legendRows'][0]['lines']) == token

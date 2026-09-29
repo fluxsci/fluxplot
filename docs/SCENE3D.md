@@ -220,3 +220,10 @@ weld vertices or disturb shared-topology correspondence.
 `test-results/model3d/demo/plots/` (override with `--out`). It creates a neuron-like mesh, two shape states,
 a same-topology morph pair, a field map and an eight-frame sequence without downloaded data.
 The schema and binary details are in [SCENE3D_CONTRACT.md](SCENE3D_CONTRACT.md).
+
+Colorbar titles and legend entries wrap at their physical font size. Long identifiers
+split across lines with every character retained. The guide column takes at most 40%
+of the figure width; increase `figsize` if a warning says its labels cannot fit.
+The static PNG and Flux share the layout, including generated ticks when a manifest
+omits them. Width estimates use Arial advances with a 20% reserve checked against
+common sans fonts including DejaVu Sans; custom fonts can still need a larger box.

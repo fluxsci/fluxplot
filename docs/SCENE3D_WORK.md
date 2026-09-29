@@ -229,3 +229,16 @@ passed and sourceAPPROVED. Quiet same-process warmed ABBA old1165.66/1137.15ms v
 optimized878.72/866.88ms; PNG+completeHTML exact on every run. Receipts and baseline
 loader are under test-results/model3d/mime-preparation. Separate scratch-only batched
 Agg prototype is not included in this change or its parity claim.
+
+2026-09-29 wrapping completion on scene3d-slides from main577bd8c: Python source
+layout mirrors the completed Flux title-fit draft, including hard-token/legend lines,
+source-hidden row reflow, deterministic absent ticks and explicit impossible-box
+warnings. No source geometry, physical fonts or painter rendering changed. Conservative
+20% text-width reserve fixes observed 8–18% Arial/DejaVu Sans estimation differences;
+arbitrary custom fonts remain estimates. Tests inspect actual Matplotlib glyph bounds.
+Scratch artifacts: test-results/model3d/furniture-fit/static.png and parity.json.
+Vendored viewer remains the prior canonical stamp pending final Flux integration/sync.
+Final full suite340passed2skipped116upstreamwarnings20.74s; independent static8/8
+passed0.25s. Three TS/Python source fixtures match exact viewport/guide geometry.
+Core source review and n1 source/actual screenshot review APPROVED. Native notebook
+acceptance awaits the final canonical viewer rebuild/sync and a working display.
