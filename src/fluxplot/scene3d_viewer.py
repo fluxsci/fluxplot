@@ -313,6 +313,22 @@ def _framing_bounds(scene, manifest):
     return {'min': lo.tolist(), 'max': hi.tolist(), 'radius': radius}
 
 
+def _tick_labels_collide(labels, font_px, anchor):
+    """Flux furniture.ts ``tickLabelsCollide``: do any two of one axis's tick labels collide?
+
+    ``labels`` are ``(x, y, width)`` label points (vertical centre) sharing an anchor and a
+    font size; each is a box of its deterministic width by one font size. Side by side they
+    must sit at least a word space apart. A pure function of the pose (no hysteresis).
+    """
+    space = _text_width(' ', font_px)
+    boxes = []
+    for x, y, width in labels:
+        x0 = x - width if anchor == 'end' else x if anchor == 'start' else x - width / 2
+        boxes.append((x0 - space / 2, x0 + width + space / 2, y - font_px / 2, y + font_px / 2))
+    return any(a[0] < b[1] and b[0] < a[1] and a[2] < b[3] and b[2] < a[3]
+               for i, a in enumerate(boxes) for b in boxes[i + 1:])
+
+
 def _draw_box_axes(draw, manifest, camera, fs):
     """Back panes and grid behind the mesh; axis lines on silhouette edges, labels outward."""
     rotation = _rotation(manifest)
@@ -387,14 +403,23 @@ def _draw_box_axes(draw, manifest, camera, fs):
         draw.line(sa, sb)
         anchor = 'end' if ox < -.5 else 'start' if ox > .5 else 'middle'
         spec = axes[axis]
+        drawn = []
         for value in spec.get('ticks', []):
             if not limits[axis][0] <= value <= limits[axis][1]:
                 continue
             p = edge['a'].copy(); p[axis] = value; at = screen(p)
-            if not camera.visible(at):
-                continue
+            if camera.visible(at):
+                drawn.append((value, at, _tick_label(value)))
+        # Seen nearly end-on, an axis projects to a stub too short for its labels.
+        # Hide them (and a title longer than the stub) instead of stacking them.
+        crowded = _tick_labels_collide(
+            [(at[0] + ox * (fs*.9 + 4), at[1] + oy * (fs*.9 + 4), _text_width(label, fs)) for _, at, label in drawn], fs, anchor)
+        title = parts.get(f'axes.{name}.label', {}).get('text') or spec.get('label') or name
+        title_hidden = crowded and _text_width(title, fs) > length
+        for value, at, label in drawn:
             draw.line(at, (at[0] + ox * 4, at[1] + oy * 4))
-            draw.text(at[0] + ox * (fs*.9 + 4), at[1] + oy * (fs*.9 + 4) + fs*.3, _tick_label(value), anchor=anchor)
+            if not crowded:
+                draw.text(at[0] + ox * (fs*.9 + 4), at[1] + oy * (fs*.9 + 4) + fs*.3, label, anchor=anchor)
             if manifest['axes'].get('grid') is not False:
                 for plane in other:
                     across = next(i for i in other if i != plane)
@@ -404,11 +429,12 @@ def _draw_box_axes(draw, manifest, camera, fs):
                     g1, g2 = screen(p1), screen(p2)
                     if camera.visible(g1) and camera.visible(g2):
                         draw.line(g1, g2, color=draw.muted, alpha=.3)
+        if title_hidden:
+            continue
         title_x, title_y = mid[0] + ox * fs * 3.4, mid[1] + oy * fs * 3.4
         angle = math.degrees(math.atan2(sb[1] - sa[1], sb[0] - sa[0]))
         upright = angle - 180 if angle > 90 else angle + 180 if angle < -90 else angle
-        text = parts.get(f'axes.{name}.label', {}).get('text') or spec.get('label') or name
-        draw.text(title_x, title_y + fs * .3, text, rotation=upright, center=(title_x, title_y))
+        draw.text(title_x, title_y + fs * .3, title, rotation=upright, center=(title_x, title_y))
 
 
 def _draw_mesh(ax, scene, camera):

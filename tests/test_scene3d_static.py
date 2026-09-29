@@ -154,3 +154,58 @@ def test_guide_legend_reflows_and_impossible_boxes_are_explicit():
     tiny = _layout(manifest, 60, 20)
     assert tiny['overflow'] and tiny['overflowParts'] == ['legend']
     assert ''.join(tiny['legends'][0]['legendRows'][0]['lines']) == token
+
+
+def test_png_box_axis_seen_end_on_hides_crowded_tick_labels(monkeypatch):
+    """Flux furniture.ts ``tickLabelsCollide``: an axis seen almost end-on projects to a stub
+    too short for its tick labels. They (and a title longer than the stub) hide, while the
+    axis line, tick marks and grid stay, so the still matches Flux's vector furniture."""
+    from fluxplot.scene3d_viewer import (png_preview, _tick_labels_collide, _text_width, _draw_box_axes,
+                                         _layout, _Camera, _framing_bounds)
+    from fluxplot.scene3d_manifest import build_manifest
+    space = _text_width(' ', 12)
+    assert not _tick_labels_collide([], 12, 'middle') and not _tick_labels_collide([(0, 0, 50)], 12, 'middle')
+    assert _tick_labels_collide([(0, 0, 10), (10 + space * .9, 0, 10)], 12, 'start')
+    assert not _tick_labels_collide([(0, 0, 10), (10 + space * 1.1, 0, 10)], 12, 'start')
+    assert _tick_labels_collide([(0, 0, 10), (0, 12 * .9, 10)], 12, 'end')
+    assert not _tick_labels_collide([(0, 0, 10), (0, 12 * 1.1, 10)], 12, 'end')
+    assert _tick_labels_collide([(0, 0, 40), (15, 24, 4), (30, 0, 40)], 12, 'middle')  # every pair, not neighbours
+
+    v, f = sphere(); sc = fp.scene3d(figsize=(2.8, 2.4), axes='box'); fp.mesh3d(sc, (v, f), series='s')
+    for k in 'xyz':
+        sc.axis(k, lim=(-1, 1), ticks=[-1, 0, 1], label=f'{k} (µm)')
+    captured = _capture(monkeypatch)
+
+    def still(azimuth, elevation):
+        sc.view(azimuth=azimuth, elevation=elevation); png_preview(sc)
+        under = min(captured[-1].axes, key=lambda a: a.get_zorder())
+        return [t.get_text() for t in under.texts], len(under.lines)
+    near, near_lines = still(5, 0)
+    wide, wide_lines = still(30, 0)
+    assert sorted(wide) == sorted(['-1', '0', '1'] * 3 + ['x (µm)', 'y (µm)', 'z (µm)'])
+    assert sorted(near) == sorted(['-1', '0', '1'] * 2 + ['x (µm)', 'y (µm)'])  # the z stub's labels hide
+    assert near_lines == wide_lines  # its axis line, tick marks and grid remain
+
+    class Record:
+        """Records _draw_box_axes output instead of drawing it."""
+        muted = '#000'; lw = 1
+        def __init__(self): self.texts = []; self.lines = []
+        def pt(self, px): return px
+        def polygon(self, *args, **kwargs): pass
+        def line(self, a, b, **kwargs): self.lines.append((tuple(a[:2]), tuple(b[:2])))
+        def text(self, x, y, label, **kwargs): self.texts.append(label)
+    man = build_manifest(sc, write_glb(sc), 'x.glb'); layout = _layout(man, 336, 288)
+    # A short title fits along the stub and stays; the long one hides with the ticks.
+    short = {**man, 'parts': [dict(p, text='z') if p['id'] == 'axes.z.label' else p for p in man['parts']]}
+    states = []
+    for azimuth in np.arange(0, 30.5, .5):
+        view = {**sc._view, 'azimuth': float(azimuth), 'elevation': 0.0}
+        camera = _Camera(view, _framing_bounds(sc, man), layout['viewport'])
+        record = Record(); _draw_box_axes(record, man, camera, layout['fs'])
+        states.append(record.texts.count('-1') == 3)
+        if azimuth == 5:
+            assert 'z (µm)' not in record.texts
+            short_record = Record(); _draw_box_axes(short_record, short, camera, layout['fs'])
+            assert 'z' in short_record.texts
+    assert not states[0] and states[-1]
+    assert sum(a != b for a, b in zip(states, states[1:])) == 1  # one hide→show change, no flicker

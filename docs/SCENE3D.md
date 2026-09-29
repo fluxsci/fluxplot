@@ -146,7 +146,10 @@ the mesh, with axis lines, ticks and labels on the outer edges; they use authore
 limits and matplotlib tick locators. Override them with
 `sc.axis('x', lim=(0, 100), ticks=[0, 50, 100], label='x (µm)')` (this warns on an
 `axes='none'` scene, where it has no visible effect). Fonts come from the active house
-style at scene creation and stay in physical points.
+style at scene creation and stay in physical points. Viewed almost straight down an axis,
+that axis shrinks to a short stub: when its tick labels would overlap they are hidden
+(with its title, if the title is longer than the stub), while its line, ticks and grid
+stay. Flux and the static still apply the same rule.
 
 `scalebar=` is a length in data units; its label is simplified to a friendly metric unit
 (`scalebar=10_000` with `units='nm'` reads `10 µm`, `1e6` nm reads `1 mm`, `0.5` µm reads
