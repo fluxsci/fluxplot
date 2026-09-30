@@ -205,6 +205,12 @@ def build_manifest(
         entry['capabilities'] = {'dataMorph': bool(ordinary and data and
             not any(c['svgId'] in rasterized for c in components) and
             (svg.get('line') or points))}
+        # keyed members (bars by category, cells and hexes by row.col, glowbar / fluxbox parts by
+        # category) let two versions of the plot be tweened member by member
+        keyed = any((m.role == 'bar' and (m.data.get('bar') or {}).get('keys'))
+                    or (m.data.get('field_config') and (m.data.get('cells') or m.data.get('hexmatrix')))
+                    or m.kind in ('glowbar', 'fluxbox') for m in marks)
+        entry['capabilities']['valueMorph'] = bool(keyed and not any(c['svgId'] in rasterized for c in components))
         if label:
             entry["label"] = label
         if points:

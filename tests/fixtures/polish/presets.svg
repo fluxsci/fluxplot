@@ -3,7 +3,7 @@
   <defs>
     <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
     <linearGradient id="panel.density.colorbar.color.solids.gradient" gradientUnits="userSpaceOnUse" x1="310.0556985" x2="310.0556985" y1="146.98234486086042" y2="11.858076805806206">
-      <stop offset="-0.0" stop-color="#440154"/>
+      <stop offset="0.0" stop-color="#440154"/>
       <stop offset="0.003906250000000073" stop-color="#440154"/>
       <stop offset="0.003906250000000073" stop-color="#440256"/>
       <stop offset="0.007812499999999936" stop-color="#440256"/>
@@ -518,262 +518,262 @@
     </linearGradient>
   </defs>
   <g id="figure" data-role="figure" data-kind="container">
-    <g id="patch_1">
+    <g id="panel.counts.figure.background" data-role="background" data-kind="shape" data-ink-fill="paper">
       <path d="M 0 172.8  L 360 172.8  L 360 0  L 0 0  z " style="fill: #ffffff"/>
     </g>
     <g id="panel.counts.plot-area" data-role="plot-area" data-kind="container">
-      <g id="patch_2">
+      <g id="panel.counts.axes.background" data-role="background" data-kind="shape" data-ink-fill="plot">
         <path d="M 16.36274 152.798979  L 145.152227 152.798979  L 145.152227 6.041443  L 16.36274 6.041443  z " style="fill: #ffffff"/>
       </g>
-      <g id="panel.counts.counts.bar.0" data-role="bar" data-series="counts" data-index="0" data-x="0.0" data-y="3.0" data-kind="shape">
+      <g id="panel.counts.counts.bar.0" data-role="bar" data-series="counts" data-index="0" data-x="0.0" data-y="3.0" data-kind="shape" data-key="a">
         <path d="M 22.216808 152.798979  L 55.668622 152.798979  L 55.668622 79.970973  L 22.216808 79.970973  z " clip-path="url(#p86f7f659f9)" style="fill: #1f77b4"/>
       </g>
-      <g id="panel.counts.counts.bar.1" data-role="bar" data-series="counts" data-index="1" data-x="1.0" data-y="5.0" data-kind="shape">
+      <g id="panel.counts.counts.bar.1" data-role="bar" data-series="counts" data-index="1" data-x="1.0" data-y="5.0" data-kind="shape" data-key="b">
         <path d="M 64.031576 152.798979  L 97.483391 152.798979  L 97.483391 31.418969  L 64.031576 31.418969  z " clip-path="url(#p86f7f659f9)" style="fill: #1f77b4"/>
       </g>
-      <g id="panel.counts.counts.bar.2" data-role="bar" data-series="counts" data-index="2" data-x="2.0" data-y="2.0" data-kind="shape">
+      <g id="panel.counts.counts.bar.2" data-role="bar" data-series="counts" data-index="2" data-x="2.0" data-y="2.0" data-kind="shape" data-key="c">
         <path d="M 105.846345 152.798979  L 139.298159 152.798979  L 139.298159 104.246975  L 105.846345 104.246975  z " clip-path="url(#p86f7f659f9)" style="fill: #1f77b4"/>
       </g>
-      <g id="panel.counts.axis.x" data-role="axis" data-axis="x" data-kind="container">
+      <g id="panel.counts.axis.x" data-role="axis" data-axis="x" data-kind="container" data-ink-fill="axis">
         <g id="xtick_1">
-          <g id="panel.counts.axis.x.tick.0" data-role="tick" data-axis="x" data-index="0" data-kind="line">
+          <g id="panel.counts.axis.x.tick.0" data-role="tick" data-axis="x" data-index="0" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L 0 3.5  " transform="translate(38.942715 152.798979)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.counts.axis.x.ticklabel.0" data-role="tick-label" data-axis="x" data-index="0" data-kind="text">
+          <g id="panel.counts.axis.x.ticklabel.0" data-role="tick-label" data-axis="x" data-index="0" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="38.942715" y="167.396635" transform="rotate(-0 38.942715 167.396635)">a</text>
           </g>
         </g>
         <g id="xtick_2">
-          <g id="panel.counts.axis.x.tick.1" data-role="tick" data-axis="x" data-index="1" data-kind="line">
+          <g id="panel.counts.axis.x.tick.1" data-role="tick" data-axis="x" data-index="1" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L 0 3.5  " transform="translate(80.757484 152.798979)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.counts.axis.x.ticklabel.1" data-role="tick-label" data-axis="x" data-index="1" data-kind="text">
+          <g id="panel.counts.axis.x.ticklabel.1" data-role="tick-label" data-axis="x" data-index="1" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="80.757484" y="167.397416" transform="rotate(-0 80.757484 167.397416)">b</text>
           </g>
         </g>
         <g id="xtick_3">
-          <g id="panel.counts.axis.x.tick.2" data-role="tick" data-axis="x" data-index="2" data-kind="line">
+          <g id="panel.counts.axis.x.tick.2" data-role="tick" data-axis="x" data-index="2" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L 0 3.5  " transform="translate(122.572252 152.798979)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.counts.axis.x.ticklabel.2" data-role="tick-label" data-axis="x" data-index="2" data-kind="text">
+          <g id="panel.counts.axis.x.ticklabel.2" data-role="tick-label" data-axis="x" data-index="2" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="122.572252" y="167.396635" transform="rotate(-0 122.572252 167.396635)">c</text>
           </g>
         </g>
       </g>
-      <g id="panel.counts.axis.y" data-role="axis" data-axis="y" data-kind="container">
+      <g id="panel.counts.axis.y" data-role="axis" data-axis="y" data-kind="container" data-ink-fill="axis">
         <g id="ytick_1">
-          <g id="panel.counts.axis.y.tick.0" data-role="tick" data-axis="y" data-index="0" data-kind="line">
+          <g id="panel.counts.axis.y.tick.0" data-role="tick" data-axis="y" data-index="0" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L -3.5 0  " transform="translate(16.36274 152.798979)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.counts.axis.y.ticklabel.0" data-role="tick-label" data-axis="y" data-index="0" data-kind="text">
+          <g id="panel.counts.axis.y.ticklabel.0" data-role="tick-label" data-axis="y" data-index="0" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: end" x="9.36274" y="156.597807" transform="rotate(-0 9.36274 156.597807)">0</text>
           </g>
         </g>
         <g id="ytick_2">
-          <g id="panel.counts.axis.y.tick.1" data-role="tick" data-axis="y" data-index="1" data-kind="line">
+          <g id="panel.counts.axis.y.tick.1" data-role="tick" data-axis="y" data-index="1" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L -3.5 0  " transform="translate(16.36274 128.522977)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.counts.axis.y.ticklabel.1" data-role="tick-label" data-axis="y" data-index="1" data-kind="text">
+          <g id="panel.counts.axis.y.ticklabel.1" data-role="tick-label" data-axis="y" data-index="1" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: end" x="9.36274" y="132.321805" transform="rotate(-0 9.36274 132.321805)">1</text>
           </g>
         </g>
         <g id="ytick_3">
-          <g id="panel.counts.axis.y.tick.2" data-role="tick" data-axis="y" data-index="2" data-kind="line">
+          <g id="panel.counts.axis.y.tick.2" data-role="tick" data-axis="y" data-index="2" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L -3.5 0  " transform="translate(16.36274 104.246975)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.counts.axis.y.ticklabel.2" data-role="tick-label" data-axis="y" data-index="2" data-kind="text">
+          <g id="panel.counts.axis.y.ticklabel.2" data-role="tick-label" data-axis="y" data-index="2" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: end" x="9.36274" y="108.045803" transform="rotate(-0 9.36274 108.045803)">2</text>
           </g>
         </g>
         <g id="ytick_4">
-          <g id="panel.counts.axis.y.tick.3" data-role="tick" data-axis="y" data-index="3" data-kind="line">
+          <g id="panel.counts.axis.y.tick.3" data-role="tick" data-axis="y" data-index="3" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L -3.5 0  " transform="translate(16.36274 79.970973)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.counts.axis.y.ticklabel.3" data-role="tick-label" data-axis="y" data-index="3" data-kind="text">
+          <g id="panel.counts.axis.y.ticklabel.3" data-role="tick-label" data-axis="y" data-index="3" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: end" x="9.36274" y="83.769801" transform="rotate(-0 9.36274 83.769801)">3</text>
           </g>
         </g>
         <g id="ytick_5">
-          <g id="panel.counts.axis.y.tick.4" data-role="tick" data-axis="y" data-index="4" data-kind="line">
+          <g id="panel.counts.axis.y.tick.4" data-role="tick" data-axis="y" data-index="4" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L -3.5 0  " transform="translate(16.36274 55.694971)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.counts.axis.y.ticklabel.4" data-role="tick-label" data-axis="y" data-index="4" data-kind="text">
+          <g id="panel.counts.axis.y.ticklabel.4" data-role="tick-label" data-axis="y" data-index="4" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: end" x="9.36274" y="59.493799" transform="rotate(-0 9.36274 59.493799)">4</text>
           </g>
         </g>
         <g id="ytick_6">
-          <g id="panel.counts.axis.y.tick.5" data-role="tick" data-axis="y" data-index="5" data-kind="line">
+          <g id="panel.counts.axis.y.tick.5" data-role="tick" data-axis="y" data-index="5" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L -3.5 0  " transform="translate(16.36274 31.418969)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.counts.axis.y.ticklabel.5" data-role="tick-label" data-axis="y" data-index="5" data-kind="text">
+          <g id="panel.counts.axis.y.ticklabel.5" data-role="tick-label" data-axis="y" data-index="5" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: end" x="9.36274" y="35.217797" transform="rotate(-0 9.36274 35.217797)">5</text>
           </g>
         </g>
         <g id="ytick_7">
-          <g id="panel.counts.axis.y.tick.6" data-role="tick" data-axis="y" data-index="6" data-kind="line">
+          <g id="panel.counts.axis.y.tick.6" data-role="tick" data-axis="y" data-index="6" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L -3.5 0  " transform="translate(16.36274 7.142967)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.counts.axis.y.ticklabel.6" data-role="tick-label" data-axis="y" data-index="6" data-kind="text">
+          <g id="panel.counts.axis.y.ticklabel.6" data-role="tick-label" data-axis="y" data-index="6" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: end" x="9.36274" y="10.941795" transform="rotate(-0 9.36274 10.941795)">6</text>
           </g>
         </g>
       </g>
-      <g id="panel.counts.significance-bracket.0" data-role="significance-bracket" data-name="0" data-kind="line">
+      <g id="panel.counts.significance-bracket.0" data-role="significance-bracket" data-name="0" data-kind="line" data-ink-stroke="ink">
         <path d="M 38.942715 16.853367  L 38.942715 13.029897  L 80.757484 13.029897  L 80.757484 16.853367  " clip-path="url(#p86f7f659f9)" style="fill: none; stroke: #000000; stroke-linecap: square"/>
       </g>
-      <g id="panel.counts.axis.y.spine" data-role="spine" data-axis="y" data-kind="line">
+      <g id="panel.counts.axis.y.spine.left" data-role="spine" data-axis="y" data-kind="line" data-ink-stroke="axis">
         <path d="M 16.36274 152.798979  L 16.36274 6.041443  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
       </g>
-      <g id="panel.counts.axis.y.spine-2" data-role="spine" data-axis="y" data-kind="line">
+      <g id="panel.counts.axis.y.spine.right" data-role="spine" data-axis="y" data-kind="line" data-ink-stroke="axis">
         <path d="M 145.152227 152.798979  L 145.152227 6.041443  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
       </g>
-      <g id="panel.counts.axis.x.spine" data-role="spine" data-axis="x" data-kind="line">
+      <g id="panel.counts.axis.x.spine.bottom" data-role="spine" data-axis="x" data-kind="line" data-ink-stroke="axis">
         <path d="M 16.36274 152.798979  L 145.152227 152.798979  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
       </g>
-      <g id="panel.counts.axis.x.spine-2" data-role="spine" data-axis="x" data-kind="line">
+      <g id="panel.counts.axis.x.spine.top" data-role="spine" data-axis="x" data-kind="line" data-ink-stroke="axis">
         <path d="M 16.36274 6.041443  L 145.152227 6.041443  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
       </g>
-      <g id="panel.counts.annotation.peak" data-role="annotation" data-name="peak" data-kind="text">
+      <g id="panel.counts.annotation.peak" data-role="annotation" data-name="peak" data-kind="text" data-ink-fill="ink">
         <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: start" x="105.846345" y="21.708568" transform="rotate(-0 105.846345 21.708568)">peak</text>
       </g>
-      <g id="panel.counts.significance-bracket.0.label" data-role="label" data-name="0" data-kind="text">
+      <g id="panel.counts.significance-bracket.0.label" data-role="label" data-name="0" data-kind="text" data-ink-fill="ink">
         <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="59.850099" y="10.627553" transform="rotate(-0 59.850099 10.627553)">*</text>
       </g>
       <g id="panel.counts.legend" data-role="legend" data-kind="container">
-        <g id="patch_3">
+        <g id="panel.counts.legend.background" data-role="background" data-kind="shape" data-ink-fill="plot">
           <path d="M 23.36274 29.042224  L 90.26899 29.042224  Q 92.26899 29.042224 92.26899 27.042224  L 92.26899 13.041443  Q 92.26899 11.041443 90.26899 11.041443  L 23.36274 11.041443  Q 21.36274 11.041443 21.36274 13.041443  L 21.36274 27.042224  Q 21.36274 29.042224 23.36274 29.042224  z " style="fill: #ffffff; opacity: 0.8; stroke: #cccccc; stroke-linejoin: miter"/>
         </g>
         <g id="panel.counts.legend.entry.0.swatch" data-role="legend-swatch" data-index="0" data-kind="shape">
           <path d="M 25.36274 22.63988  L 45.36274 22.63988  L 45.36274 15.63988  L 25.36274 15.63988  z " style="fill: #1f77b4"/>
         </g>
-        <g id="panel.counts.legend.entry.0.label" data-role="legend-label" data-index="0" data-kind="text">
+        <g id="panel.counts.legend.entry.0.label" data-role="legend-label" data-index="0" data-kind="text" data-ink-fill="ink">
           <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: start" x="53.36274" y="22.63988" transform="rotate(-0 53.36274 22.63988)">Counts</text>
         </g>
       </g>
     </g>
     <g id="panel.density.plot-area" data-role="plot-area" data-kind="container">
-      <g id="patch_4">
+      <g id="panel.density.axes.background" data-role="background" data-kind="shape" data-ink-fill="plot">
         <path d="M 172.894895 146.982345  L 301.684382 146.982345  L 301.684382 11.858077  L 172.894895 11.858077  z " style="fill: #ffffff"/>
       </g>
-      <g id="panel.density.axis.x" data-role="axis" data-axis="x" data-kind="container">
+      <g id="panel.density.axis.x" data-role="axis" data-axis="x" data-kind="container" data-ink-fill="axis">
         <g id="xtick_4">
-          <g id="panel.density.axis.x.tick.1" data-role="tick" data-axis="x" data-index="1" data-kind="line">
+          <g id="panel.density.axis.x.tick.1" data-role="tick" data-axis="x" data-index="1" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L 0 3.5  " transform="translate(199.06263 146.982345)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.density.axis.x.ticklabel.1" data-role="tick-label" data-axis="x" data-index="1" data-kind="text">
+          <g id="panel.density.axis.x.ticklabel.1" data-role="tick-label" data-axis="x" data-index="1" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="199.06263" y="161.580001" transform="rotate(-0 199.06263 161.580001)">−2</text>
           </g>
         </g>
         <g id="xtick_5">
-          <g id="panel.density.axis.x.tick.2" data-role="tick" data-axis="x" data-index="2" data-kind="line">
+          <g id="panel.density.axis.x.tick.2" data-role="tick" data-axis="x" data-index="2" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L 0 3.5  " transform="translate(233.081222 146.982345)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.density.axis.x.ticklabel.2" data-role="tick-label" data-axis="x" data-index="2" data-kind="text">
+          <g id="panel.density.axis.x.ticklabel.2" data-role="tick-label" data-axis="x" data-index="2" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="233.081222" y="161.580001" transform="rotate(-0 233.081222 161.580001)">0</text>
           </g>
         </g>
         <g id="xtick_6">
-          <g id="panel.density.axis.x.tick.3" data-role="tick" data-axis="x" data-index="3" data-kind="line">
+          <g id="panel.density.axis.x.tick.3" data-role="tick" data-axis="x" data-index="3" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L 0 3.5  " transform="translate(267.099814 146.982345)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.density.axis.x.ticklabel.3" data-role="tick-label" data-axis="x" data-index="3" data-kind="text">
+          <g id="panel.density.axis.x.ticklabel.3" data-role="tick-label" data-axis="x" data-index="3" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="267.099814" y="161.580001" transform="rotate(-0 267.099814 161.580001)">2</text>
           </g>
         </g>
         <g id="xtick_7">
-          <g id="panel.density.axis.x.tick.4" data-role="tick" data-axis="x" data-index="4" data-kind="line">
+          <g id="panel.density.axis.x.tick.4" data-role="tick" data-axis="x" data-index="4" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L 0 3.5  " transform="translate(301.118406 146.982345)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.density.axis.x.ticklabel.4" data-role="tick-label" data-axis="x" data-index="4" data-kind="text">
+          <g id="panel.density.axis.x.ticklabel.4" data-role="tick-label" data-axis="x" data-index="4" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="301.118406" y="161.580001" transform="rotate(-0 301.118406 161.580001)">4</text>
           </g>
         </g>
       </g>
-      <g id="panel.density.axis.y" data-role="axis" data-axis="y" data-kind="container">
+      <g id="panel.density.axis.y" data-role="axis" data-axis="y" data-kind="container" data-ink-fill="axis">
         <g id="ytick_8">
-          <g id="panel.density.axis.y.tick.1" data-role="tick" data-axis="y" data-index="1" data-kind="line">
+          <g id="panel.density.axis.y.tick.1" data-role="tick" data-axis="y" data-index="1" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L -3.5 0  " transform="translate(172.894895 131.565068)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.density.axis.y.ticklabel.1" data-role="tick-label" data-axis="y" data-index="1" data-kind="text">
+          <g id="panel.density.axis.y.ticklabel.1" data-role="tick-label" data-axis="y" data-index="1" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: end" x="165.894895" y="135.363896" transform="rotate(-0 165.894895 135.363896)">−2</text>
           </g>
         </g>
         <g id="ytick_9">
-          <g id="panel.density.axis.y.tick.2" data-role="tick" data-axis="y" data-index="2" data-kind="line">
+          <g id="panel.density.axis.y.tick.2" data-role="tick" data-axis="y" data-index="2" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L -3.5 0  " transform="translate(172.894895 107.450676)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.density.axis.y.ticklabel.2" data-role="tick-label" data-axis="y" data-index="2" data-kind="text">
+          <g id="panel.density.axis.y.ticklabel.2" data-role="tick-label" data-axis="y" data-index="2" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: end" x="165.894895" y="111.249504" transform="rotate(-0 165.894895 111.249504)">−1</text>
           </g>
         </g>
         <g id="ytick_10">
-          <g id="panel.density.axis.y.tick.3" data-role="tick" data-axis="y" data-index="3" data-kind="line">
+          <g id="panel.density.axis.y.tick.3" data-role="tick" data-axis="y" data-index="3" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L -3.5 0  " transform="translate(172.894895 83.336285)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.density.axis.y.ticklabel.3" data-role="tick-label" data-axis="y" data-index="3" data-kind="text">
+          <g id="panel.density.axis.y.ticklabel.3" data-role="tick-label" data-axis="y" data-index="3" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: end" x="165.894895" y="87.135113" transform="rotate(-0 165.894895 87.135113)">0</text>
           </g>
         </g>
         <g id="ytick_11">
-          <g id="panel.density.axis.y.tick.4" data-role="tick" data-axis="y" data-index="4" data-kind="line">
+          <g id="panel.density.axis.y.tick.4" data-role="tick" data-axis="y" data-index="4" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L -3.5 0  " transform="translate(172.894895 59.221893)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.density.axis.y.ticklabel.4" data-role="tick-label" data-axis="y" data-index="4" data-kind="text">
+          <g id="panel.density.axis.y.ticklabel.4" data-role="tick-label" data-axis="y" data-index="4" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: end" x="165.894895" y="63.020721" transform="rotate(-0 165.894895 63.020721)">1</text>
           </g>
         </g>
         <g id="ytick_12">
-          <g id="panel.density.axis.y.tick.5" data-role="tick" data-axis="y" data-index="5" data-kind="line">
+          <g id="panel.density.axis.y.tick.5" data-role="tick" data-axis="y" data-index="5" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
             <path d="M 0 0  L -3.5 0  " transform="translate(172.894895 35.107501)" style="stroke: #000000; stroke-width: 0.8"/>
           </g>
-          <g id="panel.density.axis.y.ticklabel.5" data-role="tick-label" data-axis="y" data-index="5" data-kind="text">
+          <g id="panel.density.axis.y.ticklabel.5" data-role="tick-label" data-axis="y" data-index="5" data-kind="text" data-ink-fill="ink">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: end" x="165.894895" y="38.90633" transform="rotate(-0 165.894895 38.90633)">2</text>
           </g>
         </g>
       </g>
       <g id="panel.density.cloud.hexes" data-role="x-hexbin" data-series="cloud" data-kind="shape" data-color-scale="cloud" data-paint="fill stroke">
-        <path d="M 225.208361 116.779151  L 214.745667 122.81979  L 214.745667 134.901067  L 225.208361 140.941706  L 235.671054 134.901067  L 235.671054 122.81979  z " clip-path="url(#p0d276677d3)" style="fill: #472a7a; stroke: #472a7a; stroke-width: 0.25" id="panel.density.cloud.hex.1.2" data-role="x-hex" data-index="0" data-series="cloud" data-kind="shape" data-row="1" data-column="2" data-x="-0.4628563820234639" data-y="-1.8878412851134159" data-count="3.0" data-value="3.0"/>
-        <path d="M 246.133747 116.779151  L 235.671054 122.81979  L 235.671054 134.901067  L 246.133747 140.941706  L 256.59644 134.901067  L 256.59644 122.81979  z " clip-path="url(#p0d276677d3)" style="fill: #481769; stroke: #481769; stroke-width: 0.25" id="panel.density.cloud.hex.1.3" data-role="x-hex" data-index="1" data-series="cloud" data-kind="shape" data-row="1" data-column="3" data-x="0.7673759826742654" data-y="-1.8878412851134159" data-count="2.0" data-value="2.0"/>
-        <path d="M 267.059133 116.779151  L 256.59644 122.81979  L 256.59644 134.901067  L 267.059133 140.941706  L 277.521827 134.901067  L 277.521827 122.81979  z " clip-path="url(#p0d276677d3)" style="fill: #481769; stroke: #481769; stroke-width: 0.25" id="panel.density.cloud.hex.1.4" data-role="x-hex" data-index="2" data-series="cloud" data-kind="shape" data-row="1" data-column="4" data-x="1.9976083473719943" data-y="-1.8878412851134159" data-count="2.0" data-value="2.0"/>
-        <path d="M 193.820281 98.657235  L 183.357588 104.697874  L 183.357588 116.779151  L 193.820281 122.81979  L 204.282974 116.779151  L 204.282974 104.697874  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.2.1" data-role="x-hex" data-index="3" data-series="cloud" data-kind="shape" data-row="2" data-column="1" data-x="-2.3082049290700573" data-y="-1.136343319090604" data-count="1.0" data-value="1.0"/>
-        <path d="M 214.745667 98.657235  L 204.282974 104.697874  L 204.282974 116.779151  L 214.745667 122.81979  L 225.208361 116.779151  L 225.208361 104.697874  z " clip-path="url(#p0d276677d3)" style="fill: #433d84; stroke: #433d84; stroke-width: 0.25" id="panel.density.cloud.hex.2.2" data-role="x-hex" data-index="4" data-series="cloud" data-kind="shape" data-row="2" data-column="2" data-x="-1.0779725643723284" data-y="-1.136343319090604" data-count="4.0" data-value="4.0"/>
-        <path d="M 235.671054 98.657235  L 225.208361 104.697874  L 225.208361 116.779151  L 235.671054 122.81979  L 246.133747 116.779151  L 246.133747 104.697874  z " clip-path="url(#p0d276677d3)" style="fill: #355e8d; stroke: #355e8d; stroke-width: 0.25" id="panel.density.cloud.hex.2.3" data-role="x-hex" data-index="5" data-series="cloud" data-kind="shape" data-row="2" data-column="3" data-x="0.15225980032540143" data-y="-1.136343319090604" data-count="6.0" data-value="6.0"/>
-        <path d="M 256.59644 98.657235  L 246.133747 104.697874  L 246.133747 116.779151  L 256.59644 122.81979  L 267.059133 116.779151  L 267.059133 104.697874  z " clip-path="url(#p0d276677d3)" style="fill: #481769; stroke: #481769; stroke-width: 0.25" id="panel.density.cloud.hex.2.4" data-role="x-hex" data-index="6" data-series="cloud" data-kind="shape" data-row="2" data-column="4" data-x="1.3824921650231299" data-y="-1.136343319090604" data-count="2.0" data-value="2.0"/>
-        <path d="M 277.521827 98.657235  L 267.059133 104.697874  L 267.059133 116.779151  L 277.521827 122.81979  L 287.98452 116.779151  L 287.98452 104.697874  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.2.5" data-role="x-hex" data-index="7" data-series="cloud" data-kind="shape" data-row="2" data-column="5" data-x="2.612724529720859" data-y="-1.136343319090604" data-count="1.0" data-value="1.0"/>
-        <path d="M 183.357588 80.535319  L 172.894895 86.575957  L 172.894895 98.657235  L 183.357588 104.697874  L 193.820281 98.657235  L 193.820281 86.575957  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.3.0" data-role="x-hex" data-index="8" data-series="cloud" data-kind="shape" data-row="3" data-column="0" data-x="-2.923321111418922" data-y="-0.3848453530677922" data-count="1.0" data-value="1.0"/>
-        <path d="M 204.282974 80.535319  L 193.820281 86.575957  L 193.820281 98.657235  L 204.282974 104.697874  L 214.745667 98.657235  L 214.745667 86.575957  z " clip-path="url(#p0d276677d3)" style="fill: #3d4e8a; stroke: #3d4e8a; stroke-width: 0.25" id="panel.density.cloud.hex.3.1" data-role="x-hex" data-index="9" data-series="cloud" data-kind="shape" data-row="3" data-column="1" data-x="-1.693088746721193" data-y="-0.3848453530677922" data-count="5.0" data-value="5.0"/>
-        <path d="M 225.208361 80.535319  L 214.745667 86.575957  L 214.745667 98.657235  L 225.208361 104.697874  L 235.671054 98.657235  L 235.671054 86.575957  z " clip-path="url(#p0d276677d3)" style="fill: #46c06f; stroke: #46c06f; stroke-width: 0.25" id="panel.density.cloud.hex.3.2" data-role="x-hex" data-index="10" data-series="cloud" data-kind="shape" data-row="3" data-column="2" data-x="-0.4628563820234639" data-y="-0.3848453530677922" data-count="13.0" data-value="13.0"/>
-        <path d="M 246.133747 80.535319  L 235.671054 86.575957  L 235.671054 98.657235  L 246.133747 104.697874  L 256.59644 98.657235  L 256.59644 86.575957  z " clip-path="url(#p0d276677d3)" style="fill: #fde725; stroke: #fde725; stroke-width: 0.25" id="panel.density.cloud.hex.3.3" data-role="x-hex" data-index="11" data-series="cloud" data-kind="shape" data-row="3" data-column="3" data-x="0.7673759826742654" data-y="-0.3848453530677922" data-count="18.0" data-value="18.0"/>
-        <path d="M 267.059133 80.535319  L 256.59644 86.575957  L 256.59644 98.657235  L 267.059133 104.697874  L 277.521827 98.657235  L 277.521827 86.575957  z " clip-path="url(#p0d276677d3)" style="fill: #481769; stroke: #481769; stroke-width: 0.25" id="panel.density.cloud.hex.3.4" data-role="x-hex" data-index="12" data-series="cloud" data-kind="shape" data-row="3" data-column="4" data-x="1.9976083473719943" data-y="-0.3848453530677922" data-count="2.0" data-value="2.0"/>
-        <path d="M 193.820281 62.413402  L 183.357588 68.454041  L 183.357588 80.535319  L 193.820281 86.575957  L 204.282974 80.535319  L 204.282974 68.454041  z " clip-path="url(#p0d276677d3)" style="fill: #433d84; stroke: #433d84; stroke-width: 0.25" id="panel.density.cloud.hex.4.1" data-role="x-hex" data-index="13" data-series="cloud" data-kind="shape" data-row="4" data-column="1" data-x="-2.3082049290700573" data-y="0.36665261295501983" data-count="4.0" data-value="4.0"/>
-        <path d="M 214.745667 62.413402  L 204.282974 68.454041  L 204.282974 80.535319  L 214.745667 86.575957  L 225.208361 80.535319  L 225.208361 68.454041  z " clip-path="url(#p0d276677d3)" style="fill: #2e6d8e; stroke: #2e6d8e; stroke-width: 0.25" id="panel.density.cloud.hex.4.2" data-role="x-hex" data-index="14" data-series="cloud" data-kind="shape" data-row="4" data-column="2" data-x="-1.0779725643723284" data-y="0.36665261295501983" data-count="7.0" data-value="7.0"/>
-        <path d="M 235.671054 62.413402  L 225.208361 68.454041  L 225.208361 80.535319  L 235.671054 86.575957  L 246.133747 80.535319  L 246.133747 68.454041  z " clip-path="url(#p0d276677d3)" style="fill: #2eb37c; stroke: #2eb37c; stroke-width: 0.25" id="panel.density.cloud.hex.4.3" data-role="x-hex" data-index="15" data-series="cloud" data-kind="shape" data-row="4" data-column="3" data-x="0.15225980032540143" data-y="0.36665261295501983" data-count="12.0" data-value="12.0"/>
-        <path d="M 256.59644 62.413402  L 246.133747 68.454041  L 246.133747 80.535319  L 256.59644 86.575957  L 267.059133 80.535319  L 267.059133 68.454041  z " clip-path="url(#p0d276677d3)" style="fill: #297b8e; stroke: #297b8e; stroke-width: 0.25" id="panel.density.cloud.hex.4.4" data-role="x-hex" data-index="16" data-series="cloud" data-kind="shape" data-row="4" data-column="4" data-x="1.3824921650231299" data-y="0.36665261295501983" data-count="8.0" data-value="8.0"/>
-        <path d="M 277.521827 62.413402  L 267.059133 68.454041  L 267.059133 80.535319  L 277.521827 86.575957  L 287.98452 80.535319  L 287.98452 68.454041  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.4.5" data-role="x-hex" data-index="17" data-series="cloud" data-kind="shape" data-row="4" data-column="5" data-x="2.612724529720859" data-y="0.36665261295501983" data-count="1.0" data-value="1.0"/>
-        <path d="M 183.357588 44.291486  L 172.894895 50.332125  L 172.894895 62.413402  L 183.357588 68.454041  L 193.820281 62.413402  L 193.820281 50.332125  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.5.0" data-role="x-hex" data-index="18" data-series="cloud" data-kind="shape" data-row="5" data-column="0" data-x="-2.923321111418922" data-y="1.1181505789778314" data-count="1.0" data-value="1.0"/>
-        <path d="M 204.282974 44.291486  L 193.820281 50.332125  L 193.820281 62.413402  L 204.282974 68.454041  L 214.745667 62.413402  L 214.745667 50.332125  z " clip-path="url(#p0d276677d3)" style="fill: #472a7a; stroke: #472a7a; stroke-width: 0.25" id="panel.density.cloud.hex.5.1" data-role="x-hex" data-index="19" data-series="cloud" data-kind="shape" data-row="5" data-column="1" data-x="-1.693088746721193" data-y="1.1181505789778314" data-count="3.0" data-value="3.0"/>
-        <path d="M 225.208361 44.291486  L 214.745667 50.332125  L 214.745667 62.413402  L 225.208361 68.454041  L 235.671054 62.413402  L 235.671054 50.332125  z " clip-path="url(#p0d276677d3)" style="fill: #297b8e; stroke: #297b8e; stroke-width: 0.25" id="panel.density.cloud.hex.5.2" data-role="x-hex" data-index="20" data-series="cloud" data-kind="shape" data-row="5" data-column="2" data-x="-0.4628563820234639" data-y="1.1181505789778314" data-count="8.0" data-value="8.0"/>
-        <path d="M 246.133747 44.291486  L 235.671054 50.332125  L 235.671054 62.413402  L 246.133747 68.454041  L 256.59644 62.413402  L 256.59644 50.332125  z " clip-path="url(#p0d276677d3)" style="fill: #3d4e8a; stroke: #3d4e8a; stroke-width: 0.25" id="panel.density.cloud.hex.5.3" data-role="x-hex" data-index="21" data-series="cloud" data-kind="shape" data-row="5" data-column="3" data-x="0.7673759826742654" data-y="1.1181505789778314" data-count="5.0" data-value="5.0"/>
-        <path d="M 287.98452 44.291486  L 277.521827 50.332125  L 277.521827 62.413402  L 287.98452 68.454041  L 298.447213 62.413402  L 298.447213 50.332125  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.5.5" data-role="x-hex" data-index="22" data-series="cloud" data-kind="shape" data-row="5" data-column="5" data-x="3.2278407120697232" data-y="1.1181505789778314" data-count="1.0" data-value="1.0"/>
-        <path d="M 214.745667 26.16957  L 204.282974 32.210209  L 204.282974 44.291486  L 214.745667 50.332125  L 225.208361 44.291486  L 225.208361 32.210209  z " clip-path="url(#p0d276677d3)" style="fill: #472a7a; stroke: #472a7a; stroke-width: 0.25" id="panel.density.cloud.hex.6.2" data-role="x-hex" data-index="23" data-series="cloud" data-kind="shape" data-row="6" data-column="2" data-x="-1.0779725643723284" data-y="1.8696485450006435" data-count="3.0" data-value="3.0"/>
-        <path d="M 235.671054 26.16957  L 225.208361 32.210209  L 225.208361 44.291486  L 235.671054 50.332125  L 246.133747 44.291486  L 246.133747 32.210209  z " clip-path="url(#p0d276677d3)" style="fill: #3d4e8a; stroke: #3d4e8a; stroke-width: 0.25" id="panel.density.cloud.hex.6.3" data-role="x-hex" data-index="24" data-series="cloud" data-kind="shape" data-row="6" data-column="3" data-x="0.15225980032540143" data-y="1.8696485450006435" data-count="5.0" data-value="5.0"/>
-        <path d="M 256.59644 26.16957  L 246.133747 32.210209  L 246.133747 44.291486  L 256.59644 50.332125  L 267.059133 44.291486  L 267.059133 32.210209  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.6.4" data-role="x-hex" data-index="25" data-series="cloud" data-kind="shape" data-row="6" data-column="4" data-x="1.3824921650231299" data-y="1.8696485450006435" data-count="1.0" data-value="1.0"/>
-        <path d="M 246.133747 8.047654  L 235.671054 14.088293  L 235.671054 26.16957  L 246.133747 32.210209  L 256.59644 26.16957  L 256.59644 14.088293  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.7.3" data-role="x-hex" data-index="26" data-series="cloud" data-kind="shape" data-row="7" data-column="3" data-x="0.7673759826742654" data-y="2.621146511023455" data-count="1.0" data-value="1.0"/>
+        <path d="M 225.208361 116.779151  L 214.745667 122.81979  L 214.745667 134.901067  L 225.208361 140.941706  L 235.671054 134.901067  L 235.671054 122.81979  z " clip-path="url(#p0d276677d3)" style="fill: #472a7a; stroke: #472a7a; stroke-width: 0.25" id="panel.density.cloud.hex.1.2" data-role="x-hex" data-index="0" data-series="cloud" data-kind="shape" data-row="1" data-column="2" data-key="1.2" data-x="-0.4628563820234639" data-y="-1.8878412851134159" data-count="3.0" data-value="3.0" data-x0="-1.0779725643723284" data-x1="0.15225980032540098" data-y0="-2.3888399291286238" data-y1="-1.3868426410982082"/>
+        <path d="M 246.133747 116.779151  L 235.671054 122.81979  L 235.671054 134.901067  L 246.133747 140.941706  L 256.59644 134.901067  L 256.59644 122.81979  z " clip-path="url(#p0d276677d3)" style="fill: #481769; stroke: #481769; stroke-width: 0.25" id="panel.density.cloud.hex.1.3" data-role="x-hex" data-index="1" data-series="cloud" data-kind="shape" data-row="1" data-column="3" data-key="1.3" data-x="0.7673759826742654" data-y="-1.8878412851134159" data-count="2.0" data-value="2.0" data-x0="0.15225980032540098" data-x1="1.3824921650231299" data-y0="-2.3888399291286238" data-y1="-1.3868426410982082"/>
+        <path d="M 267.059133 116.779151  L 256.59644 122.81979  L 256.59644 134.901067  L 267.059133 140.941706  L 277.521827 134.901067  L 277.521827 122.81979  z " clip-path="url(#p0d276677d3)" style="fill: #481769; stroke: #481769; stroke-width: 0.25" id="panel.density.cloud.hex.1.4" data-role="x-hex" data-index="2" data-series="cloud" data-kind="shape" data-row="1" data-column="4" data-key="1.4" data-x="1.9976083473719943" data-y="-1.8878412851134159" data-count="2.0" data-value="2.0" data-x0="1.382492165023129" data-x1="2.612724529720858" data-y0="-2.3888399291286238" data-y1="-1.3868426410982082"/>
+        <path d="M 193.820281 98.657235  L 183.357588 104.697874  L 183.357588 116.779151  L 193.820281 122.81979  L 204.282974 116.779151  L 204.282974 104.697874  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.2.1" data-role="x-hex" data-index="3" data-series="cloud" data-kind="shape" data-row="2" data-column="1" data-key="2.1" data-x="-2.3082049290700573" data-y="-1.136343319090604" data-count="1.0" data-value="1.0" data-x0="-2.923321111418922" data-x1="-1.693088746721193" data-y0="-1.6373419631058121" data-y1="-0.6353446750753964"/>
+        <path d="M 214.745667 98.657235  L 204.282974 104.697874  L 204.282974 116.779151  L 214.745667 122.81979  L 225.208361 116.779151  L 225.208361 104.697874  z " clip-path="url(#p0d276677d3)" style="fill: #433d84; stroke: #433d84; stroke-width: 0.25" id="panel.density.cloud.hex.2.2" data-role="x-hex" data-index="4" data-series="cloud" data-kind="shape" data-row="2" data-column="2" data-key="2.2" data-x="-1.0779725643723284" data-y="-1.136343319090604" data-count="4.0" data-value="4.0" data-x0="-1.693088746721193" data-x1="-0.4628563820234639" data-y0="-1.6373419631058121" data-y1="-0.6353446750753964"/>
+        <path d="M 235.671054 98.657235  L 225.208361 104.697874  L 225.208361 116.779151  L 235.671054 122.81979  L 246.133747 116.779151  L 246.133747 104.697874  z " clip-path="url(#p0d276677d3)" style="fill: #355e8d; stroke: #355e8d; stroke-width: 0.25" id="panel.density.cloud.hex.2.3" data-role="x-hex" data-index="5" data-series="cloud" data-kind="shape" data-row="2" data-column="3" data-key="2.3" data-x="0.15225980032540143" data-y="-1.136343319090604" data-count="6.0" data-value="6.0" data-x0="-0.46285638202346346" data-x1="0.7673759826742654" data-y0="-1.6373419631058121" data-y1="-0.6353446750753964"/>
+        <path d="M 256.59644 98.657235  L 246.133747 104.697874  L 246.133747 116.779151  L 256.59644 122.81979  L 267.059133 116.779151  L 267.059133 104.697874  z " clip-path="url(#p0d276677d3)" style="fill: #481769; stroke: #481769; stroke-width: 0.25" id="panel.density.cloud.hex.2.4" data-role="x-hex" data-index="6" data-series="cloud" data-kind="shape" data-row="2" data-column="4" data-key="2.4" data-x="1.3824921650231299" data-y="-1.136343319090604" data-count="2.0" data-value="2.0" data-x0="0.7673759826742645" data-x1="1.9976083473719943" data-y0="-1.6373419631058121" data-y1="-0.6353446750753964"/>
+        <path d="M 277.521827 98.657235  L 267.059133 104.697874  L 267.059133 116.779151  L 277.521827 122.81979  L 287.98452 116.779151  L 287.98452 104.697874  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.2.5" data-role="x-hex" data-index="7" data-series="cloud" data-kind="shape" data-row="2" data-column="5" data-key="2.5" data-x="2.612724529720859" data-y="-1.136343319090604" data-count="1.0" data-value="1.0" data-x0="1.9976083473719943" data-x1="3.2278407120697232" data-y0="-1.6373419631058121" data-y1="-0.6353446750753964"/>
+        <path d="M 183.357588 80.535319  L 172.894895 86.575957  L 172.894895 98.657235  L 183.357588 104.697874  L 193.820281 98.657235  L 193.820281 86.575957  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.3.0" data-role="x-hex" data-index="8" data-series="cloud" data-kind="shape" data-row="3" data-column="0" data-key="3.0" data-x="-2.923321111418922" data-y="-0.3848453530677922" data-count="1.0" data-value="1.0" data-x0="-3.5384372937677866" data-x1="-2.3082049290700573" data-y0="-0.8858439970830001" data-y1="0.11615329094741567"/>
+        <path d="M 204.282974 80.535319  L 193.820281 86.575957  L 193.820281 98.657235  L 204.282974 104.697874  L 214.745667 98.657235  L 214.745667 86.575957  z " clip-path="url(#p0d276677d3)" style="fill: #3d4e8a; stroke: #3d4e8a; stroke-width: 0.25" id="panel.density.cloud.hex.3.1" data-role="x-hex" data-index="9" data-series="cloud" data-kind="shape" data-row="3" data-column="1" data-key="3.1" data-x="-1.693088746721193" data-y="-0.3848453530677922" data-count="5.0" data-value="5.0" data-x0="-2.3082049290700577" data-x1="-1.0779725643723284" data-y0="-0.8858439970830001" data-y1="0.11615329094741567"/>
+        <path d="M 225.208361 80.535319  L 214.745667 86.575957  L 214.745667 98.657235  L 225.208361 104.697874  L 235.671054 98.657235  L 235.671054 86.575957  z " clip-path="url(#p0d276677d3)" style="fill: #46c06f; stroke: #46c06f; stroke-width: 0.25" id="panel.density.cloud.hex.3.2" data-role="x-hex" data-index="10" data-series="cloud" data-kind="shape" data-row="3" data-column="2" data-key="3.2" data-x="-0.4628563820234639" data-y="-0.3848453530677922" data-count="13.0" data-value="13.0" data-x0="-1.0779725643723284" data-x1="0.15225980032540098" data-y0="-0.8858439970830001" data-y1="0.11615329094741567"/>
+        <path d="M 246.133747 80.535319  L 235.671054 86.575957  L 235.671054 98.657235  L 246.133747 104.697874  L 256.59644 98.657235  L 256.59644 86.575957  z " clip-path="url(#p0d276677d3)" style="fill: #fde725; stroke: #fde725; stroke-width: 0.25" id="panel.density.cloud.hex.3.3" data-role="x-hex" data-index="11" data-series="cloud" data-kind="shape" data-row="3" data-column="3" data-key="3.3" data-x="0.7673759826742654" data-y="-0.3848453530677922" data-count="18.0" data-value="18.0" data-x0="0.15225980032540098" data-x1="1.3824921650231299" data-y0="-0.8858439970830001" data-y1="0.11615329094741567"/>
+        <path d="M 267.059133 80.535319  L 256.59644 86.575957  L 256.59644 98.657235  L 267.059133 104.697874  L 277.521827 98.657235  L 277.521827 86.575957  z " clip-path="url(#p0d276677d3)" style="fill: #481769; stroke: #481769; stroke-width: 0.25" id="panel.density.cloud.hex.3.4" data-role="x-hex" data-index="12" data-series="cloud" data-kind="shape" data-row="3" data-column="4" data-key="3.4" data-x="1.9976083473719943" data-y="-0.3848453530677922" data-count="2.0" data-value="2.0" data-x0="1.382492165023129" data-x1="2.612724529720858" data-y0="-0.8858439970830001" data-y1="0.11615329094741567"/>
+        <path d="M 193.820281 62.413402  L 183.357588 68.454041  L 183.357588 80.535319  L 193.820281 86.575957  L 204.282974 80.535319  L 204.282974 68.454041  z " clip-path="url(#p0d276677d3)" style="fill: #433d84; stroke: #433d84; stroke-width: 0.25" id="panel.density.cloud.hex.4.1" data-role="x-hex" data-index="13" data-series="cloud" data-kind="shape" data-row="4" data-column="1" data-key="4.1" data-x="-2.3082049290700573" data-y="0.36665261295501983" data-count="4.0" data-value="4.0" data-x0="-2.923321111418922" data-x1="-1.693088746721193" data-y0="-0.1343460310601885" data-y1="0.8676512569702277"/>
+        <path d="M 214.745667 62.413402  L 204.282974 68.454041  L 204.282974 80.535319  L 214.745667 86.575957  L 225.208361 80.535319  L 225.208361 68.454041  z " clip-path="url(#p0d276677d3)" style="fill: #2e6d8e; stroke: #2e6d8e; stroke-width: 0.25" id="panel.density.cloud.hex.4.2" data-role="x-hex" data-index="14" data-series="cloud" data-kind="shape" data-row="4" data-column="2" data-key="4.2" data-x="-1.0779725643723284" data-y="0.36665261295501983" data-count="7.0" data-value="7.0" data-x0="-1.693088746721193" data-x1="-0.4628563820234639" data-y0="-0.1343460310601885" data-y1="0.8676512569702277"/>
+        <path d="M 235.671054 62.413402  L 225.208361 68.454041  L 225.208361 80.535319  L 235.671054 86.575957  L 246.133747 80.535319  L 246.133747 68.454041  z " clip-path="url(#p0d276677d3)" style="fill: #2eb37c; stroke: #2eb37c; stroke-width: 0.25" id="panel.density.cloud.hex.4.3" data-role="x-hex" data-index="15" data-series="cloud" data-kind="shape" data-row="4" data-column="3" data-key="4.3" data-x="0.15225980032540143" data-y="0.36665261295501983" data-count="12.0" data-value="12.0" data-x0="-0.46285638202346346" data-x1="0.7673759826742654" data-y0="-0.1343460310601885" data-y1="0.8676512569702277"/>
+        <path d="M 256.59644 62.413402  L 246.133747 68.454041  L 246.133747 80.535319  L 256.59644 86.575957  L 267.059133 80.535319  L 267.059133 68.454041  z " clip-path="url(#p0d276677d3)" style="fill: #297b8e; stroke: #297b8e; stroke-width: 0.25" id="panel.density.cloud.hex.4.4" data-role="x-hex" data-index="16" data-series="cloud" data-kind="shape" data-row="4" data-column="4" data-key="4.4" data-x="1.3824921650231299" data-y="0.36665261295501983" data-count="8.0" data-value="8.0" data-x0="0.7673759826742645" data-x1="1.9976083473719943" data-y0="-0.1343460310601885" data-y1="0.8676512569702277"/>
+        <path d="M 277.521827 62.413402  L 267.059133 68.454041  L 267.059133 80.535319  L 277.521827 86.575957  L 287.98452 80.535319  L 287.98452 68.454041  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.4.5" data-role="x-hex" data-index="17" data-series="cloud" data-kind="shape" data-row="4" data-column="5" data-key="4.5" data-x="2.612724529720859" data-y="0.36665261295501983" data-count="1.0" data-value="1.0" data-x0="1.9976083473719943" data-x1="3.2278407120697232" data-y0="-0.1343460310601885" data-y1="0.8676512569702277"/>
+        <path d="M 183.357588 44.291486  L 172.894895 50.332125  L 172.894895 62.413402  L 183.357588 68.454041  L 193.820281 62.413402  L 193.820281 50.332125  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.5.0" data-role="x-hex" data-index="18" data-series="cloud" data-kind="shape" data-row="5" data-column="0" data-key="5.0" data-x="-2.923321111418922" data-y="1.1181505789778314" data-count="1.0" data-value="1.0" data-x0="-3.5384372937677866" data-x1="-2.3082049290700573" data-y0="0.6171519349626235" data-y1="1.6191492229930393"/>
+        <path d="M 204.282974 44.291486  L 193.820281 50.332125  L 193.820281 62.413402  L 204.282974 68.454041  L 214.745667 62.413402  L 214.745667 50.332125  z " clip-path="url(#p0d276677d3)" style="fill: #472a7a; stroke: #472a7a; stroke-width: 0.25" id="panel.density.cloud.hex.5.1" data-role="x-hex" data-index="19" data-series="cloud" data-kind="shape" data-row="5" data-column="1" data-key="5.1" data-x="-1.693088746721193" data-y="1.1181505789778314" data-count="3.0" data-value="3.0" data-x0="-2.3082049290700577" data-x1="-1.0779725643723284" data-y0="0.6171519349626235" data-y1="1.6191492229930393"/>
+        <path d="M 225.208361 44.291486  L 214.745667 50.332125  L 214.745667 62.413402  L 225.208361 68.454041  L 235.671054 62.413402  L 235.671054 50.332125  z " clip-path="url(#p0d276677d3)" style="fill: #297b8e; stroke: #297b8e; stroke-width: 0.25" id="panel.density.cloud.hex.5.2" data-role="x-hex" data-index="20" data-series="cloud" data-kind="shape" data-row="5" data-column="2" data-key="5.2" data-x="-0.4628563820234639" data-y="1.1181505789778314" data-count="8.0" data-value="8.0" data-x0="-1.0779725643723284" data-x1="0.15225980032540098" data-y0="0.6171519349626235" data-y1="1.6191492229930393"/>
+        <path d="M 246.133747 44.291486  L 235.671054 50.332125  L 235.671054 62.413402  L 246.133747 68.454041  L 256.59644 62.413402  L 256.59644 50.332125  z " clip-path="url(#p0d276677d3)" style="fill: #3d4e8a; stroke: #3d4e8a; stroke-width: 0.25" id="panel.density.cloud.hex.5.3" data-role="x-hex" data-index="21" data-series="cloud" data-kind="shape" data-row="5" data-column="3" data-key="5.3" data-x="0.7673759826742654" data-y="1.1181505789778314" data-count="5.0" data-value="5.0" data-x0="0.15225980032540098" data-x1="1.3824921650231299" data-y0="0.6171519349626235" data-y1="1.6191492229930393"/>
+        <path d="M 287.98452 44.291486  L 277.521827 50.332125  L 277.521827 62.413402  L 287.98452 68.454041  L 298.447213 62.413402  L 298.447213 50.332125  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.5.5" data-role="x-hex" data-index="22" data-series="cloud" data-kind="shape" data-row="5" data-column="5" data-key="5.5" data-x="3.2278407120697232" data-y="1.1181505789778314" data-count="1.0" data-value="1.0" data-x0="2.612724529720859" data-x1="3.8429568944185877" data-y0="0.6171519349626235" data-y1="1.6191492229930393"/>
+        <path d="M 214.745667 26.16957  L 204.282974 32.210209  L 204.282974 44.291486  L 214.745667 50.332125  L 225.208361 44.291486  L 225.208361 32.210209  z " clip-path="url(#p0d276677d3)" style="fill: #472a7a; stroke: #472a7a; stroke-width: 0.25" id="panel.density.cloud.hex.6.2" data-role="x-hex" data-index="23" data-series="cloud" data-kind="shape" data-row="6" data-column="2" data-key="6.2" data-x="-1.0779725643723284" data-y="1.8696485450006435" data-count="3.0" data-value="3.0" data-x0="-1.693088746721193" data-x1="-0.4628563820234639" data-y0="1.3686499009854352" data-y1="2.370647189015851"/>
+        <path d="M 235.671054 26.16957  L 225.208361 32.210209  L 225.208361 44.291486  L 235.671054 50.332125  L 246.133747 44.291486  L 246.133747 32.210209  z " clip-path="url(#p0d276677d3)" style="fill: #3d4e8a; stroke: #3d4e8a; stroke-width: 0.25" id="panel.density.cloud.hex.6.3" data-role="x-hex" data-index="24" data-series="cloud" data-kind="shape" data-row="6" data-column="3" data-key="6.3" data-x="0.15225980032540143" data-y="1.8696485450006435" data-count="5.0" data-value="5.0" data-x0="-0.46285638202346346" data-x1="0.7673759826742654" data-y0="1.3686499009854352" data-y1="2.370647189015851"/>
+        <path d="M 256.59644 26.16957  L 246.133747 32.210209  L 246.133747 44.291486  L 256.59644 50.332125  L 267.059133 44.291486  L 267.059133 32.210209  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.6.4" data-role="x-hex" data-index="25" data-series="cloud" data-kind="shape" data-row="6" data-column="4" data-key="6.4" data-x="1.3824921650231299" data-y="1.8696485450006435" data-count="1.0" data-value="1.0" data-x0="0.7673759826742645" data-x1="1.9976083473719943" data-y0="1.3686499009854352" data-y1="2.370647189015851"/>
+        <path d="M 246.133747 8.047654  L 235.671054 14.088293  L 235.671054 26.16957  L 246.133747 32.210209  L 256.59644 26.16957  L 256.59644 14.088293  z " clip-path="url(#p0d276677d3)" style="fill: #440154; stroke: #440154; stroke-width: 0.25" id="panel.density.cloud.hex.7.3" data-role="x-hex" data-index="26" data-series="cloud" data-kind="shape" data-row="7" data-column="3" data-key="7.3" data-x="0.7673759826742654" data-y="2.621146511023455" data-count="1.0" data-value="1.0" data-x0="0.15225980032540098" data-x1="1.3824921650231299" data-y0="2.1201478670082476" data-y1="3.1221451550386634"/>
       </g>
-      <g id="panel.density.axis.y.spine" data-role="spine" data-axis="y" data-kind="line">
+      <g id="panel.density.axis.y.spine.left" data-role="spine" data-axis="y" data-kind="line" data-ink-stroke="axis">
         <path d="M 172.894895 146.982345  L 172.894895 11.858077  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
       </g>
-      <g id="panel.density.axis.y.spine-2" data-role="spine" data-axis="y" data-kind="line">
+      <g id="panel.density.axis.y.spine.right" data-role="spine" data-axis="y" data-kind="line" data-ink-stroke="axis">
         <path d="M 301.684382 146.982345  L 301.684382 11.858077  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
       </g>
-      <g id="panel.density.axis.x.spine" data-role="spine" data-axis="x" data-kind="line">
+      <g id="panel.density.axis.x.spine.bottom" data-role="spine" data-axis="x" data-kind="line" data-ink-stroke="axis">
         <path d="M 172.894895 146.982345  L 301.684382 146.982345  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
       </g>
-      <g id="panel.density.axis.x.spine-2" data-role="spine" data-axis="x" data-kind="line">
+      <g id="panel.density.axis.x.spine.top" data-role="spine" data-axis="x" data-kind="line" data-ink-stroke="axis">
         <path d="M 172.894895 11.858077  L 301.684382 11.858077  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
       </g>
       <g id="panel.density.colorbar.color" data-role="colorbar" data-kind="container">
-        <g id="patch_5">
+        <g id="patch_1">
           <path d="M 306.835961 146.982345  L 313.275436 146.982345  L 313.275436 11.858077  L 306.835961 11.858077  z " style="fill: #ffffff"/>
         </g>
         <g id="panel.density.colorbar.color.solids" data-role="colorbar-solids" data-kind="shape">
@@ -782,35 +782,35 @@
         <g id="matplotlib.axis_1"/>
         <g id="matplotlib.axis_2">
           <g id="ytick_13">
-            <g id="panel.density.colorbar.color.tick.1" data-role="colorbar-tick" data-kind="line">
+            <g id="panel.density.colorbar.color.tick.1" data-role="colorbar-tick" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
               <path d="M 0 0  L 3.5 0  " transform="translate(313.275436 115.188399)" style="stroke: #000000; stroke-width: 0.8"/>
             </g>
-            <g id="panel.density.colorbar.color.tick-label.1" data-role="colorbar-tick-label" data-kind="text">
+            <g id="panel.density.colorbar.color.tick-label.1" data-role="colorbar-tick-label" data-kind="text" data-ink-fill="ink">
               <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: start" x="320.275436" y="118.987228" transform="rotate(-0 320.275436 118.987228)">5</text>
             </g>
           </g>
           <g id="ytick_14">
-            <g id="panel.density.colorbar.color.tick.2" data-role="colorbar-tick" data-kind="line">
+            <g id="panel.density.colorbar.color.tick.2" data-role="colorbar-tick" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
               <path d="M 0 0  L 3.5 0  " transform="translate(313.275436 75.445968)" style="stroke: #000000; stroke-width: 0.8"/>
             </g>
-            <g id="panel.density.colorbar.color.tick-label.2" data-role="colorbar-tick-label" data-kind="text">
+            <g id="panel.density.colorbar.color.tick-label.2" data-role="colorbar-tick-label" data-kind="text" data-ink-fill="ink">
               <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: start" x="320.275436" y="79.244796" transform="rotate(-0 320.275436 79.244796)">10</text>
             </g>
           </g>
           <g id="ytick_15">
-            <g id="panel.density.colorbar.color.tick.3" data-role="colorbar-tick" data-kind="line">
+            <g id="panel.density.colorbar.color.tick.3" data-role="colorbar-tick" data-kind="line" data-ink-fill="tick" data-ink-stroke="tick">
               <path d="M 0 0  L 3.5 0  " transform="translate(313.275436 35.703536)" style="stroke: #000000; stroke-width: 0.8"/>
             </g>
-            <g id="panel.density.colorbar.color.tick-label.3" data-role="colorbar-tick-label" data-kind="text">
+            <g id="panel.density.colorbar.color.tick-label.3" data-role="colorbar-tick-label" data-kind="text" data-ink-fill="ink">
               <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: start" x="320.275436" y="39.502364" transform="rotate(-0 320.275436 39.502364)">15</text>
             </g>
           </g>
-          <g id="panel.density.colorbar.color.label" data-role="colorbar-label" data-kind="text">
+          <g id="panel.density.colorbar.color.label" data-role="colorbar-label" data-kind="text" data-ink-fill="label">
             <text style="font-size: 10px; font-family: 'DejaVu Sans', 'Bitstream Vera Sans', 'Computer Modern Sans Serif', 'Lucida Grande', 'Verdana', 'Geneva', 'Lucid', 'Arial', 'Helvetica', 'Avant Garde', sans-serif; text-anchor: middle" x="344.598873" y="79.420211" transform="rotate(-90 344.598873 79.420211)">Count per hexbin</text>
           </g>
         </g>
         <g id="LineCollection_1"/>
-        <g id="panel.density.colorbar.color.outline" data-role="colorbar-outline" data-kind="line">
+        <g id="panel.density.colorbar.color.outline" data-role="colorbar-outline" data-kind="line" data-ink-stroke="axis">
           <path d="M 306.835961 146.982345  L 310.055698 146.982345  L 313.275436 146.982345  L 313.275436 11.858077  L 310.055698 11.858077  L 306.835961 11.858077  L 306.835961 146.982345  z " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
         </g>
       </g>

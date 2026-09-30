@@ -215,6 +215,7 @@ def _inject_points(m: Mark, id_map, warnings) -> None:
 def _inject_indexed(m: Mark, id_map, role: str) -> None:
     xs = list(m.x) if m.x is not None else [None] * len(m.member_gids)
     ys = list(m.y) if m.y is not None else [None] * len(m.member_gids)
+    keys = (m.data.get("bar") or {}).get("keys") if role == "bar" else None
     for k, gid in enumerate(m.member_gids):
         el = id_map.get(gid)
         if el is None:
@@ -228,6 +229,8 @@ def _inject_indexed(m: Mark, id_map, role: str) -> None:
             data_y=ys[k] if k < len(ys) else None,
             data_kind=kind_for_role(role),
         )
+        if keys and k < len(keys):  # the stable member key: the category under the bar
+            el.set("data-key", str(keys[k]))
 
 
 def _inject_overlay(m: Mark, id_map) -> None:
@@ -362,6 +365,24 @@ def _level_text(v) -> str:
     return repr(v)
 
 
+def _cell_bounds(artist, rows, cols):
+    """``[(x0, x1, y0, y1)]`` per cell of a QuadMesh in data units (row-major), or ``None``."""
+    import numpy as _np
+    coords = getattr(artist, 'get_coordinates', None)
+    if coords is None:
+        return None
+    c = _np.asarray(coords(), dtype=float)
+    if c.shape[:2] != (rows + 1, cols + 1):
+        return None
+    out = []
+    for r in range(rows):
+        for k in range(cols):
+            corners = c[r:r + 2, k:k + 2].reshape(-1, 2)
+            xs, ys = corners[:, 0], corners[:, 1]
+            out.append((float(_np.nanmin(xs)), float(_np.nanmax(xs)), float(_np.nanmin(ys)), float(_np.nanmax(ys))))
+    return out
+
+
 def _inject_field(mark, id_map, warnings):
     group = id_map.get(mark.gid)
     if group is None or group.get('data-rasterized') == '1': return
@@ -371,7 +392,7 @@ def _inject_field(mark, id_map, warnings):
     field = mark.data['field']
     artist = mark.data['field_artist']
     base, role, attrs = mark.gid, 'cell' if mark.data.get('cells') else 'contour-level', None
-    cell_values = levels = None
+    cell_values = levels = bounds = None
     if mark.data.get('field_names'):
         # Helper-authored member names (e.g. hexmatrix ``hex.<row>.<col>``), in path order, with
         # per-member data-* attributes. Members hang off the series root, beside the layer id.
@@ -388,6 +409,7 @@ def _inject_field(mark, id_map, warnings):
         import numpy as _np
         arr = _np.ma.masked_invalid(_np.ma.asarray(artist.get_array(), dtype=float)).reshape(-1)
         cell_values = [None if m else float(v) for v, m in zip(arr.filled(_np.nan), _np.ma.getmaskarray(arr))]
+        bounds = _cell_bounds(artist, rows, cols)
     else:
         count = len(artist.get_paths())
         names = [f'level.{i}' for i in range(count)]
@@ -410,7 +432,10 @@ def _inject_field(mark, id_map, warnings):
         if attrs:
             _set(path, **attrs[i])
         elif mark.data.get('cells'):
-            _set(path, data_row=i // cols, data_column=i % cols)
+            _set(path, data_row=i // cols, data_column=i % cols, data_key=f'{i // cols}.{i % cols}')
+            if bounds is not None:  # the cell's data-space box: what a re-projected view moves
+                x0, x1, y0, y1 = bounds[i]
+                _set(path, data_x0=x0, data_x1=x1, data_y0=y0, data_y1=y1)
         if cell_values is not None:
             _set_value(path, cell_values[i])
         if levels is not None:

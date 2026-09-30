@@ -35,6 +35,40 @@ def _log_base(axis) -> float:
         return 10.0
 
 
+def tick_kinds(axis):
+    """Portable names for an axis' major tick locator and formatter classes: the consumer that
+    re-ticks a view (or redraws a colour key) picks the matching scheme."""
+    from matplotlib import ticker
+    loc, fmt = axis.get_major_locator(), axis.get_major_formatter()
+    if isinstance(loc, ticker.LogLocator):
+        locator = 'log'
+    elif isinstance(loc, ticker.FixedLocator):
+        locator = 'fixed'
+    elif isinstance(loc, ticker.MultipleLocator):
+        locator = 'multiple'
+    elif type(loc).__module__ == 'matplotlib.dates':
+        locator = 'date'
+    elif type(loc).__module__ == 'matplotlib.category':
+        locator = 'category'
+    else:
+        locator = 'auto'
+    if isinstance(fmt, ticker.LogFormatter):
+        formatter = 'log'
+    elif isinstance(fmt, ticker.PercentFormatter):
+        formatter = 'percent'
+    elif isinstance(fmt, ticker.ScalarFormatter):
+        formatter = 'sci' if fmt.get_offset() else 'plain'
+    elif isinstance(fmt, ticker.FixedFormatter):
+        formatter = 'fixed'
+    elif type(fmt).__module__ == 'matplotlib.dates':
+        formatter = 'date'
+    elif type(fmt).__module__ == 'matplotlib.category':
+        formatter = 'category'
+    else:
+        formatter = 'custom'
+    return locator, formatter
+
+
 def _axis_capture(ax, fig, which: str) -> dict:
     if which == "x":
         scale = ax.get_xscale()
@@ -62,6 +96,7 @@ def _axis_capture(ax, fig, which: str) -> dict:
 
     supported = getattr(ax, "name", "rectilinear") == "rectilinear" and scale in ("linear", "log")
     out["supported"] = supported
+    out["tickLocator"], out["tickFormatter"] = tick_kinds(mpl_axis)
     out["ticks"] = [{"value": float(v), "label": t.get_text()}
                     for v, t in zip(mpl_axis.get_ticklocs(), mpl_axis.get_ticklabels()) if np.isfinite(v)]
     converter = getattr(mpl_axis, "get_converter", lambda: getattr(mpl_axis, "converter", None))()

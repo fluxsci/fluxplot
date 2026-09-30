@@ -490,6 +490,12 @@
           "required": [
             "kind"
           ]
+        },
+        "tickLocator": {
+          "type": "string"
+        },
+        "tickFormatter": {
+          "type": "string"
         }
       },
       "required": [
@@ -1326,6 +1332,10 @@
           "properties": {
             "dataMorph": {
               "type": "boolean"
+            },
+            "valueMorph": {
+              "type": "boolean",
+              "description": "Members carry stable keys (data-key): two versions can be tweened member by member."
             }
           },
           "required": [
@@ -1449,6 +1459,31 @@
                   "null"
                 ]
               }
+            },
+            "center": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "width": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "keys": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Stable per-bar keys (the category label under each bar); also data-key on the bar element."
             }
           }
         },

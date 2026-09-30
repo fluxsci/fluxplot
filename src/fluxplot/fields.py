@@ -451,23 +451,8 @@ class vector_colorbars:
 
 def _tick_kinds(axis):
     """Portable names for the colour key's tick locator and formatter classes."""
-    from matplotlib import ticker
-    loc, fmt = axis.get_major_locator(), axis.get_major_formatter()
-    if isinstance(loc, ticker.LogLocator):
-        locator = 'log'
-    elif isinstance(loc, ticker.FixedLocator):
-        locator = 'fixed'
-    else:
-        locator = 'auto'
-    if isinstance(fmt, ticker.LogFormatter):
-        formatter = 'log'
-    elif isinstance(fmt, ticker.PercentFormatter):
-        formatter = 'percent'
-    elif isinstance(fmt, ticker.ScalarFormatter):
-        formatter = 'sci' if fmt.get_offset() else 'plain'
-    else:
-        formatter = 'custom'
-    return locator, formatter
+    from .capture import tick_kinds
+    return tick_kinds(axis)
 
 
 def _gradient(cb, fig):

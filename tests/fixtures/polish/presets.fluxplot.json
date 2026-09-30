@@ -1,6 +1,6 @@
 {
   "artifact": {
-    "svgSha256": "0471ec307c1645b2034dc2b39436a8e8986c8eedf6958e542f8d77a83aa273c7"
+    "svgSha256": "b513c930c93b684549afafd515fa815f6108ba851f0f38c1e889de7322a32e8d"
   },
   "axes": [
     {
@@ -32,6 +32,8 @@
         "label": "",
         "scale": "linear",
         "supported": true,
+        "tickFormatter": "category",
+        "tickLocator": "category",
         "ticks": [
           {
             "label": "a",
@@ -68,6 +70,8 @@
         "label": "",
         "scale": "linear",
         "supported": true,
+        "tickFormatter": "plain",
+        "tickLocator": "auto",
         "ticks": [
           {
             "label": "0",
@@ -133,6 +137,8 @@
         "label": "",
         "scale": "linear",
         "supported": true,
+        "tickFormatter": "plain",
+        "tickLocator": "auto",
         "ticks": [
           {
             "label": "−4",
@@ -178,6 +184,8 @@
         "label": "",
         "scale": "linear",
         "supported": true,
+        "tickFormatter": "plain",
+        "tickLocator": "auto",
         "ticks": [
           {
             "label": "−3",
@@ -215,7 +223,6 @@
     "order": [
       "panel.counts.axis.x",
       "panel.counts.axis.y",
-      "gridlines",
       "panel.counts.counts.bar.0",
       "panel.counts.counts.bar.1",
       "panel.counts.counts.bar.2",
@@ -697,6 +704,16 @@
       ]
     }
   ],
+  "idAliases": {
+    "panel.counts.axis.x.spine": "panel.counts.axis.x.spine.bottom",
+    "panel.counts.axis.x.spine-2": "panel.counts.axis.x.spine.top",
+    "panel.counts.axis.y.spine": "panel.counts.axis.y.spine.left",
+    "panel.counts.axis.y.spine-2": "panel.counts.axis.y.spine.right",
+    "panel.density.axis.x.spine": "panel.density.axis.x.spine.bottom",
+    "panel.density.axis.x.spine-2": "panel.density.axis.x.spine.top",
+    "panel.density.axis.y.spine": "panel.density.axis.y.spine.left",
+    "panel.density.axis.y.spine-2": "panel.density.axis.y.spine.right"
+  },
   "overlays": [
     {
       "id": "panel.counts.annotation.peak",
@@ -739,18 +756,28 @@
       {
         "children": [
           {
+            "kind": "shape",
+            "ref": "panel.counts.figure.background",
+            "role": "background"
+          },
+          {
             "children": [
+              {
+                "kind": "shape",
+                "ref": "panel.counts.axes.background",
+                "role": "background"
+              },
               {
                 "axis": "x",
                 "children": [
                   {
                     "kind": "line",
-                    "ref": "panel.counts.axis.x.spine",
+                    "ref": "panel.counts.axis.x.spine.bottom",
                     "role": "spine"
                   },
                   {
                     "kind": "line",
-                    "ref": "panel.counts.axis.x.spine-2",
+                    "ref": "panel.counts.axis.x.spine.top",
                     "role": "spine"
                   },
                   {
@@ -787,12 +814,12 @@
                 "children": [
                   {
                     "kind": "line",
-                    "ref": "panel.counts.axis.y.spine",
+                    "ref": "panel.counts.axis.y.spine.left",
                     "role": "spine"
                   },
                   {
                     "kind": "line",
-                    "ref": "panel.counts.axis.y.spine-2",
+                    "ref": "panel.counts.axis.y.spine.right",
                     "role": "spine"
                   },
                   {
@@ -870,6 +897,11 @@
           {
             "children": [
               {
+                "kind": "shape",
+                "ref": "panel.counts.legend.background",
+                "role": "background"
+              },
+              {
                 "children": [
                   {
                     "kind": "shape",
@@ -903,16 +935,21 @@
           {
             "children": [
               {
+                "kind": "shape",
+                "ref": "panel.density.axes.background",
+                "role": "background"
+              },
+              {
                 "axis": "x",
                 "children": [
                   {
                     "kind": "line",
-                    "ref": "panel.density.axis.x.spine",
+                    "ref": "panel.density.axis.x.spine.bottom",
                     "role": "spine"
                   },
                   {
                     "kind": "line",
-                    "ref": "panel.density.axis.x.spine-2",
+                    "ref": "panel.density.axis.x.spine.top",
                     "role": "spine"
                   },
                   {
@@ -951,12 +988,12 @@
                 "children": [
                   {
                     "kind": "line",
-                    "ref": "panel.density.axis.y.spine",
+                    "ref": "panel.density.axis.y.spine.left",
                     "role": "spine"
                   },
                   {
                     "kind": "line",
-                    "ref": "panel.density.axis.y.spine-2",
+                    "ref": "panel.density.axis.y.spine.right",
                     "role": "spine"
                   },
                   {
@@ -1108,15 +1145,39 @@
           0.0,
           0.0
         ],
+        "center": [
+          0.0,
+          1.0,
+          2.0
+        ],
+        "keys": [
+          "a",
+          "b",
+          "c"
+        ],
         "length": [
           3.0,
           5.0,
           2.0
         ],
-        "orientation": "vertical"
+        "orientation": "vertical",
+        "width": [
+          0.8,
+          0.8,
+          0.8
+        ]
       },
       "capabilities": {
-        "dataMorph": false
+        "dataMorph": false,
+        "valueMorph": true
+      },
+      "color": {
+        "alpha": 1.0,
+        "hex": "#1f77b4",
+        "palette": {
+          "index": 0,
+          "name": "cycle"
+        }
       },
       "components": [
         {
@@ -1162,9 +1223,11 @@
     },
     {
       "capabilities": {
-        "dataMorph": false
+        "dataMorph": false,
+        "valueMorph": true
       },
       "color": {
+        "hex": "varies",
         "scale": "cloud"
       },
       "components": [
@@ -1532,5 +1595,17 @@
     "width": 360.0
   },
   "spec": "fluxplot/manifest",
+  "style": {
+    "theme": null,
+    "tokens": {
+      "axis": "#000000",
+      "grid": "#b0b0b0",
+      "ink": "#000000",
+      "label": "#000000",
+      "paper": "#ffffff",
+      "plot": "#ffffff",
+      "tick": "#000000"
+    }
+  },
   "svg": "presets.svg"
 }

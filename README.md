@@ -370,6 +370,14 @@ extent is exactly `length` data units, anchored in a corner (`loc`), with its la
 (`"<length> <units>"`) as `scalebar.<n>.label`; it takes the theme's ink. `examples/image_example.py`
 draws a two-channel field.
 
+**Geometry a view can move.** Every axis records its tick scheme (`tickLocator` /
+`tickFormatter`: `auto`, `log`, `fixed`, `category`, `date`, …); a bar group's `bar` payload holds
+each bar's `center`, `width`, `baseline` and `length` in data units plus a stable `key` (the
+category under it, also `data-key` on the element); heatmap cells and hexagons carry their
+data-space box as `data-x0` / `data-x1` / `data-y0` / `data-y1` and a `data-key` of `row.col`.
+`capabilities.valueMorph` is true for a series whose members are keyed that way, so two versions
+of the plot can be tweened member by member.
+
 **Twin axes and figure-scope parts.** An `ax.twinx()` / `twiny()` is the same panel seen through
 a second value axis, not a panel of its own: its axis is `axis.y2.*` / `axis.x2.*` (title, ticks,
 its spine), the manifest's `axes[0].y2` records its scale, domain and anchors, and every series

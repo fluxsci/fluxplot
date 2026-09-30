@@ -735,11 +735,14 @@ def hexmatrix(
     bins = {"row": rows.astype(int), "col": cols.astype(int), "x": np.asarray(cx, dtype=float),
             "y": np.asarray(cy, dtype=float), "count": counts, "value": np.asarray(value, dtype=float)}
     names = [f"{int(r)}.{int(c)}" for r, c in zip(rows, cols)]
-    attrs = [{"data_row": int(r), "data_column": int(c), "data_x": _plain(float(px)),
+    boxes = [(float(np.min(v[:, 0])), float(np.max(v[:, 0])), float(np.min(v[:, 1])), float(np.max(v[:, 1])))
+             for v in (np.asarray(poly, dtype=float) for poly in polys)]  # each hexagon's data-space box
+    attrs = [{"data_row": int(r), "data_column": int(c), "data_key": f"{int(r)}.{int(c)}", "data_x": _plain(float(px)),
               "data_y": _plain(float(py)), "data_count": None if counts is None else _plain(float(k)),
-              "data_value": _plain(float(val))}
-             for r, c, px, py, k, val in zip(rows, cols, cx, cy,
-                                              counts if counts is not None else [None] * len(rows), value)]
+              "data_value": _plain(float(val)),
+              "data_x0": _plain(b[0]), "data_x1": _plain(b[1]), "data_y0": _plain(b[2]), "data_y1": _plain(b[3])}
+             for r, c, px, py, k, val, b in zip(rows, cols, cx, cy,
+                                                 counts if counts is not None else [None] * len(rows), value, boxes)]
     payload = {"orientation": orientation, "hexRadius": float(lat.R),
                "aspect": aspect if isinstance(aspect, str) else float(aspect),
                "scale": {"x": xscale if not matrix_mode else "linear",

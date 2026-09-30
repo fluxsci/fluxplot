@@ -97,7 +97,8 @@ def test_units_scalars_and_horizontal_baselines(tmp_path):
     man, _, _ = save(tmp_path, fig)
     bars = next(s for s in man['series'] if s['kind'] == 'bar')
     assert bars['data']['x'] == [6, 7]
-    assert bars['bar'] == {'orientation': 'horizontal', 'baseline': [4, 4], 'length': [2, 3]}
+    assert bars['bar'] == {'orientation': 'horizontal', 'baseline': [4, 4], 'length': [2, 3],
+                           'center': [0.0, 1.0], 'width': [0.8, 0.8], 'keys': ['a', 'b']}
     assert man['axes'][0]['y']['units']['kind'] == 'category'
     assert man['axes'][2]['x']['units']['kind'] == 'date'
 

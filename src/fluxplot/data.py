@@ -30,14 +30,45 @@ def artist_xy(artist):
     return None, None
 
 
-def bar_data(patches, orientation='vertical'):
+def bar_data(patches, orientation='vertical', axes=None):
+    """A bar group's data geometry: per bar its ``center`` along the category axis, ``width``
+    (thickness), ``baseline`` and ``length`` in data units, and a stable ``key`` — the category
+    label under the bar when the axis is categorical (or has a tick labelled there), else the
+    centre's value as text — so two versions of the plot can be tweened bar by bar."""
     horizontal = orientation == 'horizontal'
     centers = [p.get_y() + p.get_height()/2 if horizontal else p.get_x() + p.get_width()/2 for p in patches]
+    widths = [p.get_height() if horizontal else p.get_width() for p in patches]
     lengths = [p.get_width() if horizontal else p.get_height() for p in patches]
     bases = [p.get_x() if horizontal else p.get_y() for p in patches]
     ends = np.asarray(bases) + np.asarray(lengths)
     x, y = (ends, centers) if horizontal else (centers, ends)
-    return values(x), values(y), {'orientation': orientation, 'baseline': values(bases), 'length': values(lengths)}
+    meta = {'orientation': orientation, 'baseline': values(bases), 'length': values(lengths),
+            'center': values(centers), 'width': values(widths)}
+    axes = axes if axes is not None else getattr(patches[0], 'axes', None) if patches else None
+    if axes is not None:
+        meta['keys'] = category_keys(axes.yaxis if horizontal else axes.xaxis, centers)
+    return values(x), values(y), meta
+
+
+def category_keys(mpl_axis, positions):
+    """A stable text key for each position on ``mpl_axis``: the category name (a categorical
+    axis), else the tick label sitting there, else the position itself as text."""
+    from .capture import tick_kinds
+    labels = {}
+    units = getattr(mpl_axis, 'units', None)
+    mapping = getattr(units, '_mapping', None)  # matplotlib.category.UnitData
+    if isinstance(mapping, dict):
+        labels.update({float(v): str(k) for k, v in mapping.items()})
+    locator, formatter = tick_kinds(mpl_axis)
+    if locator in ('fixed', 'category') or formatter in ('fixed', 'category'):  # labels the caller set, not a number's format
+        for loc, txt in zip(mpl_axis.get_ticklocs(), mpl_axis.get_ticklabels()):
+            if txt.get_text() and float(loc) not in labels:
+                labels[float(loc)] = txt.get_text()
+    out = []
+    for pos in positions:
+        hit = next((lbl for loc, lbl in labels.items() if abs(loc - float(pos)) <= 1e-9), None)
+        out.append(hit if hit is not None else f'{float(pos):g}')
+    return out
 
 
 def refresh(mark):
@@ -51,7 +82,8 @@ def refresh(mark):
         mark.data['c'] = values(art.get_array())  # the colour-mapped values, as drawn
     if mark.live_data:
         if mark.role == 'bar':
-            mark.x, mark.y, meta = bar_data(mark.artists, mark.data.get('bar', {}).get('orientation', 'vertical'))
+            mark.x, mark.y, meta = bar_data(mark.artists, mark.data.get('bar', {}).get('orientation', 'vertical'),
+                                            axes=mark.axes)
             mark.data['bar'] = meta
         else:
             x, y = artist_xy(art)
