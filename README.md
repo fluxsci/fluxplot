@@ -886,6 +886,20 @@ default). Two more recipe controls follow: `__fluxplot__.palette = "tol.bright"`
 `__fluxplot__.series = {"<series id>": {"color": "#…"}}` recolours a series on a rerun — the
 helpers and the signature plots check it before drawing.
 
+### Accessibility lint
+
+`fp.colorcheck` asks what a plot's colours do for the reader: `simulate(colors, "deuteranomaly")`
+applies the Machado (2009) colour-vision-deficiency matrices (embedded at every published
+severity; protanomaly / deuteranomaly / tritanomaly), `greyscale` shows the black-and-white print,
+`delta_e` is CIEDE2000 and `contrast` the WCAG 2 ratio. `check_palette(colors, bg, text=…)` finds
+pairs that collapse under a deficiency (`cvd-confusable`, ΔE < 10) or in greyscale
+(`greyscale-confusable`, ΔL* < 10) and marks (`low-contrast-mark`, < 3:1) or text
+(`low-contrast-text`, < 4.5:1) too faint against the ground; `check_colormap` flags a map whose
+ΔE steps vary too much (`non-uniform`) or a sequential map whose lightness reverses
+(`non-monotone`). `fp.save(..., lint="warn")` runs `check_figure` on the tagged series and text
+inks: findings go to `SaveResult.warnings` and the manifest's `quality.color`; `lint="error"`
+refuses the save. Off by default.
+
 ### Colour controls in the recipe
 
 Every colour scale is a recipe control: `fp.save` writes its complete state under

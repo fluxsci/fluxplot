@@ -300,6 +300,55 @@
           }
         }
       }
+    },
+    "quality": {
+      "type": "object",
+      "description": "Lint findings recorded at save (fp.save(lint=...)): quality.color lists colorcheck findings.",
+      "properties": {
+        "color": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "a",
+              "value",
+              "threshold",
+              "message"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "cvd-confusable",
+                  "greyscale-confusable",
+                  "low-contrast-mark",
+                  "low-contrast-text",
+                  "non-uniform",
+                  "non-monotone"
+                ]
+              },
+              "a": {
+                "type": "string"
+              },
+              "b": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "value": {
+                "type": "number"
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {

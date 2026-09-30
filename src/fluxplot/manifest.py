@@ -51,6 +51,7 @@ def build_manifest(
     rasterized: set | None = None,
     extra_scales=(),
     style: dict | None = None,
+    quality: dict | None = None,
 ) -> dict:
     vbw, vbh = svg_viewbox(fig)
     # gids rendered as a single embedded <image> instead of vector primitives (raster.py).
@@ -397,6 +398,8 @@ def build_manifest(
         out["colorScales"] = list(scales.values())
     if style is not None:
         out["style"] = style
+    if quality is not None:
+        out["quality"] = quality
     if svg_sha256 is not None:
         # checksum of the FINAL postprocessed SVG bytes: deterministic (the SVG is
         # byte-stable) and acyclic (the SVG does not contain the manifest). Consumers use it

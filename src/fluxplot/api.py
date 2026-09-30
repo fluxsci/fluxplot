@@ -711,6 +711,7 @@ def _save(
     raster_threshold=None,
     raster_dpi=None,
     theme_vars=False,
+    lint="off",
     _now=None,
     _registry=None,
 ) -> SaveResult:
@@ -756,6 +757,12 @@ def _save(
     the fallback form is honoured by browsers and rsvg, still to be checked in Illustrator /
     Inkscape). A rerun with ``FLUX_PARAMS={"__fluxplot__": {"theme": "dark"}}`` makes every
     ``fx.use_*`` call apply that theme instead.
+
+    **Accessibility lint** (``lint="warn"`` / ``"error"``, default ``"off"``): the tagged series'
+    colours and the text inks are checked against one another and the ground
+    (:mod:`fluxplot.colorcheck` — colour-vision deficiency, greyscale, WCAG contrast). Findings
+    land in ``SaveResult.warnings`` and in the manifest's ``quality.color``; ``"error"`` refuses
+    the save with them.
 
     **Targeted reruns** (``FLUXPLOT_ONLY``): a figure-level script that saves
     several plots can be re-run for ONE of them — set ``FLUXPLOT_ONLY`` to a
@@ -820,6 +827,19 @@ def _save(
     guides = [g for local in guides_by_panel for g in local]
     geometry_warnings = _warn_log_zero_anchors(plot_axes, plot_name)
 
+    # accessibility lint (B3): findings travel with the plot; "error" refuses it outright
+    lint_findings, lint_warnings = [], []
+    if lint not in ("off", "warn", "error"):
+        raise ValueError("lint must be 'off', 'warn' or 'error'")
+    if lint != "off":
+        from .colorcheck import check_figure
+        lint_findings = [f.as_dict() for f in check_figure(fig)]
+        lint_warnings = [f"{plot_name}: colour lint: {f['message']}" for f in lint_findings]
+        if lint == "error" and lint_findings:
+            raise ValueError("colour lint failed:\n  " + "\n  ".join(f["message"] for f in lint_findings))
+        for msg in lint_warnings:
+            warnings.warn(msg, UserWarning, stacklevel=3)
+
     # 3b. auto-rasterize pathologically heavy layers — the safety default. A LineCollection of
     # per-edge segments or a 10k-point scatter becomes one <image> instead of 10^4-10^5 SVG
     # nodes, while axes/ticks/labels/legend stay vector (see raster.py). Planned AFTER the
@@ -851,7 +871,7 @@ def _save(
                                 rasterized=not keep_vectors)
         raster_warnings.append(note)
         print(note, file=sys.stderr)
-    all_warnings = promo_warnings + geometry_warnings + raster_warnings + post_warnings
+    all_warnings = promo_warnings + geometry_warnings + lint_warnings + raster_warnings + post_warnings
 
     # 6. assemble manifest + recipe. Drop scaffold guides matplotlib culled at draw
     # (boundary ticks/gridlines, empty axis titles) so the manifest references only
@@ -862,6 +882,7 @@ def _save(
     man = _panels.manifest(
         fig, reg, kept_guides, panels, axes_capture, present, rasterized_gids,
         extra_scales_by_panel=scales_by_panel, style=style_record,
+        quality={"color": lint_findings} if lint != "off" else None,
         plot_type=plot_type, svg_filename=svg_filename, spec_version=SPEC_VERSION,
         fluxplot_version=__version__, mpl_version=matplotlib.__version__,
         svg_sha256=hashlib.sha256(out_svg).hexdigest(),
@@ -912,7 +933,7 @@ def _save(
 
 
 def save(fig, path, *, recipe=None, validate=True, force_vectors=False,
-         raster_threshold=None, raster_dpi=None, theme_vars=False, _now=None) -> SaveResult:
+         raster_threshold=None, raster_dpi=None, theme_vars=False, lint="off", _now=None) -> SaveResult:
     from .scene3d import Scene3D
     if isinstance(fig, Scene3D):
         from .scene3d_manifest import save_scene3d
@@ -934,7 +955,7 @@ def save(fig, path, *, recipe=None, validate=True, force_vectors=False,
     with _tagger.temporary_gids(fig, reg), _render.final_layout(fig):
         return _save(fig, path, recipe=recipe, validate=validate, force_vectors=force_vectors,
                      raster_threshold=raster_threshold, raster_dpi=raster_dpi, theme_vars=theme_vars,
-                     _now=_now, _registry=reg)
+                     lint=lint, _now=_now, _registry=reg)
 
 
 save.__doc__ = _save.__doc__

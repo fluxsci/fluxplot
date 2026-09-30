@@ -8,7 +8,9 @@ See ``Flux_SemanticSVG_Spec.md`` for the conceptual spec.
 """
 
 from . import (
+    colorcheck,  # noqa: E402,F401  (accessibility lint — colorcheck.check_palette, simulate, contrast, …)
     colors,  # noqa: E402,F401  (canonical palette/colormaps — colors.green400, colors.maps.emerald, …)
+    colorscale,  # noqa: E402,F401  (the portable colour-scale law — colorscale.apply(record, values))
     stats,  # noqa: E402,F401  (tests behind the plots — stats.welch_hedges(a, b), …)
     style,  # noqa: E402,F401  (house plotting style — fx.use_light(), fx.FLEXOKI, …)
 )
@@ -67,6 +69,8 @@ __all__ = [
     "colorbar",
     "SPEC_VERSION",
     "colors",
+    "colorcheck",
+    "colorscale",
     "stats",
     "style",
     "use_light",
