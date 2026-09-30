@@ -79,15 +79,25 @@ def build_recipe(
     recipe = {} if recipe in (None, False) else dict(recipe)
 
     script = _script_block(recipe.get("script"))
+    notebook = None
     if script is not None:
         discovery = "explicit"
+    elif recipe.get("notebook"):
+        # a notebook cell made the plot: recorded (path, cell, hash), not rerunnable by Flux yet
+        notebook = _provenance.notebook_block(recipe["notebook"], recipe.get("cell"))
+        discovery = "notebook"
     elif not suppress:
         found = _provenance.discover_script()
         if found:
             script = {"path": found}
             discovery = "automatic"
         else:
-            discovery = "unavailable"
+            nb = _provenance.discover_notebook()
+            if nb:
+                notebook = _provenance.notebook_block(nb, recipe.get("cell"))
+                discovery = "notebook"
+            else:
+                discovery = "unavailable"
     else:
         discovery = "suppressed"
 
@@ -103,10 +113,14 @@ def build_recipe(
         "inputs": [_hash_input(i, base_dir) for i in inputs],
         "env": None,  # v0: full environment capture deferred (spec §11.3)
     }
+    if notebook is not None:
+        out["notebook"] = notebook
     if not suppress:
         out["provenance"] = _provenance.build_provenance(
-            script.get("path") if script else None, discovery
+            script.get("path") if script else (notebook["path"] if notebook else None), discovery
         )
+        if notebook is not None and notebook["sha256"] is None:
+            out["provenance"].pop("scriptSha256", None)
 
     # Re-run block — what flux-core's runRecipe needs to reproduce the plot. It resolves
     # `cwd` and `output` against the recipe's OWN directory, runs `command args` (appending

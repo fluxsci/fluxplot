@@ -3,45 +3,115 @@
   "$id": "https://flux.dev/schemas/fluxplot-recipe-0.3.1.json",
   "title": "FluxPlot recipe",
   "type": "object",
-  "required": ["spec", "schemaVersion", "plot", "outputs", "inputs"],
+  "required": [
+    "spec",
+    "schemaVersion",
+    "plot",
+    "outputs",
+    "inputs"
+  ],
   "properties": {
-    "spec": { "const": "fluxplot/recipe" },
-    "schemaVersion": { "type": "string" },
-    "plot": { "type": "string" },
+    "spec": {
+      "const": "fluxplot/recipe"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "plot": {
+      "type": "string"
+    },
     "outputs": {
       "type": "object",
       "properties": {
-        "svg": { "type": "string" },
-        "glb": { "type": "string" },
-        "manifest": { "type": "string" }
+        "svg": {
+          "type": "string"
+        },
+        "glb": {
+          "type": "string"
+        },
+        "manifest": {
+          "type": "string"
+        }
       }
     },
-    "generatedAt": { "type": ["string", "null"] },
-    "script": {
-      "type": ["object", "null"],
-      "properties": { "path": { "type": "string" } }
+    "generatedAt": {
+      "type": [
+        "string",
+        "null"
+      ]
     },
-    "params": { "type": "object" },
-    "command": { "type": "string" },
-    "args": { "type": "array", "items": { "type": "string" } },
-    "cwd": { "type": "string" },
-    "output": { "type": "string" },
+    "script": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "params": {
+      "type": "object"
+    },
+    "command": {
+      "type": "string"
+    },
+    "args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cwd": {
+      "type": "string"
+    },
+    "output": {
+      "type": "string"
+    },
     "provenance": {
       "type": "object",
       "description": "How the producing script was determined, plus the interpreter, platform, package versions, script hash and Git state.",
-      "required": ["scriptDiscovery"],
+      "required": [
+        "scriptDiscovery"
+      ],
       "properties": {
-        "scriptDiscovery": { "enum": ["automatic", "explicit", "unavailable", "suppressed"] },
-        "scriptSha256": { "type": "string" },
-        "python": { "type": "string" },
-        "platform": { "type": "string" },
-        "packages": { "type": "object", "additionalProperties": { "type": "string" } },
+        "scriptDiscovery": {
+          "enum": [
+            "automatic",
+            "explicit",
+            "notebook",
+            "unavailable",
+            "suppressed"
+          ]
+        },
+        "scriptSha256": {
+          "type": "string"
+        },
+        "python": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "packages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "git": {
           "type": "object",
-          "required": ["commit"],
+          "required": [
+            "commit"
+          ],
           "properties": {
-            "commit": { "type": "string" },
-            "dirty": { "type": "boolean" }
+            "commit": {
+              "type": "string"
+            },
+            "dirty": {
+              "type": "boolean"
+            }
           }
         }
       }
@@ -50,15 +120,60 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["path"],
+        "required": [
+          "path"
+        ],
         "properties": {
-          "role": { "type": "string" },
-          "path": { "type": ["string", "null"] },
-          "sha256": { "type": ["string", "null"] },
-          "bytes": { "type": "integer" }
+          "role": {
+            "type": "string"
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bytes": {
+            "type": "integer"
+          }
         }
       }
     },
-    "env": { "type": ["object", "null"] }
+    "env": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "notebook": {
+      "type": "object",
+      "description": "The notebook (and cell) that produced the plot when no script did: recorded for provenance, not rerunnable.",
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "cell": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
   }
 }

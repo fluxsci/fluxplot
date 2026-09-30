@@ -138,3 +138,61 @@ def _git_available() -> bool:
         return subprocess.run(["git", "--version"], capture_output=True).returncode == 0
     except OSError:
         return False
+
+
+# --- D7: notebook recipes ------------------------------------------------------------------------
+
+def _growth(tmp_path, recipe):
+    import fluxplot as fp
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
+    fp.line(ax, [0, 1], [0, 1], series="g")
+    res = fp.save(fig, str(tmp_path / "nb.svg"), recipe=recipe)
+    plt.close(fig)
+    return json.load(open(res.recipe))
+
+
+def test_explicit_notebook_recipe_records_path_cell_and_hash_without_a_command(tmp_path):
+    nb = tmp_path / "analysis.qmd"
+    nb.write_text("---\ntitle: x\n---\n\n```{python}\n#| label: fig-growth\nfp.save(fig, 'nb.svg')\n```\n")
+    rec = _growth(tmp_path, {"notebook": str(nb), "cell": "fig-growth", "params": {"k": 1}})
+    assert rec["script"] is None and "command" not in rec and "args" not in rec
+    assert rec["provenance"]["scriptDiscovery"] == "notebook"
+    import hashlib
+    digest = hashlib.sha256(nb.read_bytes()).hexdigest()
+    assert rec["notebook"] == {"path": str(nb), "cell": "fig-growth", "sha256": digest}
+    assert rec["provenance"]["scriptSha256"] == digest
+    assert rec["params"]["k"] == 1
+    # a missing notebook file still records what was said, with no hash
+    rec = _growth(tmp_path, {"notebook": str(tmp_path / "gone.ipynb")})
+    assert rec["notebook"] == {"path": str(tmp_path / "gone.ipynb"), "cell": None, "sha256": None}
+    assert "scriptSha256" not in rec["provenance"]
+
+
+def test_kernel_notebook_is_detected_from_host_signals_only(tmp_path, monkeypatch):
+    import __main__
+    nb = tmp_path / "live.qmd"
+    nb.write_text("# live\n")
+    monkeypatch.setattr(__main__, "__file__", None, raising=False)  # a kernel: no script
+    monkeypatch.delenv(provenance.NOTEBOOK_ENV, raising=False)
+    for name in provenance.NOTEBOOK_GLOBALS:
+        monkeypatch.delattr(__main__, name, raising=False)
+    assert provenance.discover_notebook() is None
+    monkeypatch.setenv(provenance.NOTEBOOK_ENV, str(nb))
+    assert provenance.discover_notebook() == str(nb)
+    rec = _growth(tmp_path, None)
+    assert rec["provenance"]["scriptDiscovery"] == "notebook" and rec["notebook"]["path"] == str(nb)
+    assert rec["notebook"]["cell"] is None and "command" not in rec
+    monkeypatch.delenv(provenance.NOTEBOOK_ENV)
+    monkeypatch.setattr(__main__, "__vsc_ipynb_file__", str(nb), raising=False)
+    assert provenance.discover_notebook() == str(nb)
+    monkeypatch.setattr(__main__, "__vsc_ipynb_file__", "file://" + str(nb), raising=False)
+    assert provenance.discover_notebook() == str(nb)
+    # a stated path that does not exist is not guessed at; an explicit script still wins
+    monkeypatch.setattr(__main__, "__vsc_ipynb_file__", str(tmp_path / "nope.ipynb"), raising=False)
+    assert provenance.discover_notebook() is None
+    monkeypatch.setattr(__main__, "__vsc_ipynb_file__", str(nb), raising=False)
+    rec = _growth(tmp_path, {"script": "growth.py"})
+    assert rec["provenance"]["scriptDiscovery"] == "explicit" and "notebook" not in rec
+    rec = _growth(tmp_path, False)  # suppressed: no provenance block at all, and no notebook
+    assert "provenance" not in rec and "notebook" not in rec and rec["script"] is None

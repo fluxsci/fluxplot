@@ -158,6 +158,12 @@ input data, and a `provenance` block (script hash, interpreter, package versions
 available). Enough to **re-run the plot here** — which is what makes "rerun Figure 6d with a
 Mann-Whitney test" a real operation. All host-varying material lives here, never in the SVG/manifest.
 
+A plot made in a notebook cell has no script to re-run. `fp.save(..., recipe={"notebook": path,
+"cell": "fig-growth"})` records it honestly: `provenance.scriptDiscovery: "notebook"` and a
+`notebook: {path, cell, sha256}` block, with no `command`. In a live kernel the notebook is
+detected from what the host states outright — `$QUARTO_DOCUMENT_PATH`, or the
+`__vsc_ipynb_file__` / `__session__` globals — and never guessed from the working directory.
+
 ### Consistency between the three files
 The manifest records `artifact.svgSha256` — the checksum of the final SVG bytes. `save` stages all
 three files and commits them with atomic per-file renames (SVG → manifest → recipe), so a watcher

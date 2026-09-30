@@ -81,6 +81,45 @@ def discover_script() -> str | None:
     return None
 
 
+#: where a running kernel says which notebook it serves — each set by exactly one host, none guessed
+NOTEBOOK_ENV = "QUARTO_DOCUMENT_PATH"
+NOTEBOOK_GLOBALS = ("__vsc_ipynb_file__", "__session__")
+
+
+def discover_notebook() -> str | None:
+    """The absolute path of the notebook the current kernel serves, or ``None``.
+
+    Only what the host states outright counts: ``$QUARTO_DOCUMENT_PATH`` (Quarto rendering or
+    a live QMD kernel), then the ``__vsc_ipynb_file__`` / ``__session__`` globals VS Code and
+    Jupyter put in ``__main__``. Nothing is inferred from the working directory or the stack: a
+    wrong notebook would be worse than none.
+    """
+    import __main__
+
+    candidates = [os.environ.get(NOTEBOOK_ENV)]
+    candidates += [getattr(__main__, name, None) for name in NOTEBOOK_GLOBALS]
+    for cand in candidates:
+        if isinstance(cand, str) and cand and not cand.startswith("<"):
+            if cand.startswith("file://"):
+                from urllib.parse import unquote, urlparse
+                cand = unquote(urlparse(cand).path)
+            if os.path.isfile(cand):
+                return os.path.abspath(cand)
+    return None
+
+
+def notebook_block(path: str, cell) -> dict:
+    """The recipe's ``notebook`` block: the path, the cell label and the file's SHA-256 (``None``
+    when it cannot be read)."""
+    out = {"path": str(path), "cell": None if cell is None else str(cell), "sha256": None}
+    try:
+        with open(path, "rb") as f:
+            out["sha256"] = hashlib.sha256(f.read()).hexdigest()
+    except OSError:
+        pass
+    return out
+
+
 def _git_info(directory: str) -> dict | None:
     """``{"commit": ..., "dirty": ...}`` for the repo containing ``directory``.
 
@@ -111,8 +150,10 @@ def build_provenance(script_path: str | None, discovery: str) -> dict:
     """The recipe's additive ``provenance`` block.
 
     ``discovery`` distinguishes ``automatic`` (we found the script), ``explicit`` (the caller
-    recorded it) and ``unavailable`` (no script — the artifact is not rerunnable). Script-hash
-    failures omit only that field; Git is optional and omitted outside a repository.
+    recorded it), ``notebook`` (a notebook cell produced it — recorded, not rerunnable) and
+    ``unavailable`` (no script — the artifact is not rerunnable). Script-hash failures omit only
+    that field; Git is optional and omitted outside a repository. For a notebook, ``script_path``
+    is the notebook file: its hash and Git state are recorded the same way.
     """
     import matplotlib
 
