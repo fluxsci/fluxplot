@@ -319,7 +319,7 @@ Two styles, both pure matplotlib underneath — you can mix them freely with raw
 
 ```python
 fp.line(ax, x, y, *, series, marker=None, label=None, **mpl_kwargs)
-fp.scatter(ax, x, y, *, series, label=None, **mpl_kwargs)
+fp.scatter(ax, x, y, *, series, label=None, key=None, **mpl_kwargs)   # c=values → a colour scale
 fp.bar(ax, x, height, *, series, **mpl_kwargs)
 fp.errorbar(ax, x, y, *, series, yerr=None, **mpl_kwargs)
 fp.area(ax, x, y1, y2=0, *, series, **mpl_kwargs)
@@ -755,6 +755,42 @@ fp.colorbar(bands, name="energy", label="Energy")
 - Named colorbars expose the ramp, label and ticks, and link to the mappable. Ordinary
   `fig.colorbar` calls receive the same automatic guide capture.
 
+### Colour scales: the exact law, portably
+
+Every colour-mapped mark — a heatmap, a hexmatrix, a filled contour, a `fp.scatter(..., c=values)`,
+even a raw `ax.imshow` or `ax.pcolormesh` you never tagged — records its complete value → colour
+law in the manifest's `colorScales[]`:
+
+```jsonc
+{"id": "rates",                          // == the recipe's colour-control key
+ "kind": "continuous",                   // continuous | binned (a BoundaryNorm)
+ "colormap": {"name": "viridis", "source": "matplotlib", "N": 256, "lut": ["#440154ff", …],
+              "under": "#440154ff", "over": "#fde725ff", "bad": "#00000000", "discrete": false},
+ "norm": {"kind": "log", "vmin": 1.0, "vmax": 53.0, "clip": false, "base": 10, "extend": "neither"},
+ "mappables": ["rates.hexes"], "colorbars": ["colorbar.color"], "label": "Synapses per hexbin",
+ "recolor": "live",                      // live | raster | regenerate (an imshow is a raster)
+ "editable": {"cmap": true, "limits": true, "normKinds": ["linear", "log", "power", "symlog"], "center": false}}
+```
+
+`lut` is the full lookup table matplotlib indexes, so a consumer reproduces its colours exactly:
+`lut[trunc(x · N)]` for the normalised `x`, `under` / `over` beyond the limits, `bad` for a missing
+value (`fluxplot.colorscale.apply` is the reference implementation, tested hex for hex against
+matplotlib for every norm kind; `tests/fixtures/colorscale_vectors.json` carries the vectors Flux
+checks too). In the SVG every coloured element carries the value it was coloured by —
+`data-value` on each cell, hexagon, band (with `data-level-low` / `-high`), contour line and point,
+`data-missing="1"` for a gap — and the group carries `data-color-scale` and `data-paint` (`fill`,
+`stroke` or `fill stroke`), so Flux can recolour or re-range a plot live, without Python.
+`series[].field` and `series[].color.scale` point at the scale; `fp.heatmap(..., value_raster=True)`
+additionally writes the matrix as `<plot>.<key>.values.json` beside an image layer.
+
+Colour keys are exact vectors: the 256 solid quads become one `<rect>` filled by a hard-stepped
+`<linearGradient>` (no rasterization, no warning), and the colorbar guide records `anchors`
+(vmin / vcenter / vmax ↔ SVG position), `axisLength`, `orientation`, `tickLocator`,
+`tickFormatter`, `extend` and the extend triangles (`colorbar.color.extend-min` / `-max`).
+
+`fp.tag_seaborn(ax, plot="heatmap")` (and the bivariate `histplot` / `kdeplot`) turn a seaborn
+mesh or contour set into the same kind of field, cells named and colour key linked.
+
 ### Colormap and palette collections
 
 Every colormap and palette fluxplot knows is plain data in the package —
@@ -785,18 +821,38 @@ The JSON is built by `tools/build_color_definitions.py` from the upstream packag
 (matplotlib, cmcrameri, tol-colors, cmasher) — a build-time input only, re-run when a
 collection should be refreshed.
 
-In Flux, open X-Ray on a recipe-backed plot and expand **Color scales**. Edit the palette or
-range, then choose **Apply and regenerate**. Both the field and its key are regenerated from
-source data; authored Flux overrides remain keyed to existing part IDs. There is no attempt to
-recolor an embedded image by changing SVG fill. Nonstandard normalizations retain their own
-range rules; edit those in Python.
+Every `fx.use_*` theme installs the house sequential map (`cmasher.rainforest`, `fx.SEQUENTIAL`)
+as matplotlib's default `image.cmap`, so a heatmap without `cmap=` is in the house style;
+`fx.DEFAULT_DIVERGING` names the diverging default.
 
-Field helpers read reserved `FLUX_PARAMS.__fluxplot__` overrides automatically and record their
-controls in the recipe. A `key=` explicitly names the control; otherwise the key includes the
-owning axes and series. Set explicit panel names or control keys before plotting for stability
-across source rearrangements. `recipe={"args": ..., "cwd": ..., "output": ...}` overrides are
-honored; cwd/output resolve relative to the recipe directory. `FLUXPLOT_ONLY` skips unselected
-saves before layout or file I/O.
+### Colour controls in the recipe
+
+Every colour scale is a recipe control: `fp.save` writes its complete state under
+`recipe.params.__fluxplot__[<key>]`, and Flux's **Color scales** editor edits it and regenerates:
+
+```jsonc
+{"cmap": "magma" | {"lut": ["#…"], "under": "#…", "over": "#…", "bad": "#…"},
+ "reversed": false,
+ "vmin": 1, "vmax": 50,
+ "norm": {"kind": "linear" | "log" | "symlog" | "power" | "twoslope" | "centered",
+          "vcenter": 0, "gamma": 0.5, "linthresh": 1, "linscale": 1},
+ "extend": "neither" | "min" | "max" | "both"}
+```
+
+The helpers read the controls from `FLUX_PARAMS` automatically. A control that merely restates
+what the script asked for (the replay of a recorded save) keeps the script's own objects — a
+`ListedColormap` with no resolvable name included — so regeneration never fails on its own
+output; a control that differs is applied, and an impossible one (an unknown map, a log norm with
+`vmin <= 0`, a twoslope centre outside the limits) raises a `ValueError` naming the key.
+`extend` reaches the colour key drawn with `fp.colorbar`. The old flat `{cmap, vmin, vmax}` is
+still understood.
+
+The key names the **series** (`rates`), never the axes' position, so adding a subplot cannot
+orphan an edit; a second colour-mapped series with the same name gets `panel.<name>.rates` or
+`axes.<n>.rates`, and `key=` names it explicitly. Controls saved by an older Flux under the
+positional key are still honoured. `recipe={"args": ..., "cwd": ..., "output": ...}` overrides
+are honored; cwd/output resolve relative to the recipe directory. `FLUXPLOT_ONLY` skips
+unselected saves before layout or file I/O.
 
 `force_vectors=True` overrides and restores caller rasterization flags, including axes z-order
 rasterization. It cannot vectorize a source image created with `imshow`; use a modest
