@@ -118,15 +118,22 @@ def test_colour_scale_is_a_recipe_control_that_flux_can_override(tmp_path, monke
     fig, ax = plt.subplots()
     fp.hexmatrix(x=x, y=y, ax=ax, gridsize=10, color="#4CB391", series="h")
     _res, _man, rec, _svg = _save(fig, tmp_path, "a")
-    ctl = rec["params"]["__fluxplot__"]["axes.1.h"]
+    ctl = rec["params"]["__fluxplot__"]["h"]  # keyed by the series, not the axes' position
     assert ctl["cmap"] == "hexmatrix.mono:#4cb391" and ctl["vmin"] == 1.0
     # replaying the recorded controls rebuilds the same single-colour ramp
-    monkeypatch.setenv("FLUX_PARAMS", json.dumps({"__fluxplot__": {"axes.1.h": ctl}}))
+    monkeypatch.setenv("FLUX_PARAMS", json.dumps({"__fluxplot__": {"h": ctl}}))
     fig, ax = plt.subplots()
     again = fp.hexmatrix(x=x, y=y, ax=ax, gridsize=10, color="#4CB391", series="h")
     assert again.cmap.name == ctl["cmap"]
     plt.close(fig)
-    # an edited colormap / range from Flux's Color scales editor wins over the script's
+    # a different single-colour ramp is a legitimate edit through the hexmatrix's own names
+    monkeypatch.setenv("FLUX_PARAMS", json.dumps({"__fluxplot__": {"h": {"cmap": "hexmatrix.mono:#aa3311"}}}))
+    fig, ax = plt.subplots()
+    recoloured = fp.hexmatrix(x=x, y=y, ax=ax, gridsize=10, color="#4CB391", series="h")
+    assert recoloured.cmap.name == "hexmatrix.mono:#aa3311"
+    plt.close(fig)
+    # an edited colormap / range from Flux's Color scales editor wins over the script's, also
+    # when it was saved under the pre-0.3.1 positional key
     monkeypatch.setenv("FLUX_PARAMS", json.dumps(
         {"__fluxplot__": {"axes.1.h": {"cmap": "magma", "vmin": 2.0, "vmax": 5.0}}}))
     fig, ax = plt.subplots()
@@ -231,6 +238,12 @@ def test_refuses_what_it_cannot_draw():
         fp.hexmatrix(x=x, y=y, ax=ax, cmap="viridis", color="red")
     with pytest.raises(ValueError, match="no finite points"):
         fp.hexmatrix(x=[np.nan], y=[1.0], ax=ax)
+    with pytest.raises(ValueError, match="center= needs a linear norm"):
+        fp.hexmatrix(x=x, y=y, C=y, ax=ax, center=0, norm="log")
+    with pytest.raises(ValueError, match="center must lie between vmin and vmax"):
+        fp.hexmatrix(x=x, y=y, C=y, ax=ax, center=0, vmin=0.5, vmax=3)
+    hm = fp.hexmatrix(x=x, y=y, C=y, ax=ax, center=0, colorbar=False)  # symmetric auto limits
+    assert hm.norm.vmin == -hm.norm.vmax and type(hm.norm).__name__ == "TwoSlopeNorm"
     with pytest.raises(KeyError):
         fp.hexmatrix({"a": x}, x="a", y="b", ax=ax)
     plt.close(fig)

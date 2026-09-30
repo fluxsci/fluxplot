@@ -288,10 +288,10 @@ class _MapRegistry:
     """Colormap access under ``fx.maps``.
 
     Attribute lookup resolves fluxplot's custom maps first (``maps.flexoki_diverging``,
-    and eventually e.g. ``maps.fluxglow``), then falls through to `cmasher
-    <https://cmasher.readthedocs.io>`_ (``maps.emerald`` -> ``cmasher.emerald``).
-    cmasher is an optional dependency (``pip install "fluxplot[style]"``); the custom
-    maps work without it.
+    and eventually e.g. ``maps.fluxglow``), then the shipped collections (``maps.emerald``
+    -> ``cmasher.emerald``, ``maps.batlow`` -> ``crameri.batlow``), and finally the
+    `cmasher <https://cmasher.readthedocs.io>`_ package itself (a dependency), for any map
+    newer than the shipped definitions.
     """
 
     def __init__(self) -> None:
@@ -370,11 +370,8 @@ class _MapRegistry:
         except KeyError:
             pass
         cmr = _import_cmasher()
-        if cmr is None:
-            raise AttributeError(
-                f"No colormap {name!r}: not a fluxplot custom map, and cmasher is not "
-                "installed (pip install 'fluxplot[style]' for the cmasher maps)"
-            )
+        if cmr is None:  # pragma: no cover - cmasher is a dependency
+            raise AttributeError(f"No colormap {name!r}: not a fluxplot custom map, and cmasher is unavailable")
         cm = getattr(cmr, name, None)
         if isinstance(cm, Colormap):
             return cm
@@ -393,12 +390,14 @@ class _MapRegistry:
     # -- registration ----------------------------------------------------
     def register(self, cmap: Colormap) -> None:
         """Add a custom colormap (also registered with matplotlib, so
-        ``plt.imshow(..., cmap=cmap.name)`` works by name)."""
-        self._custom[cmap.name] = cmap
-        try:
-            mpl.colormaps.register(cmap)
-        except Exception:  # already registered / older mpl — best-effort
-            pass
+        ``plt.imshow(..., cmap=cmap.name)`` works by name), together with its reversed
+        twin under ``<name>_r``."""
+        for variant in (cmap, cmap.reversed()):
+            self._custom[variant.name] = variant
+            try:
+                mpl.colormaps.register(variant)
+            except Exception:  # already registered / older mpl — best-effort
+                pass
 
     # -- map sets ----------------------------------------------------------
     def names(self, set_name: str = "cmasher") -> list[str]:
@@ -436,7 +435,7 @@ class _MapRegistry:
     def _map_set(self, set_name: str) -> list[tuple[str, Colormap]]:
         s = set_name.lower()
         if s in ("flexoki", "fluxplot", "flux"):
-            return sorted(self._custom.items())
+            return sorted((n, cm) for n, cm in self._custom.items() if not n.endswith("_r"))
         cols = self._ensure()
         if s in cols:
             return list(cols[s].items())

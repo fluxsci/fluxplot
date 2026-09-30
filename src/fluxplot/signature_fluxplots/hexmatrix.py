@@ -189,6 +189,9 @@ def _auto_limits(vals, norm, robust, center):
 
 def _make_norm(norm, center, vmin, vmax, gamma):
     from matplotlib import colors as mcolors
+    if center is not None and norm != "linear":
+        # a TwoSlopeNorm IS the scale; it cannot also be log / sqrt / a caller's Normalize
+        raise ValueError("hexmatrix: center= needs a linear norm")
     if isinstance(norm, mcolors.Normalize):
         return norm
     if center is not None:
@@ -686,11 +689,14 @@ def hexmatrix(
     opts = {"cmap": base_cmap.name, "vmin": vmin if vmin is not None else lo,
             "vmax": vmax if vmax is not None else hi,
             "norm": _make_norm(norm, center, None, None, gamma)}
-    control_key = _options(ax, series, key, opts)  # applies any Flux recipe override
+    control_key = _options(ax, series, key, opts, resolve=_resolve_cmap)  # any Flux recipe override
     the_cmap = base_cmap if opts["cmap"] == base_cmap.name else _resolve_cmap(opts["cmap"])
     the_norm = opts["norm"]
     if "vmin" in opts:  # _options moved the limits onto the (copied) Normalize itself
         the_norm.vmin, the_norm.vmax = opts["vmin"], opts["vmax"]
+    if center is not None and not (the_norm.vmin < center < the_norm.vmax):
+        raise ValueError(f"{who}: center must lie between vmin and vmax "
+                         f"(center={center!r}, vmin={the_norm.vmin!r}, vmax={the_norm.vmax!r})")
 
     # ---- the hexagons ----------------------------------------------------------------------------------
     polys = lat.polygons(rows, cols, shrink=1.0 - gap)

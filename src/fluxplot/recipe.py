@@ -151,4 +151,14 @@ def params(defaults: dict | None = None) -> dict:
             out.update(_json.loads(raw))
         except Exception:
             pass
+    # `flux rerun-plot --__fluxplot__ '{…}'` hands the colour controls over as one JSON string;
+    # the block is always a mapping to the helpers.
+    controls = out.get("__fluxplot__")
+    if isinstance(controls, str):
+        try:
+            out["__fluxplot__"] = _json.loads(controls)
+        except ValueError:
+            raise ValueError("FLUX_PARAMS __fluxplot__ is not valid JSON") from None
+        if not isinstance(out["__fluxplot__"], dict):
+            raise ValueError("FLUX_PARAMS __fluxplot__ must be a JSON object keyed by colour-control key")
     return out

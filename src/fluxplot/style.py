@@ -17,9 +17,9 @@ the same set.
 What you get:
 - the **Flexoki** palette (Steph Ango, https://stephango.com/flexoki) as :data:`FLEXOKI`, plus
   light/dark categorical cycles installed as matplotlib's ``prop_cycle``;
-- perceptually-uniform **continuous colormaps** via `cmasher
-  <https://cmasher.readthedocs.io>`_ when installed (:data:`SEQUENTIAL`, :data:`DIVERGING`, …),
-  with Flexoki-flavoured fallbacks so a script never breaks without cmasher;
+- perceptually-uniform **continuous colormaps** (:data:`SEQUENTIAL`, :data:`DIVERGING`, …) from
+  the shipped cmasher collection, installed as matplotlib's default ``image.cmap`` so every
+  ``imshow`` / ``fp.heatmap`` without ``cmap=`` uses the house map;
 - :func:`use_light` / :func:`use_dark` themes (clean, despined, sensible fonts/DPI);
 - small helpers :func:`despine` and :func:`title`.
 
@@ -31,7 +31,6 @@ Notes
 - **It's yours to tune:** the rcParams live here, but every color definition comes from
   :mod:`fluxplot.colors` — the canonical palette/colormap module. Edit hexes *there* and every
   future plot (and this theme) follows.
-- Install the optional colormap dependency with ``pip install "fluxplot[style]"``.
 """
 
 from __future__ import annotations
@@ -45,6 +44,7 @@ __all__ = [
     "CYCLE_DARK",
     "CYCLE_LIGHT",
     "CYCLIC",
+    "DEFAULT_DIVERGING",
     "DIVERGING",
     "FLEXOKI",
     "FLEXOKI_DIVERGING",
@@ -59,6 +59,8 @@ __all__ = [
     "title",
     "use_dark",
     "use_light",
+    "use_lighttable",
+    "use_paper",
 ]
 
 # ---------------------------------------------------------------------------
@@ -110,12 +112,11 @@ CYCLE_DARK = [
 
 
 # ---------------------------------------------------------------------------
-# Continuous colormaps. Defaults use cmasher's perceptually-uniform maps when it
-# is installed (the scientifically honest choice for continuous data), and fall
-# back to the Flexoki-flavoured maps otherwise. The Flexoki maps — defined in
-# fluxplot.colors, addressable by name (cmap="flexoki_diverging") — stay
-# available regardless (FLEXOKI_*); e.g. FLEXOKI_DIVERGING is light-centred
-# (blue–paper–red), handy for correlation matrices.
+# Continuous colormaps. The defaults are cmasher's perceptually-uniform maps (the
+# scientifically honest choice for continuous data). The Flexoki maps — defined in
+# fluxplot.colors, addressable by name (cmap="flexoki_diverging") — are linear ramps
+# through palette anchors, pleasant but not perceptually uniform; e.g.
+# FLEXOKI_DIVERGING is light-centred (blue–paper–red), handy for correlation matrices.
 # ---------------------------------------------------------------------------
 FLEXOKI_SEQUENTIAL = _maps.flexoki_sequential
 FLEXOKI_WARM = _maps.flexoki_warm
@@ -123,24 +124,20 @@ FLEXOKI_DIVERGING = _maps.flexoki_diverging
 TERRAIN = _maps.flexoki_terrain
 SPECTRUM = _maps.flexoki_spectrum
 
-try:  # cmasher: perceptually-uniform continuous maps (the preferred default)
-    import cmasher as cmr
+# The perceptually-uniform house maps, from fluxplot's shipped cmasher definitions (the JSON
+# collection in fluxplot.colors, so no package import at runtime and the very same colours Flux's
+# picker shows). Tweak these picks to taste — any shipped map works (fx.maps.<name>):
+#   sequential: rainforest, ember, amber, gem, ocean, dusk, eclipse, …
+#   diverging:  fusion, iceburn, redshift, wildfire, pride, …
+#   cyclic:     infinity, emergence
+HAVE_CMASHER = True  # kept for callers that checked it; cmasher is a dependency
+SEQUENTIAL = _maps.get("cmasher.rainforest")
+SEQUENTIAL_WARM = _maps.get("cmasher.ember")
+DIVERGING = _maps.get("cmasher.fusion")
+CYCLIC = _maps.get("cmasher.infinity")
 
-    HAVE_CMASHER = True
-    # Tweak these picks to taste — any cmasher map works (fx.maps.<name>):
-    #   sequential: rainforest, ember, amber, gem, ocean, dusk, eclipse, …
-    #   diverging:  fusion, iceburn, redshift, wildfire, pride, …
-    #   cyclic:     infinity, emergence
-    SEQUENTIAL = cmr.rainforest
-    SEQUENTIAL_WARM = cmr.ember
-    DIVERGING = cmr.fusion
-    CYCLIC = cmr.infinity
-except Exception:  # pragma: no cover - cmasher optional
-    HAVE_CMASHER = False
-    SEQUENTIAL = FLEXOKI_SEQUENTIAL
-    SEQUENTIAL_WARM = FLEXOKI_WARM
-    DIVERGING = FLEXOKI_DIVERGING
-    CYCLIC = SPECTRUM
+#: Name of the default diverging map — what helpers with ``center=`` use when no cmap is given.
+DEFAULT_DIVERGING = DIVERGING.name
 
 # Typography. We set the generic family + a fallback chain rather than a single
 # face, so a missing font degrades silently to a sane default (no per-figure
@@ -298,6 +295,7 @@ def use_light(
     """Apply the paper-background theme (the default look). Call before creating figures."""
     mpl.rcParams.update(_base_rc(ink, muted, grid, paper, serif))
     mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_LIGHT)
+    mpl.rcParams["image.cmap"] = SEQUENTIAL.name
 
 
 def use_lighttable(
@@ -310,6 +308,7 @@ def use_lighttable(
     """Apply the paper-background theme (the default look). Call before creating figures."""
     mpl.rcParams.update(_exploratory_rc(ink, muted, grid, paper, serif))
     mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_LIGHT)
+    mpl.rcParams["image.cmap"] = SEQUENTIAL.name
 
 
 def use_paper(
@@ -322,6 +321,7 @@ def use_paper(
     """Apply the paper-background theme (the default look). Call before creating figures."""
     mpl.rcParams.update(_base_rc(ink, muted, grid, paper, serif))
     mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_LIGHT)
+    mpl.rcParams["image.cmap"] = SEQUENTIAL.name
 
 
 def use_dark(serif: bool = False, grid: bool = False, bg: str = "#1C1B1A") -> None:
@@ -338,6 +338,7 @@ def use_dark(serif: bool = False, grid: bool = False, bg: str = "#1C1B1A") -> No
     )
     mpl.rcParams.update(rc)
     mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_DARK)
+    mpl.rcParams["image.cmap"] = SEQUENTIAL.name
 
 
 # ---------------------------------------------------------------------------

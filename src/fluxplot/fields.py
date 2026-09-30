@@ -6,18 +6,96 @@ are always recorded, while large fields use the normal bounded raster pipeline.
 from __future__ import annotations
 import numpy as np
 from . import ids, tagger
+from ._fieldmap import resolve_colormap
 from .descriptors import Mark, GuideTag
 from .data import values
 
 
-def _options(ax, series, key, kwargs):
-    from .recipe import params
+def control_key(ax, series, key=None):
+    """``(key, legacy_key)`` naming a colour-mapped series' entry in ``recipe.params.__fluxplot__``.
+
+    The key is what Flux edits, so it has to survive the figure being rearranged. In order:
+
+    1. the explicit ``key``;
+    2. the bare series root (``rates``) when no other colour-controlled series of the figure has
+       claimed it yet — the common case, and independent of where the axes sits;
+    3. ``panel.<slug>.<root>`` when the axes was named with :func:`fluxplot.panel`;
+    4. ``axes.<n>.<root>`` with ``n`` the axes' 1-based position among the figure's axes.
+
+    ``legacy_key`` is what rule 3/4 alone would have produced (the rule before 0.3.1); overrides
+    saved under it by an older Flux still apply. Claimed keys are remembered per figure in the
+    registry so two same-named series never share a key.
+    """
+    from . import tagger
     from .panels import all_axes
+    root = ids.series_root(series)
     panel = getattr(ax, '_fluxplot_panel_name', None)
-    prefix = 'panel.' + ids.slugify(panel) if panel else 'axes.' + str(all_axes(ax.figure).index(ax) + 1)
-    key = str(key or prefix + '.' + ids.series_root(series))
-    overrides = params().get('__fluxplot__', {}).get(key, {})
-    for option in ('cmap', 'vmin', 'vmax'):
+    positional = ('panel.' + ids.slugify(panel) if panel
+                  else 'axes.' + str(all_axes(ax.figure).index(ax) + 1)) + '.' + root
+    claimed = tagger.registry_for(ax.figure)._color_keys
+    if key is not None:
+        chosen = str(key)
+    elif root not in claimed:
+        chosen = root
+    else:
+        chosen = positional
+        n = 2
+        while chosen in claimed:  # the same series twice on one axes: deterministic, never silent
+            chosen = f'{positional}-{n}'
+            n += 1
+    claimed.add(chosen)
+    return chosen, positional
+
+
+def _cmap_name(cmap, resolve):
+    """The name a cmap spec resolves to (a str is resolved when possible), else ``None``."""
+    if cmap is None:
+        return None
+    if not isinstance(cmap, str):
+        return getattr(cmap, 'name', None)
+    try:
+        return getattr(resolve(cmap), 'name', cmap)
+    except (ValueError, KeyError):
+        return cmap
+
+
+def _options(ax, series, key, kwargs, *, resolve=None):
+    """Apply the recipe's colour controls for one colour-mapped series; return its control key.
+
+    ``kwargs`` are the colour keywords the helper is about to pass to matplotlib (``cmap``,
+    ``vmin``, ``vmax``, ``norm``). Flux edits them through ``recipe.params.__fluxplot__[key]``
+    (see :func:`control_key`). An override is applied only where it differs from what the script
+    itself asked for: the controls are written back on every save, so replaying them must
+    reproduce the script's own objects (a ``ListedColormap`` has no resolvable name) rather than
+    fail on them. A colormap override that resolves to nothing raises, naming the key, instead of
+    letting matplotlib fail later on an unnamed map. ``resolve`` turns a colormap name into a
+    ``Colormap`` (default: :func:`fluxplot._fieldmap.resolve_colormap`); helpers with their own
+    name spaces (the hexmatrix's single-colour ramps) pass theirs.
+    """
+    from ._fieldmap import resolve_colormap
+    from .recipe import params
+    resolve = resolve or resolve_colormap
+    key, legacy = control_key(ax, series, key)
+    controls = params().get('__fluxplot__') or {}
+    overrides = controls.get(key)
+    if overrides is None and legacy != key:
+        overrides = controls.get(legacy)
+    overrides = dict(overrides or {})
+    if 'cmap' in overrides:
+        wanted = overrides['cmap']
+        if isinstance(wanted, str) and wanted == _cmap_name(kwargs.get('cmap'), resolve):
+            pass  # the script's own map, recorded and replayed: keep the script's object
+        elif isinstance(wanted, str):
+            try:
+                kwargs['cmap'] = resolve(wanted)
+            except (ValueError, KeyError):
+                raise ValueError(
+                    f"colour control {key!r}: unknown colormap {wanted!r}; use a matplotlib name, "
+                    "a fluxplot map (fp.colors.maps.collections()) or a registered custom map"
+                ) from None
+        else:
+            kwargs['cmap'] = wanted
+    for option in ('vmin', 'vmax'):
         if option in overrides:
             kwargs[option] = overrides[option]
     # A caller's Normalize object may carry a nonlinear scale. Change its limits
@@ -84,6 +162,8 @@ def heatmap(ax, data, *, series, x=None, y=None, cells=False, include_values=Fal
     if (x is None) != (y is None):
         raise ValueError('heatmap x and y must be supplied together')
     key = _options(ax, series, key, kwargs)
+    if isinstance(kwargs.get('cmap'), str):
+        kwargs['cmap'] = resolve_colormap(kwargs['cmap'])  # 'emerald', 'crameri.batlow', 'batlow_r'
     if x is not None or cells:
         if x is None:
             x, y = np.arange(arr.shape[1] + 1), np.arange(arr.shape[0] + 1)
@@ -100,6 +180,8 @@ def heatmap(ax, data, *, series, x=None, y=None, cells=False, include_values=Fal
 
 def _contour(ax, args, series, filled, include_values, key, kwargs):
     key = _options(ax, series, key, kwargs)
+    if isinstance(kwargs.get('cmap'), str):
+        kwargs['cmap'] = resolve_colormap(kwargs['cmap'])
     artist = (ax.contourf if filled else ax.contour)(*args, **kwargs)
     levels = values(artist.levels)
     config = {'kind': 'contourf' if filled else 'contour', 'levels': levels,

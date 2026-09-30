@@ -22,6 +22,9 @@ class Registry:
         self.marks: list[Mark] = []
         self._overlay_counts: dict[str, int] = {}
         self._series_slugs: dict[str, str] = {}
+        # colour-control keys claimed so far (fields.control_key): two same-named colour-mapped
+        # series never share a recipe entry
+        self._color_keys: set[str] = set()
 
     def add(self, mark: Mark) -> Mark:
         if mark.axes is None and mark.artists:

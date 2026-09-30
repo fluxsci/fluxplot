@@ -68,8 +68,11 @@ def test_registry_info_and_discrete_maps():
 
 
 def test_flexoki_custom_maps_still_come_first():
-    assert fx.maps.names("flexoki") == sorted(fx.maps._custom)
+    # register() keeps the reversed twin too (derived, so the set lists the forward maps only)
+    assert fx.maps.names("flexoki") == sorted(n for n in fx.maps._custom if not n.endswith("_r"))
     assert fx.maps.get("flexoki_diverging") is fx.maps.flexoki_diverging
+    assert fx.maps.get("flexoki_diverging_r") is fx.maps._custom["flexoki_diverging_r"]
+    assert mpl.colormaps["flexoki_diverging_r"].name == "flexoki_diverging_r"
 
 
 def test_palette_collections():
