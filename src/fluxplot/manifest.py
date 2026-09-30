@@ -490,7 +490,7 @@ def figure_scope(figure_guides, reg, present=None, rasterized=None):
     """The manifest's figure-scope block from :func:`tagger.autotag_figure`'s tags:
     ``(figure, guide_entries, overlay_entries, parts_children, build_first, build_last)``.
 
-    ``figure`` is ``{title?, xlabel?, ylabel?, legends: [...], annotations: [...], extras: [...]}``
+    ``figure`` is ``{background?, title?, xlabel?, ylabel?, legends: [...], annotations: [...], extras: [...]}``
     with svg ids; a figure legend is a ``guides[]`` entry (``role: legend``, ``entries`` joined to
     series by the artist each stands for) and its parts sit under the figure node of the tree."""
     keep = (lambda g: True) if present is None else (lambda g: g in present)
@@ -498,8 +498,14 @@ def figure_scope(figure_guides, reg, present=None, rasterized=None):
     fig: dict = {"legends": [], "annotations": [], "extras": []}
     guide_entries, overlay_entries, children, first, last = [], [], [], [], []
     legends: dict = {}
+    aliases: dict = {}
     for g in figure_guides:
-        if g.role == "title":
+        if g.data.get("alias"):
+            aliases[g.data["alias"]] = g.gid
+        if g.role == "background" and g.text == "figure":
+            fig["background"] = g.gid
+            children.insert(0, _ref(g.gid, _roles.kind_for_role("background"), "background"))  # the ground first
+        elif g.role == "title":
             fig[g.data.get("slot", "title")] = g.gid
             children.append(_ref(g.gid, _roles.kind_for_role("title"), "title"))
             first.append(g.gid)
@@ -571,7 +577,7 @@ def figure_scope(figure_guides, reg, present=None, rasterized=None):
         guide_entries.append({"id": gid, "svgId": gid, "role": "legend", "entries": entries})
         children.append({"id": gid, "role": "legend", "kind": "container", "children": kids})
     fig = {k: v for k, v in fig.items() if v not in ([], None)}
-    return fig, guide_entries, overlay_entries, children, first, last
+    return fig, guide_entries, overlay_entries, children, first, last, aliases
 
 
 def _organize_guides(guides):

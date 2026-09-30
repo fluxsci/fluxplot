@@ -319,11 +319,7 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator", secondary: str | None = None
         g = alloc.take("axes.background")
         ax.patch.set_gid(g)
         guides.append(GuideTag(gid=g, role="background", text="axes"))
-    fig_patch = getattr(ax.figure, "patch", None)
-    if fig_patch is not None and fig_patch.get_visible() and not fig_patch.get_gid():
-        g = alloc.take("figure.background")
-        fig_patch.set_gid(g)
-        guides.append(GuideTag(gid=g, role="background", text="figure"))
+    # (the figure's own background is figure scope: autotag_figure)
 
     legend = ax.get_legend()
     if legend is not None:
@@ -390,16 +386,26 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator", secondary: str | None = None
     return guides
 
 
-def autotag_figure(fig, alloc: "_ids.IdAllocator") -> list[GuideTag]:
+def autotag_figure(fig, alloc: "_ids.IdAllocator", first_prefix: str = "") -> list[GuideTag]:
     """Name the figure-scope artists once, unprefixed: ``fig.suptitle`` → ``figure.title``,
     ``supxlabel`` / ``supylabel`` → ``figure.xlabel`` / ``figure.ylabel``, ``fig.legend()`` →
     ``figure.legend`` (``figure.legend.k`` for more) with ``.entry.k.label`` / ``.swatch``,
     ``fig.text`` → ``figure.annotation.k``, and the figure's own lines / patches / images →
-    ``figure.extra.<kind>.k``. Every tag carries ``data["scope"] == "figure"``; they never
-    belong to a panel. Runs before the panel scaffolds, so the suptitle claims ``figure.title``.
+    ``figure.extra.<kind>.k``; the figure's own background patch → ``figure.background``. Every
+    tag carries ``data["scope"] == "figure"``; they never belong to a panel. Runs before the panel
+    scaffolds, so the suptitle claims ``figure.title``. ``first_prefix`` (the first panel's, in a
+    multi-panel figure) names the background's pre-0.3.2 id as an alias.
     """
     guides: list[GuideTag] = []
     scope = {"scope": "figure"}
+    fig_patch = getattr(fig, "patch", None)
+    if fig_patch is not None and fig_patch.get_visible() and not fig_patch.get_gid():
+        g = alloc.take("figure.background")
+        fig_patch.set_gid(g)
+        data = {**scope}
+        if first_prefix:  # before 0.3.2 the first panel's prefix was on it
+            data["alias"] = first_prefix + "figure.background"
+        guides.append(GuideTag(gid=g, role="background", text="figure", data=data))
     sup = getattr(fig, "_suptitle", None)
     if sup is not None and sup.get_text().strip() and not sup.get_gid():
         g = alloc.take("figure.title")

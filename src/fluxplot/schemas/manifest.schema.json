@@ -413,6 +413,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "background": {
+          "type": "string"
         }
       }
     }

@@ -1,6 +1,6 @@
 {
   "artifact": {
-    "svgSha256": "0704f66cbcc1b0f9f848949e5bb16dd135d0c28c0e87e667d0dac1c09dfbd4c0"
+    "svgSha256": "0b88e4372b3d2f69c535ef81ff5805f1475a6c18836b0e70f157f54b77e585d2"
   },
   "axes": [
     {
@@ -254,6 +254,9 @@
       }
     }
   },
+  "figure": {
+    "background": "figure.background"
+  },
   "generator": {
     "matplotlib": "3.11.0",
     "name": "fluxplot",
@@ -293,7 +296,8 @@
     "panel.small.axis.x.spine": "panel.small.axis.x.spine.bottom",
     "panel.small.axis.x.spine-2": "panel.small.axis.x.spine.top",
     "panel.small.axis.y.spine": "panel.small.axis.y.spine.left",
-    "panel.small.axis.y.spine-2": "panel.small.axis.y.spine.right"
+    "panel.small.axis.y.spine-2": "panel.small.axis.y.spine.right",
+    "panel.small.figure.background": "figure.background"
   },
   "overlays": [],
   "panels": [
@@ -313,12 +317,12 @@
   "parts": {
     "children": [
       {
+        "kind": "shape",
+        "ref": "figure.background",
+        "role": "background"
+      },
+      {
         "children": [
-          {
-            "kind": "shape",
-            "ref": "panel.small.figure.background",
-            "role": "background"
-          },
           {
             "children": [
               {

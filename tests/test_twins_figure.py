@@ -79,7 +79,9 @@ def test_figure_scope_artists(tmp_path):
     assert "figure.legend.entry.0.label" in ids and "figure.legend.entry.1.swatch" in ids
     assert not any(i.startswith("panel.") and "figure.title" in i for i in ids)  # the suptitle is not a panel's
     block = man["figure"]
-    assert block["title"] == "figure.title" and block["xlabel"] == "figure.xlabel"
+    assert block["title"] == "figure.title" and block["xlabel"] == "figure.xlabel" and block["background"] == "figure.background"
+    assert "figure.background" in ids and not any(i.endswith(".figure.background") for i in ids)
+    assert man["idAliases"]["panel.a.figure.background"] == "figure.background"  # the pre-0.3.2 id
     assert block["legends"] == ["figure.legend"] and block["annotations"] == [{"id": "figure.annotation.0", "text": "A"}]
     (legend,) = [g for g in man["guides"] if g["id"] == "figure.legend"]
     assert {e["text"]: e["series"] for e in legend["entries"]} == {"Control": "panel.a.ctl", "Drug": "panel.b.drug"}
@@ -94,7 +96,7 @@ def test_figure_scope_artists(tmp_path):
     ax.set_title("Axes title")
     res, man, svg = _save(fig, tmp_path, "s.svg")
     ids = set(re.findall(r'id="([^"]+)"', svg))
-    assert "figure.title" in ids and "figure" not in man
+    assert "figure.title" in ids and man["figure"] == {"background": "figure.background"}  # the ground only
     fig, ax = plt.subplots()
     fp.line(ax, [0, 1], [0, 1], series="s")
     fig.suptitle("Sup")

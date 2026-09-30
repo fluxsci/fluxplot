@@ -1008,7 +1008,7 @@ def _save(
 
     panels = _panels.plan(fig)
     # figure-scope artists first (suptitle, fig.legend, fig.text): unprefixed, tagged once
-    figure_guides = _tagger.autotag_figure(fig, alloc)
+    figure_guides = _tagger.autotag_figure(fig, alloc, first_prefix=panels[0].prefix if panels else "")
     promo_warnings, guides_by_panel, axes_capture, scales_by_panel = [], [], [], []
     registered = {id(m) for m in reg.marks}
     for i, panel in enumerate(panels):

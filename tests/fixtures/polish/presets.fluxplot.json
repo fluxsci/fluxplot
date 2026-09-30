@@ -1,6 +1,6 @@
 {
   "artifact": {
-    "svgSha256": "b513c930c93b684549afafd515fa815f6108ba851f0f38c1e889de7322a32e8d"
+    "svgSha256": "964d2e91a3bc17e6064548af8b35cb71cf73f9f648a431f16edc4503ae094d66"
   },
   "axes": [
     {
@@ -578,6 +578,9 @@
       "recolor": "live"
     }
   ],
+  "figure": {
+    "background": "figure.background"
+  },
   "generator": {
     "matplotlib": "3.11.0",
     "name": "fluxplot",
@@ -709,6 +712,7 @@
     "panel.counts.axis.x.spine-2": "panel.counts.axis.x.spine.top",
     "panel.counts.axis.y.spine": "panel.counts.axis.y.spine.left",
     "panel.counts.axis.y.spine-2": "panel.counts.axis.y.spine.right",
+    "panel.counts.figure.background": "figure.background",
     "panel.density.axis.x.spine": "panel.density.axis.x.spine.bottom",
     "panel.density.axis.x.spine-2": "panel.density.axis.x.spine.top",
     "panel.density.axis.y.spine": "panel.density.axis.y.spine.left",
@@ -754,12 +758,12 @@
   "parts": {
     "children": [
       {
+        "kind": "shape",
+        "ref": "figure.background",
+        "role": "background"
+      },
+      {
         "children": [
-          {
-            "kind": "shape",
-            "ref": "panel.counts.figure.background",
-            "role": "background"
-          },
           {
             "children": [
               {

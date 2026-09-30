@@ -518,7 +518,7 @@
     </linearGradient>
   </defs>
   <g id="figure" data-role="figure" data-kind="container">
-    <g id="panel.counts.figure.background" data-role="background" data-kind="shape" data-ink-fill="paper">
+    <g id="figure.background" data-role="background" data-kind="shape" data-ink-fill="paper">
       <path d="M 0 172.8  L 360 172.8  L 360 0  L 0 0  z " style="fill: #ffffff"/>
     </g>
     <g id="panel.counts.plot-area" data-role="plot-area" data-kind="container">

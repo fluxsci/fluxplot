@@ -196,12 +196,16 @@ def manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterize
     out = _panel_manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterized,
                           extra_scales_by_panel, **kwargs)
     if figure_guides:
-        block, guide_entries, overlay_entries, children, first, last = figure_scope(figure_guides, reg, present, rasterized)
+        block, guide_entries, overlay_entries, children, first, last, aliases = figure_scope(figure_guides, reg, present, rasterized)
         if block:
             out['figure'] = block
         out['guides'] = out['guides'] + guide_entries
         out['overlays'] = out['overlays'] + overlay_entries
-        out['parts']['children'] = out['parts']['children'] + children
+        ground = [c for c in children if c.get('role') == 'background']
+        rest = [c for c in children if c.get('role') != 'background']
+        out['parts']['children'] = ground + out['parts']['children'] + rest
+        if aliases:
+            out['idAliases'] = {**(out.get('idAliases') or {}), **aliases}
         order = out['build']['order']
         # figure titles reveal with the axes (phase 0, first); figure annotations and extras last
         out['build']['order'] = [v for v in first if v not in order] + order + [v for v in last if v not in order]
