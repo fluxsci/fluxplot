@@ -495,13 +495,15 @@ like any heavy layer; its hexagons stay in the manifest. Pass `force_vectors=Tru
 keep every hexagon addressable. `examples/hexmatrix_example.py` draws all five.
 
 **Statistics** — `fp.stats` holds the tests behind the plots, one per branch of the house
-statistics guidance. Each takes `(a, b)`, orients signs as `a - b`, and returns one reporting row
-(a dict keyed by `fp.stats.REPORT_COLUMNS`: `sig_test_used`, `test_statistic_value`, `p-value`,
-`p_corrected_holm`, `dof`, `effect_size_method`, `effect_size_value`, `effect_size_95_CI`), ready
-to save as a CSV in the plot's `_stats` dissection:
+statistics guidance. Each two-group test takes `(a, b)`, orients signs as `a - b`, and returns one
+reporting row (a dict keyed by `fp.stats.REPORT_COLUMNS`: `sig_test_used`, `test_statistic_value`,
+`p-value`, `p_corrected_holm`, `dof`, `effect_size_method`, `effect_size_value`,
+`effect_size_95_CI`, then the appended `effect_size_ci_low` / `effect_size_ci_high` (numbers),
+`n_a`, `n_b`, `n_total`, `groups` (the names compared), `alternative`, `p_corrected_bh` and
+`dof_error`), ready to save as a CSV in the plot's `_stats` dissection:
 
 ```python
-row = fp.stats.welch_hedges(sd_values, sleep_values)
+row = fp.stats.welch_hedges(sd_values, sleep_values, names=("SD", "sleep"))   # alternative="two-sided"
 pl.DataFrame([row]).write_csv("plots/_dissections/app_gapdh/_stats/welch_ttest.csv")
 ```
 
@@ -527,7 +529,29 @@ rows = [dict(measure=m, **fp.stats.welch_hedges(sd[m], sleep[m])) for m in measu
 rows = fp.stats.holm(rows)   # fills p_corrected_holm across the family; order is kept
 ```
 
-`fp.stats.holm_adjusted(p)` does the same for a bare array of p-values.
+`fp.stats.holm_adjusted(p)` does the same for a bare array of p-values; `fp.stats.bh(rows)` /
+`bh_adjusted(p)` fill `p_corrected_bh` with Benjamini–Hochberg (false-discovery-rate) values for a
+screen of many measures. NaN p-values pass through both untouched.
+
+*Three or more groups* — the omnibus tests return one row (`groups` lists every group; F tests
+carry `dof` / `dof_error`), the post-hoc tests one row per pair, and `pairwise` runs any two-group
+test above over the pairs of a `{name: sample}` family and corrects across them:
+
+| function | test | effect size + 95% CI |
+|---|---|---|
+| `anova_oneway(*groups, names=, effect="eta2"\|"omega2")` | one-way ANOVA | η² or ω²; Steiger's noncentral-F CI |
+| `welch_anova(*groups, names=)` | Welch's ANOVA | ω²; noncentral-F CI on Welch's dof |
+| `kruskal_epsilon(*groups, names=)` | Kruskal–Wallis | ε² = H / (N − 1); seeded bootstrap CI |
+| `rm_anova(table, subject, within, dv)` | repeated-measures ANOVA, Greenhouse–Geisser dof and p | partial η²; noncentral-F CI |
+| `friedman_kendall(table, subject, within, dv)` | Friedman | Kendall's W; seeded bootstrap CI |
+| `tukey_hsd(*groups, names=)` | Tukey HSD (family-wise p as is) | Hedges' g, pooled SD |
+| `games_howell(*groups, names=)` | Games–Howell (studentized range on Welch dof) | Hedges' g, non-pooled SD; Bonett CI |
+| `dunn(*groups, names=, adjust="holm")` | Dunn's rank-sum test after Kruskal–Wallis | Cliff's delta; Newcombe CI |
+| `pairwise(test, groups, pairs=None, adjust="holm"\|"bh")` | any two-group test per pair | that test's |
+
+`tests/test_stats_multi.py` pins them against pingouin / scikit-posthocs reference values. The
+post-hoc rows feed `fp.brackets` directly (below): each bracket then records which test its stars
+came from.
 
 **Labels are identity** — a *conventional* labeled plot needs no helpers at all. At save time,
 raw artists carrying a public label (`ax.plot(..., label="Control")`, labeled `scatter`/`bar`/

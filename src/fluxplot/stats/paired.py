@@ -13,7 +13,7 @@ from scipy import optimize as _opt
 from scipy import special as _sc
 from scipy import stats as _sp
 
-from ._common import REPORT_COLUMNS, as_pairs, report_row
+from ._common import REPORT_COLUMNS, as_pairs, check_alternative, report_row
 
 __all__ = ["paired_t_hedges", "wilcoxon_rank_biserial", "REPORT_COLUMNS"]
 
@@ -41,7 +41,7 @@ def _nct_ncp_for(t_obs: float, df: float, target: float) -> float:
     return _opt.brentq(f, lo, hi, xtol=1e-12)
 
 
-def paired_t_hedges(a: Any, b: Any) -> Dict[str, Any]:
+def paired_t_hedges(a: Any, b: Any, *, alternative: str = "two-sided", names=("a", "b")) -> Dict[str, Any]:
     """Paired t-test of ``a`` vs ``b`` with Hedges' g_z and its 95% CI.
 
     For matched observations, asking whether the mean of the paired differences ``a - b`` is
@@ -59,12 +59,17 @@ def paired_t_hedges(a: Any, b: Any) -> Dict[str, Any]:
     a, b
         The paired samples, equal length, ``a[i]`` matched with ``b[i]``; at least 2 pairs of finite
         values.
+    alternative
+        ``"two-sided"`` (default), ``"less"`` or ``"greater"`` for the mean difference ``a - b``.
+        The CI is always two-sided.
+    names
+        The names of the two conditions, recorded in the row's ``groups``.
 
     Returns
     -------
     dict
-        One reporting row keyed by :data:`REPORT_COLUMNS`: the t statistic, the two-sided p-value,
-        ``dof = n - 1``, Hedges' g_z and its 95% CI.
+        One reporting row keyed by :data:`REPORT_COLUMNS`: the t statistic, the p-value,
+        ``dof = n - 1``, Hedges' g_z and its 95% CI. ``n_a = n_b = n_total = n``, the number of pairs.
     """
     a, b = as_pairs(a, b)
     diff = a - b
@@ -73,15 +78,15 @@ def paired_t_hedges(a: Any, b: Any) -> Dict[str, Any]:
     if sd == 0:
         raise ValueError("the paired differences have zero variance; the effect size is undefined")
 
-    t = _sp.ttest_rel(a, b)
+    t = _sp.ttest_rel(a, b, alternative=check_alternative(alternative))
     df = n - 1
     d_z = diff.mean() / sd
     j = 1 - 3 / (4 * df - 1)
     t_obs = d_z * np.sqrt(n)  # identical to t.statistic
     lo = _nct_ncp_for(t_obs, df, 0.975) / np.sqrt(n)
     hi = _nct_ncp_for(t_obs, df, 0.025) / np.sqrt(n)
-    return report_row("Paired t-test", t.statistic, t.pvalue, df,
-                      "Hedges' g_z", j * d_z, lo, hi)
+    return report_row("Paired t-test", t.statistic, t.pvalue, df, "Hedges' g_z", j * d_z, lo, hi,
+                      n=(n, n), n_total=n, groups=names, alternative=alternative)
 
 
 def _bvn_cdf_same_sign(h: float, k: float, rho: float) -> float:
@@ -146,7 +151,7 @@ def _rank_biserial_bounds(r: float, n: int) -> Tuple[float, float]:
     return rho(d_lo), rho(d_hi)
 
 
-def wilcoxon_rank_biserial(a: Any, b: Any) -> Dict[str, Any]:
+def wilcoxon_rank_biserial(a: Any, b: Any, *, alternative: str = "two-sided", names=("a", "b")) -> Dict[str, Any]:
     """Wilcoxon signed-rank test of ``a`` vs ``b`` with the matched-pairs rank-biserial correlation.
 
     For matched observations compared by the ranks of their differences ``a - b`` (chosen before
@@ -173,6 +178,11 @@ def wilcoxon_rank_biserial(a: Any, b: Any) -> Dict[str, Any]:
     a, b
         The paired samples, equal length, ``a[i]`` matched with ``b[i]``; at least 2 pairs of finite
         values, and at least one non-zero difference.
+    alternative
+        ``"two-sided"`` (default), ``"less"`` or ``"greater"`` for the differences ``a - b``. The
+        CI is always two-sided.
+    names
+        The names of the two conditions, recorded in the row's ``groups``.
 
     Returns
     -------
@@ -188,11 +198,12 @@ def wilcoxon_rank_biserial(a: Any, b: Any) -> Dict[str, Any]:
     if n == 0:
         raise ValueError("every paired difference is zero; the signed-rank test is undefined")
 
-    w = _sp.wilcoxon(a, b, zero_method="wilcox", alternative="two-sided", method="auto")
+    w = _sp.wilcoxon(a, b, zero_method="wilcox", alternative=check_alternative(alternative), method="auto")
     ranks = _sp.rankdata(np.abs(diff))  # average ranks for ties
     w_plus = ranks[diff > 0].sum()
     w_minus = ranks[diff < 0].sum()
     r = (w_plus - w_minus) / (w_plus + w_minus)
     lo, hi = _rank_biserial_bounds(r, n)
     return report_row("Wilcoxon signed-rank test", w_plus, w.pvalue, None,
-                      "Matched-pairs rank-biserial correlation", r, lo, hi)
+                      "Matched-pairs rank-biserial correlation", r, lo, hi,
+                      n=(a.size, b.size), n_total=a.size, groups=names, alternative=alternative)

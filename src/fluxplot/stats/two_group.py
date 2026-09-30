@@ -12,14 +12,37 @@ import numpy as np
 from scipy import optimize as _opt
 from scipy import stats as _sp
 
-from ._common import REPORT_COLUMNS, as_sample, report_row
+from ._common import REPORT_COLUMNS, as_sample, check_alternative, report_row
 
 __all__ = ["welch_hedges", "mann_whitney_cliff", "REPORT_COLUMNS"]
 
 _Z = _sp.norm.ppf(0.975)
 
 
-def welch_hedges(a: Any, b: Any) -> Dict[str, Any]:
+def hedges_unpooled(a: np.ndarray, b: np.ndarray) -> Tuple[float, float, float]:
+    """Hedges' g standardised by the non-pooled SD ``sqrt((var_a + var_b) / 2)`` with its Bonett
+    (2008) 95% CI: ``(g, lo, hi)``. Shared by :func:`welch_hedges` and the Games–Howell post hoc."""
+    n1, n2 = a.size, b.size
+    v1, v2 = a.var(ddof=1), b.var(ddof=1)
+    s = np.sqrt((v1 + v2) / 2)
+    if s == 0:
+        raise ValueError("both samples have zero variance; the effect size is undefined")
+    d = (a.mean() - b.mean()) / s
+    j = 1 - 3 / (4 * (n1 + n2 - 2) - 1)
+    se = np.sqrt(d**2 * (v1**2 / (n1 - 1) + v2**2 / (n2 - 1)) / (8 * s**4)
+                 + (v1 / (n1 - 1) + v2 / (n2 - 1)) / s**2)
+    return float(j * d), float(d - _Z * se), float(d + _Z * se)
+
+
+def cliffs_delta(a: np.ndarray, b: np.ndarray) -> Tuple[float, float, float]:
+    """Cliff's delta ``P(a > b) - P(a < b)`` with Newcombe's Method 5 95% CI: ``(delta, lo, hi)``.
+    Shared by :func:`mann_whitney_cliff` and Dunn's post hoc."""
+    delta = float(np.sign(a[:, None] - b[None, :]).mean())  # mean of sign(a_i - b_j) over all pairs
+    lo, hi = _newcombe_auc_bounds((delta + 1) / 2, a.size, b.size)
+    return delta, 2 * lo - 1, 2 * hi - 1
+
+
+def welch_hedges(a: Any, b: Any, *, alternative: str = "two-sided", names=("a", "b")) -> Dict[str, Any]:
     """Welch's t-test of ``a`` vs ``b`` with Hedges' g (non-pooled SD) and its 95% CI.
 
     For independent samples compared on their arithmetic means. The effect size is standardized by
@@ -35,35 +58,31 @@ def welch_hedges(a: Any, b: Any) -> Dict[str, Any]:
     ----------
     a, b
         The two samples (any 1-D array-like of numbers). Each needs at least 2 finite values.
+    alternative
+        ``"two-sided"`` (default), ``"less"`` (``a`` has the smaller mean) or ``"greater"``. The
+        p-value follows it; the effect-size CI is always the two-sided 95% interval.
+    names
+        The names of the two groups, recorded in the row's ``groups`` (``("a", "b")`` by default).
 
     Returns
     -------
     dict
         One reporting row keyed by :data:`REPORT_COLUMNS`: the test name, the t statistic, the
-        two-sided p-value, the Welch–Satterthwaite degrees of freedom, the effect-size method, its
-        value and its 95% CI formatted as ``"[low, high]"`` (2 decimals).
+        p-value, the Welch–Satterthwaite degrees of freedom, the effect-size method, its value and
+        its 95% CI formatted as ``"[low, high]"`` (2 decimals) and as numbers, the sample sizes,
+        the group names and the alternative.
 
     Example
     -------
-    >>> row = fp.stats.welch_hedges(sd_values, sleep_values)
+    >>> row = fp.stats.welch_hedges(sd_values, sleep_values, names=("SD", "sleep"))
     >>> pl.DataFrame([row]).write_csv("plots/_dissections/app/_stats/welch_ttest.csv")
     """
     a = as_sample(a, "a")
     b = as_sample(b, "b")
-    n1, n2 = a.size, b.size
-    v1, v2 = a.var(ddof=1), b.var(ddof=1)
-    s = np.sqrt((v1 + v2) / 2)
-    if s == 0:
-        raise ValueError("both samples have zero variance; the effect size is undefined")
-
-    t = _sp.ttest_ind(a, b, equal_var=False)
-    d = (a.mean() - b.mean()) / s
-    j = 1 - 3 / (4 * (n1 + n2 - 2) - 1)
-    se = np.sqrt(d**2 * (v1**2 / (n1 - 1) + v2**2 / (n2 - 1)) / (8 * s**4)
-                 + (v1 / (n1 - 1) + v2 / (n2 - 1)) / s**2)
-    lo, hi = d - _Z * se, d + _Z * se
-    return report_row("Welch's t-test", t.statistic, t.pvalue, t.df,
-                      "Hedges' g (non-pooled SD)", j * d, lo, hi)
+    g, lo, hi = hedges_unpooled(a, b)
+    t = _sp.ttest_ind(a, b, equal_var=False, alternative=check_alternative(alternative))
+    return report_row("Welch's t-test", t.statistic, t.pvalue, t.df, "Hedges' g (non-pooled SD)",
+                      g, lo, hi, n=(a.size, b.size), groups=names, alternative=alternative)
 
 
 def _newcombe_auc_bounds(theta: float, m: int, n: int) -> Tuple[float, float]:
@@ -89,7 +108,7 @@ def _newcombe_auc_bounds(theta: float, m: int, n: int) -> Tuple[float, float]:
     return lo, hi
 
 
-def mann_whitney_cliff(a: Any, b: Any) -> Dict[str, Any]:
+def mann_whitney_cliff(a: Any, b: Any, *, alternative: str = "two-sided", names=("a", "b")) -> Dict[str, Any]:
     """Mann–Whitney U test of ``a`` vs ``b`` with Cliff's delta and its 95% CI.
 
     For independent samples compared by rank (ordered categories, or a rank-based comparison chosen
@@ -109,6 +128,11 @@ def mann_whitney_cliff(a: Any, b: Any) -> Dict[str, Any]:
     ----------
     a, b
         The two samples (any 1-D array-like of numbers). Each needs at least 2 finite values.
+    alternative
+        ``"two-sided"`` (default), ``"less"`` or ``"greater"`` (the direction of ``a`` relative to
+        ``b``). The CI is always two-sided.
+    names
+        The names of the two groups, recorded in the row's ``groups``.
 
     Returns
     -------
@@ -119,10 +143,7 @@ def mann_whitney_cliff(a: Any, b: Any) -> Dict[str, Any]:
     """
     a = as_sample(a, "a")
     b = as_sample(b, "b")
-    n1, n2 = a.size, b.size
-
-    u = _sp.mannwhitneyu(a, b, alternative="two-sided", method="auto")
-    delta = np.sign(a[:, None] - b[None, :]).mean()  # mean of sign(a_i - b_j) over all pairs
-    lo, hi = _newcombe_auc_bounds((delta + 1) / 2, n1, n2)
-    return report_row("Mann–Whitney U test", u.statistic, u.pvalue, None,
-                      "Cliff's delta", delta, 2 * lo - 1, 2 * hi - 1)
+    u = _sp.mannwhitneyu(a, b, alternative=check_alternative(alternative), method="auto")
+    delta, lo, hi = cliffs_delta(a, b)
+    return report_row("Mann–Whitney U test", u.statistic, u.pvalue, None, "Cliff's delta", delta,
+                      lo, hi, n=(a.size, b.size), groups=names, alternative=alternative)
