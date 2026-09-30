@@ -166,10 +166,20 @@ def build_manifest(
             payload = next((m.data[field] for m in marks if m.data.get(field)), None)
             if payload is not None:
                 entry[field] = payload
-        # the series' colour: for now the scale colouring it (B2 adds the primary paint)
+        # the series' colour: its primary paint (data.primary_paint) and / or the scale colouring it
+        colour = {}
+        primary = ("line", "point", "bar", "area", "box", "violin", "errorbar", "x-hexbin", "x-heatmap", "x-contourf", "x-contour")
+        drawn = lambda m: _keep(m.gid) or any(_keep(g) for g in m.member_gids)  # noqa: E731  (bars have members only)
+        paint = next((m.data["color"] for m in marks if m.data.get("color") and drawn(m) and m.role in primary), None)
+        if paint is None:
+            paint = next((m.data["color"] for m in marks if m.data.get("color") and drawn(m)), None)
+        if paint:
+            colour.update(paint)
         scale = next((m.data["color_scale"]["id"] for m in marks if m.data.get("color_scale") and _keep(m.gid)), None)
         if scale is not None:
-            entry["color"] = {"scale": scale}
+            colour["scale"] = scale
+        if colour:
+            entry["color"] = colour
         ordinary = all(m.role in ('line', 'point') for m in marks)
         ordinary = ordinary and len([m for m in marks if m.role == 'line']) <= 1
         ordinary = ordinary and len([m for m in marks if m.role == 'point']) <= 1

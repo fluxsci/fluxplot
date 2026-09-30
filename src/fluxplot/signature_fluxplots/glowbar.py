@@ -130,6 +130,15 @@ def _plain(v):
     return v if isinstance(v, (bool, int, float, str)) else str(v)
 
 
+def _palette_spec_json(spec):
+    """The palette spec as the manifest carries it: a name, or a list of hex colours."""
+    if spec is None:
+        return None
+    if isinstance(spec, (list, tuple)):
+        return [_hex(c) for c in spec]
+    return str(spec) if isinstance(spec, str) else getattr(spec, "name", str(spec))
+
+
 def _category_order(xs, order):
     if order is not None:
         return list(order)
@@ -275,6 +284,7 @@ class _Frame:
     point_color: dict  # (category, lane key) → colour
     series_of: dict
     unit_series_of: dict
+    palette_used: dict = field(default_factory=dict)  # category → the colour spec its shades came from
 
     def lane_x(self, c, key):
         lanes = self.lanes_of[c]
@@ -330,23 +340,41 @@ def _frame(who, data, x, y, units, order, unit_order, *, jitter, palette, group_
         lanes_of = {c: list(rows_in[c]) for c in cats}  # one lane per row, in table order
         lane_key = {i: i for i in plotted}
 
+    # ---- names (the recipe's per-series colours are keyed by the series id) ------------------------
+    cat_name, unit_name = _namer(who, series, "series"), _namer(who, unit_series, "unit_series")
+
     # ---- colours ------------------------------------------------------------------------------------
+    from .. import style as _style
+    from ..api import _series_color_override
+    from ..colors import categories as _categories
+
+    recipe_palette = _style.palette_override()  # a categorical palette Flux asked for on a rerun
+
     def palette_spec(c, k):
         default = DEFAULT_MAPS[k % len(DEFAULT_MAPS)]
         if palette is None:
-            return default
+            if _categories.is_pinned(c):
+                return _categories.get(c)  # a pinned category: a ramp of its own colour
+            return _categories.get(c, palette=recipe_palette) if recipe_palette else default
         if isinstance(palette, Mapping):
             return palette.get(c, palette.get(str(c), default))
         if isinstance(palette, (list, tuple)):
             return palette[k % len(palette)]
         return palette
 
-    sources, group_colors = {}, {}
+    sources, group_colors, palette_used = {}, {}, {}
     for k, c in enumerate(cats):
-        src = _colour.resolve(palette_spec(c, k), f"{who} {c}")
+        spec = palette_spec(c, k)
+        src = _colour.resolve(spec, f"{who} {c}")
         sources[c] = src
+        palette_used[c] = spec
         override = group_color.get(c, group_color.get(str(c))) if isinstance(group_color, Mapping) \
             else group_color
+        if override is None:
+            # a recipe's per-series colour, else a category pinned in fp.colors.categories, else the source
+            override = _series_color_override(cat_name(c))
+        if override is None and _categories.is_pinned(c):
+            override = _categories.get(c)
         group_colors[c] = to_rgba(override) if override is not None else \
             _colour.representative(src, group_color_position)
 
@@ -367,7 +395,6 @@ def _frame(who, data, x, y, units, order, unit_order, *, jitter, palette, group_
             point_color.update({(c, key): to_rgba(point_colors.get(key, group_colors[c])) for key in lanes})
 
     # ---- names --------------------------------------------------------------------------------------
-    cat_name, unit_name = _namer(who, series, "series"), _namer(who, unit_series, "unit_series")
     series_of = {c: cat_name(c) for c in cats}
     unit_series_of = {u: unit_name(u) for u in unit_list}
     clash = ({_ids.series_root(s) for s in series_of.values()}
@@ -379,7 +406,8 @@ def _frame(who, data, x, y, units, order, unit_order, *, jitter, palette, group_
     return _Frame(who=who, xs=xs, ys=ys, us=us, y_name=y_name, units_name=units_name, cats=cats,
                   pos=pos, rows_in=rows_in, plotted=plotted, unit_list=unit_list, lanes_of=lanes_of,
                   lane_key=lane_key, jitter=jitter, group_colors=group_colors,
-                  point_color=point_color, series_of=series_of, unit_series_of=unit_series_of)
+                  point_color=point_color, series_of=series_of, unit_series_of=unit_series_of,
+                  palette_used=palette_used)
 
 
 def _draw_units(fr: _Frame, ax, reg, *, connect, connect_line_width, connect_color, connect_alpha,
@@ -662,7 +690,8 @@ def glowbar(
         drawable = bool(np.isfinite(lo) and np.isfinite(hi) and hi >= lo)
         # the exact statistics drawn ride on the category's first summary part → the manifest
         payload = {"glowbar": {"part": "summary", "category": _plain(c), "units": fr.units_name,
-                               "groupColor": _hex(col), **{key: _plain(v) for key, v in st.items()}}}
+                               "groupColor": _hex(col), "palette": _palette_spec_json(fr.palette_used.get(c)),
+                               **{key: _plain(v) for key, v in st.items()}}}
         if drawable:
             mid = min(max(st["centerValue"], lo), hi)  # glow centre, clamped into the interval
             t = np.linspace(1.0, 0.0, glow_steps, endpoint=False)  # nested: overlap builds the gradient

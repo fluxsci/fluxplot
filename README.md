@@ -863,6 +863,29 @@ Inkscape; browsers and rsvg honour the fallback). A rerun with
 `FLUX_PARAMS={"__fluxplot__": {"theme": "dark"}}` makes every `fx.use_*` call apply that theme,
 and the recipe records the theme in force under `__fluxplot__.theme`.
 
+### Series colours, and the same colour for the same thing everywhere
+
+Every series records its primary paint in the manifest — `series[].color = {"hex": "#35ab49",
+"alpha": 1.0, "token": "flexoki.green-400", "palette": {"name": "flexoki.light", "index": 2}}`:
+the exact palette token that names it when one does, its slot in the active cycle when it came
+from there (`"varies"` for a colour-mapped collection, whose `scale` names the colour scale).
+The glowbar and fluxbox payloads record the `palette` spec each category's shades came from.
+
+`fp.colors.categories` keeps categories consistent across figures: `get("SD")` returns the colour
+pinned to a category, else assigns the next unused slot of the palette (default: the theme's
+cycle) in first-request order and remembers it, so `"b"` is the same colour whether or not `"a"`
+is on the plot — `categorical_colors` (surface maps), glowbar and fluxbox group colours and
+`tag_seaborn`'s hue levels all consult it. `assign({...})` pins colours, `save()` / `load()`
+write and read a project file, `fluxplot.colors.json`
+(`{"spec": "fluxplot/colors", "version": 1, "categories": {"SD": "#bc5215"}, "palette": "flexoki"}`),
+which the first use auto-loads from `$FLUXPLOT_COLORS` or the nearest one between the working
+directory and the Git root; nothing is ever written implicitly. `categories.auto_series = True`
+colours `fp.line` / `fp.scatter` series by their name when the call gives no colour (off by
+default). Two more recipe controls follow: `__fluxplot__.palette = "tol.bright"` makes every
+`fx.use_*` install that palette as the prop cycle (and glowbar categories draw from it), and
+`__fluxplot__.series = {"<series id>": {"color": "#…"}}` recolours a series on a rerun — the
+helpers and the signature plots check it before drawing.
+
 ### Colour controls in the recipe
 
 Every colour scale is a recipe control: `fp.save` writes its complete state under

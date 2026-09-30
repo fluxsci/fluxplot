@@ -32,7 +32,13 @@ def category_name(code, categories=None):
 
 
 def categorical_colors(names,palette=None,categories=None):
-    """Resolve the fixed category-name/code palette in stable sorted-name order."""
+    """Resolve the fixed category-name/code palette in stable sorted-name order.
+
+    A category the palette does not name takes its colour from the registry
+    (``fp.colors.categories``): pinned, or the next free slot of the active cycle, remembered —
+    so ``'b'`` is the same colour whether or not ``'a'`` is present, in every figure.
+    """
+    from .colors import categories as _registry
     resolved={}
     for name in sorted(names):
         color=None
@@ -42,7 +48,7 @@ def categorical_colors(names,palette=None,categories=None):
                 for code,nm in categories.items():
                     if nm==name and code in palette:
                         color=palette[code]; break
-        if color is None: color=f'C{len(resolved)%10}'
+        if color is None: color=_registry.get(name)
         rgba=to_rgba(color)
         resolved[name]=to_hex(rgba, keep_alpha=rgba[3] < 1)  # an opaque colour stays #rrggbb
     return resolved

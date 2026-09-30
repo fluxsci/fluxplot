@@ -244,7 +244,7 @@ def test_heatmap_scale_record_and_aliases(tmp_path):
     assert scale["editable"] == {"cmap": True, "limits": True, "normKinds": ["linear", "log", "power", "symlog"], "center": False}
     field = man["series"][0]["field"]
     assert field["colorScale"] == "m" and field["cmap"] == scale["colormap"]["name"] and field["normalization"]["kind"] == "LogNorm"
-    assert man["series"][0]["color"] == {"scale": "m"}
+    assert man["series"][0]["color"]["scale"] == "m" and man["series"][0]["color"]["hex"] == "varies"
     key = next(g for g in man["guides"] if g["role"] == "colorbar")
     assert key["colorScale"] == "m"
     # imshow is a raster: the scale needs a regeneration
@@ -336,7 +336,8 @@ def test_scatter_c_is_a_colour_scale(tmp_path, monkeypatch):
     (scale,) = man["colorScales"]
     assert scale["id"] == "pts" and scale["mappables"] == ["pts.points"] and scale["colorbars"] == ["colorbar.color"]
     s = man["series"][0]
-    assert s["color"] == {"scale": "pts"} and s["field"]["kind"] == "scatter" and s["field"]["controlKey"] == "pts"
+    assert s["color"]["scale"] == "pts" and s["color"]["hex"] == "varies"
+    assert s["field"]["kind"] == "scatter" and s["field"]["controlKey"] == "pts"
     for k in (0, 7, 29):
         assert float(_el(root, f"pts.point.{k}").get("data-value")) == c[k]
     assert _el(root, "pts.points").get("data-paint") == "fill stroke"

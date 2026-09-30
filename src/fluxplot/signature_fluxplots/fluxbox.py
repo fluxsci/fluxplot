@@ -68,6 +68,7 @@ from .glowbar import (
     _frame,
     _hex,
     _notch_marker,
+    _palette_spec_json,
     _plain,
 )
 
@@ -407,7 +408,7 @@ def fluxbox(
         (body,) = ax.plot([bx, bx], [q1, q3], color=col, alpha=box_alpha, lw=box_width,
                           solid_capstyle="butt", zorder=zorder + 0.6)
         payload = {"fluxbox": {"part": "summary", "category": _plain(c), "units": fr.units_name,
-                               "groupColor": _hex(col),
+                               "groupColor": _hex(col), "palette": _palette_spec_json(fr.palette_used.get(c)),
                                **{key: _manifest_value(v) for key, v in st.items()}}}
         reg.add(Mark(role="box", series=s, kind="fluxbox", artists=[body], data=payload))
         artists["box"].append(body)

@@ -66,6 +66,58 @@ def refresh(mark):
         mark.data['text'] = art.get_text()
     if mark.role == 'area' and hasattr(art, 'get_paths'):
         mark.data['band'] = {'paths': [[values(v) for v in p.vertices] for p in art.get_paths()]}
+    if mark.series is not None:
+        mark.data['color'] = primary_paint(mark)
+
+
+def primary_paint(mark):
+    """The one colour a series mark is painted with (``{hex, alpha, token?, palette?}``), or
+    ``{"hex": "varies"}`` when its elements differ (a colour-mapped collection). A Line2D's line
+    colour, a collection's or a bar's face colour; ``token`` is the exact palette token
+    (``flexoki.blue-600``) and ``palette`` the position in the active cycle, when either holds."""
+    from matplotlib.collections import Collection
+    from matplotlib.colors import to_hex, to_rgba
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    from .colors import palette_of, token_of
+    arts = mark.artists
+    if not arts:
+        return None
+    rgba = None
+    art = arts[0]
+    try:
+        if isinstance(art, Line2D):
+            rgba = to_rgba(art.get_color())
+        elif isinstance(art, Collection):
+            faces = art.get_facecolor()
+            if getattr(art, 'get_array', None) is not None and art.get_array() is not None:
+                return {'hex': 'varies'}
+            if len(faces) == 0:
+                edges = art.get_edgecolor()
+                if len(edges) == 0:
+                    return None
+                faces = edges
+            first = tuple(faces[0])
+            if any(tuple(f) != first for f in faces):
+                return {'hex': 'varies'}
+            rgba = first
+        elif isinstance(art, Patch):
+            first = to_rgba(art.get_facecolor())
+            if any(to_rgba(a.get_facecolor()) != first for a in arts if isinstance(a, Patch)):
+                return {'hex': 'varies'}
+            rgba = first
+    except (ValueError, TypeError, AttributeError):
+        return None
+    if rgba is None:
+        return None
+    out = {'hex': to_hex(rgba, keep_alpha=False), 'alpha': round(float(rgba[3]), 6)}
+    token = token_of(rgba)
+    if token:
+        out['token'] = token
+    palette = palette_of(rgba)
+    if palette:
+        out['palette'] = palette
+    return out
 
 
 def point_indices(mark):

@@ -27,7 +27,7 @@ import functools
 import json
 from importlib import resources
 
-__all__ = ["flex", "maps", "DISCRETE_MAX"]
+__all__ = ["flex", "maps", "palettes", "categories", "token_of", "palette_of", "palette_colors", "DISCRETE_MAX"]
 
 #: A ``ListedColormap`` with at most this many colours is a *discrete* map (a set of classes to
 #: pick from); above it, a listed map is treated as a continuous ramp. One threshold for the
@@ -498,6 +498,216 @@ def _install_house_maps() -> None:
 
 
 _install_house_maps()
+
+
+# -------------------------------------------
+# Naming a colour: the exact reverse lookup over every palette fluxplot ships
+# -------------------------------------------
+@functools.lru_cache(maxsize=None)
+def _token_table() -> dict:
+    """lowercase hex → the first token that names it: ``flexoki.green-400``, ``brewer.Blues-3``,
+    ``tol.bright.blue`` (Flexoki first, then the shipped palette collections)."""
+    table: dict[str, str] = {}
+    for key, meta in _flex_data.items():
+        if key in ("base-0", "base-1000"):
+            continue
+        table.setdefault(meta["hex"].lower(), f"flexoki.{key}")
+    for c in _definitions("palettes")["collections"]:
+        if c["id"] == "flexoki":
+            continue
+        for g in c["groups"]:
+            for sw in g["swatches"]:
+                name = sw["name"] if c["id"] == "brewer" else f"{g['name']}.{sw['name']}"
+                table.setdefault(sw["hex"].lower(), f"{c['id']}.{name}")
+    return table
+
+
+def token_of(color) -> str | None:
+    """The palette token an exact colour is (``colors.green400`` → ``"flexoki.green-400"``),
+    or ``None`` for a colour no shipped palette has. Alpha is ignored."""
+    from matplotlib.colors import to_hex
+    try:
+        return _token_table().get(to_hex(color).lower())
+    except ValueError:
+        return None
+
+
+def palette_of(color, cycle=None) -> dict | None:
+    """``{"name", "index"}`` when ``color`` sits in the active prop cycle (``cycle`` = the list
+    of cycle colours, default matplotlib's): ``flexoki.light`` / ``flexoki.dark`` for the house
+    cycles, a shipped palette's name when the cycle is one, else ``"cycle"``."""
+    from matplotlib.colors import to_hex
+    if cycle is None:
+        cycle = [c["color"] for c in mpl.rcParams["axes.prop_cycle"]]
+    try:
+        hexes = [to_hex(c).lower() for c in cycle]
+        target = to_hex(color).lower()
+    except ValueError:
+        return None
+    if target not in hexes:
+        return None
+    from . import style as _style
+    if hexes == [h.lower() for h in _style.CYCLE_LIGHT]:
+        name = "flexoki.light"
+    elif hexes == [h.lower() for h in _style.CYCLE_DARK]:
+        name = "flexoki.dark"
+    else:
+        name = "cycle"
+        for c in _definitions("palettes")["collections"]:
+            for g in c["groups"]:
+                if [sw["hex"].lower() for sw in g["swatches"]] == hexes:
+                    name = f"{c['id']}.{g['name']}"
+    return {"name": name, "index": hexes.index(target)}
+
+
+# -------------------------------------------
+# Category colours: one registry, so "SD" is the same colour in every figure
+# -------------------------------------------
+CATEGORIES_FILENAME = "fluxplot.colors.json"
+
+
+class _Categories:
+    """Stable colours for named categories (``fp.colors.categories``).
+
+    ``get(name)`` returns the colour pinned to ``name``, else assigns the next unused slot of the
+    palette (default: the active theme's cycle) in first-request order and remembers it — so a
+    category keeps its colour across every figure of a session, whatever other categories each
+    figure shows. ``assign`` pins colours outright. ``load`` / ``save`` read and write a project
+    file (``fluxplot.colors.json``: ``{"spec": "fluxplot/colors", "version": 1, "categories":
+    {"SD": "#bc5215"}, "palette": "flexoki"}``); the first use auto-loads ``$FLUXPLOT_COLORS`` or
+    the nearest ``fluxplot.colors.json`` between the working directory and the Git root. Nothing
+    is ever written implicitly. ``auto_series=True`` makes ``fp.line`` / ``fp.scatter`` colour a
+    series by its name when no colour is given (off by default: it would change existing plots).
+    """
+
+    def __init__(self) -> None:
+        self._pinned: dict[str, str] = {}
+        self._assigned: dict[str, str] = {}
+        self._palette = None
+        self._loaded = False
+        self.auto_series = False
+        self.path: str | None = None
+
+    # -- state -----------------------------------------------------------
+    def reset(self) -> None:
+        self.__init__()
+
+    def assign(self, mapping: dict) -> None:
+        """Pin colours: ``{"SD": "#bc5215", "Sleep": colors.blue600}``."""
+        from matplotlib.colors import to_hex
+        for name, colour in mapping.items():
+            self._pinned[str(name)] = to_hex(colour, keep_alpha=False).lower()
+
+    def is_pinned(self, name) -> bool:
+        self._autoload()
+        return str(name) in self._pinned
+
+    def pinned(self) -> dict:
+        self._autoload()
+        return dict(self._pinned)
+
+    def _cycle(self, palette) -> list:
+        from matplotlib.colors import to_hex
+        spec = palette if palette is not None else self._palette
+        if spec is None:
+            return [to_hex(c["color"]).lower() for c in mpl.rcParams["axes.prop_cycle"]]
+        if isinstance(spec, (list, tuple)):
+            return [to_hex(c).lower() for c in spec]
+        return [h.lower() for h in palette_colors(spec)]
+
+    def get(self, name, *, palette=None) -> str:
+        """The colour for ``name``: pinned, remembered, or the next free slot of ``palette``."""
+        self._autoload()
+        key = str(name)
+        if key in self._pinned:
+            return self._pinned[key]
+        if key in self._assigned:
+            return self._assigned[key]
+        cycle = self._cycle(palette)
+        used = set(self._pinned.values()) | set(self._assigned.values())
+        free = [c for c in cycle if c not in used]
+        colour = free[0] if free else cycle[len(self._assigned) % len(cycle)]
+        self._assigned[key] = colour
+        return colour
+
+    # -- the project file --------------------------------------------------
+    def _autoload(self) -> None:
+        if self._loaded:
+            return
+        self._loaded = True
+        import os
+        path = os.environ.get("FLUXPLOT_COLORS") or _find_upwards(CATEGORIES_FILENAME)
+        if path:
+            self.load(path)
+
+    def load(self, path=None) -> str | None:
+        """Read a ``fluxplot.colors.json`` (default: the auto-discovered one); returns its path."""
+        import os
+        path = path or os.environ.get("FLUXPLOT_COLORS") or _find_upwards(CATEGORIES_FILENAME)
+        if not path or not os.path.exists(path):
+            return None
+        with open(path, "r", encoding="utf-8") as f:
+            doc = json.load(f)
+        if doc.get("spec") != "fluxplot/colors":
+            raise ValueError(f"{path}: not a fluxplot/colors file")
+        self._loaded = True
+        self.path = path
+        self.assign(doc.get("categories", {}))
+        self._palette = doc.get("palette") or None
+        return path
+
+    def save(self, path=None) -> str:
+        """Write the pinned colours (and the palette) as a ``fluxplot.colors.json``."""
+        import os
+        path = path or self.path or os.path.join(os.getcwd(), CATEGORIES_FILENAME)
+        doc = {"spec": "fluxplot/colors", "version": 1, "categories": dict(sorted(self._pinned.items())),
+               "palette": self._palette if isinstance(self._palette, str) else "flexoki"}
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(doc, f, indent=2, sort_keys=True)
+            f.write("\n")
+        self.path = path
+        return path
+
+    def __repr__(self) -> str:
+        return f"Categories({len(self._pinned)} pinned, {len(self._assigned)} assigned, file={self.path!r})"
+
+
+def _find_upwards(filename: str) -> str | None:
+    """``filename`` in the working directory or an ancestor, stopping at the Git root."""
+    import os
+    here = os.getcwd()
+    while True:
+        cand = os.path.join(here, filename)
+        if os.path.exists(cand):
+            return cand
+        if os.path.isdir(os.path.join(here, ".git")):
+            return None
+        parent = os.path.dirname(here)
+        if parent == here:
+            return None
+        here = parent
+
+
+def palette_colors(spec) -> list:
+    """The colours of a palette spec: ``"tol.bright"``, ``"brewer.Set2"``, ``"flexoki"`` (the
+    light house cycle), ``"flexoki.dark"``, or a bare group name searched in every collection."""
+    from . import style as _style
+    if spec in ("flexoki", "flexoki.light"):
+        return list(_style.CYCLE_LIGHT)
+    if spec == "flexoki.dark":
+        return list(_style.CYCLE_DARK)
+    if "." in spec:
+        cid, _, group = spec.partition(".")
+        return palettes.get(cid, group)
+    for cid in ("tol", "brewer", "flexoki"):
+        try:
+            return palettes.get(cid, spec)
+        except KeyError:
+            continue
+    raise KeyError(f"No palette {spec!r}; use 'collection.group' (fp.colors.palettes.collections())")
+
+
+categories = _Categories()
 
 
 # -------------------------------------------

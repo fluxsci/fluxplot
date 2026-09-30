@@ -780,7 +780,16 @@
             ]
           }
         },
-        "palette": {}
+        "palette": {
+          "type": [
+            "string",
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "required": [
         "part"
@@ -1271,6 +1280,7 @@
         },
         "color": {
           "type": "object",
+          "description": "The series' colour: hex = its primary paint (or 'varies' for a colour-mapped collection), alpha, token = the exact palette token naming it, palette = its position in the active cycle, scale = the colorScales[] id colouring it.",
           "properties": {
             "scale": {
               "type": "string"
@@ -1282,19 +1292,24 @@
               "type": "number"
             },
             "token": {
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": "string"
             },
             "palette": {
-              "type": [
-                "object",
-                "null"
-              ]
+              "type": "object",
+              "required": [
+                "name",
+                "index"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "index": {
+                  "type": "integer"
+                }
+              }
             }
-          },
-          "description": "The series' colour: scale = the colorScales[] id colouring it; hex / alpha / token / palette are the primary paint (B2)."
+          }
         },
         "bar": {
           "type": "object",

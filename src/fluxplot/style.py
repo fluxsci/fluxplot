@@ -351,6 +351,20 @@ def _redirected(this: str, serif: bool, grid: bool) -> bool:
     return True
 
 
+def palette_override() -> str | None:
+    """``recipe.params().__fluxplot__.palette`` — the categorical palette Flux asked for."""
+    from .recipe import params
+    spec = (params().get("__fluxplot__") or {}).get("palette")
+    return str(spec) if spec else None
+
+
+def _cycle(default: list) -> list:
+    """The prop cycle a theme installs: the recipe's palette when one is asked for."""
+    from .colors import palette_colors
+    spec = palette_override()
+    return list(palette_colors(spec)) if spec else default
+
+
 def use_light(
     ink: str = FLEXOKI["black"],
     muted: str = FLEXOKI["base700"],
@@ -363,7 +377,7 @@ def use_light(
     if _override and _redirected("light", serif, grid):
         return
     mpl.rcParams.update(_base_rc(ink, muted, grid, paper, serif))
-    mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_LIGHT)
+    mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=_cycle(CYCLE_LIGHT))
     mpl.rcParams["image.cmap"] = SEQUENTIAL.name
     _record("light")
 
@@ -380,7 +394,7 @@ def use_lighttable(
     if _override and _redirected("lighttable", serif, grid):
         return
     mpl.rcParams.update(_exploratory_rc(ink, muted, grid, paper, serif))
-    mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_LIGHT)
+    mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=_cycle(CYCLE_LIGHT))
     mpl.rcParams["image.cmap"] = SEQUENTIAL.name
     _record("lighttable")
 
@@ -397,7 +411,7 @@ def use_paper(
     if _override and _redirected("paper", serif, grid):
         return
     mpl.rcParams.update(_base_rc(ink, muted, grid, paper, serif))
-    mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_LIGHT)
+    mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=_cycle(CYCLE_LIGHT))
     mpl.rcParams["image.cmap"] = SEQUENTIAL.name
     _record("paper")
 
@@ -417,7 +431,7 @@ def use_dark(serif: bool = False, grid: bool = False, bg: str = "#1C1B1A", _over
         }
     )
     mpl.rcParams.update(rc)
-    mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_DARK)
+    mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=_cycle(CYCLE_DARK))
     mpl.rcParams["image.cmap"] = SEQUENTIAL.name
     _record("dark")
 

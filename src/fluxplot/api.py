@@ -48,9 +48,37 @@ def _env_flag(name: str) -> bool:
 # ---------------------------------------------------------------------------
 # convenience helpers (auto-tagging) — each returns the real matplotlib artist(s)
 # ---------------------------------------------------------------------------
+def _series_color_override(series):
+    """The colour Flux asked this series to take on a rerun: ``__fluxplot__.series[<id>].color``
+    (keyed by the series id, i.e. its slug), or ``None``."""
+    controls = _recipe.params().get("__fluxplot__") or {}
+    per_series = controls.get("series") or {}
+    if not isinstance(per_series, dict):
+        raise ValueError("FLUX_PARAMS __fluxplot__.series must map series ids to {'color': ...}")
+    entry = per_series.get(_ids.series_root(series)) or per_series.get(str(series))
+    if isinstance(entry, dict):
+        return entry.get("color")
+    return entry if isinstance(entry, str) else None
+
+
+def _series_color(series, kw, *, key="color", auto=True):
+    """Apply the series' colour rule to a helper's keywords: a recipe override wins; otherwise a
+    colour comes from the category registry when ``fp.colors.categories.auto_series`` is on and
+    the call gave none; otherwise the call's own (or matplotlib's cycle) stands."""
+    from .colors import categories
+    override = _series_color_override(series)
+    if override is not None:
+        kw.pop("c", None)
+        kw[key] = override
+    elif auto and categories.auto_series and key not in kw and "c" not in kw:
+        kw[key] = categories.get(series)
+    return kw
+
+
 def line(ax, x, y, *, series, marker=None, label=None, **kw):
     """A named line. With ``marker=`` it also draws an addressable per-point group."""
     reg = _tagger.registry_for(ax.figure)
+    _series_color(series, kw)
     (ln,) = ax.plot(x, y, label=label, **kw)
     reg.add(Mark(role="line", series=series, kind="line", live_data=True, x=None, y=None, label=label, artists=[ln]))
     if marker:
@@ -90,6 +118,8 @@ def scatter(ax, x, y, *, series, label=None, key=None, **kw):
     """
     reg = _tagger.registry_for(ax.figure)
     data: dict = {}
+    if not _is_value_array(kw.get("c"), x):
+        _series_color(series, kw)
     if _is_value_array(kw.get("c"), x):
         from . import fields as _fields
         from ._fieldmap import resolve_colormap
@@ -115,6 +145,7 @@ def scatter(ax, x, y, *, series, label=None, key=None, **kw):
 
 def bar(ax, x, height, *, series, label=None, **kw):
     reg = _tagger.registry_for(ax.figure)
+    _series_color(series, kw, auto=False)
     container = ax.bar(x, height, label=label, **kw)
     reg.add(Mark(role="bar", series=series, kind="bar", live_data=True, x=None, y=None, label=label, artists=list(container.patches), indexed=True))
     return container
@@ -122,6 +153,7 @@ def bar(ax, x, height, *, series, label=None, **kw):
 
 def barh(ax, y, width, *, series, label=None, **kw):
     """A horizontal named bar series; returns the ordinary BarContainer."""
+    _series_color(series, kw, auto=False)
     container = ax.barh(y, width, label=label, **kw)
     _tagger.registry_for(ax.figure).add(Mark(
         role="bar", series=series, kind="bar", live_data=True, label=label,
@@ -132,6 +164,7 @@ def barh(ax, y, width, *, series, label=None, **kw):
 
 def errorbar(ax, x, y, *, series, yerr=None, label=None, **kw):
     reg = _tagger.registry_for(ax.figure)
+    _series_color(series, kw, auto=False)
     container = ax.errorbar(x, y, yerr=yerr, label=label, **kw)
     data_line, caps, barlinecols = container
     # Tag the WHOLE container: the central marker/data line + the cap lines + the
@@ -144,6 +177,7 @@ def errorbar(ax, x, y, *, series, yerr=None, label=None, **kw):
 
 def area(ax, x, y1, y2=0, *, series, label=None, **kw):
     reg = _tagger.registry_for(ax.figure)
+    _series_color(series, kw, auto=False)
     poly = ax.fill_between(x, y1, y2, label=label, **kw)
     reg.add(Mark(role="area", series=series, kind="area", x=None, y=None, label=label, artists=[poly]))
     return poly
@@ -226,6 +260,7 @@ def hist(ax, values, *, series, bins=None, label=None, include_values=False, **k
     from matplotlib.container import BarContainer
 
     reg = _tagger.registry_for(ax.figure)
+    _series_color(series, kw, auto=False)
     counts, edges, patches = ax.hist(values, bins=bins, label=label, **kw)
     if not isinstance(patches, BarContainer):
         raise ValueError(
@@ -389,10 +424,21 @@ def tag_seaborn(ax, *, series=None, plot=None):
         return True
 
 
+    from .colors import categories as _categories
+
+    def _pin(name, artist, setter):
+        """A hue level pinned in fp.colors.categories (or a recipe series colour) recolours its artist."""
+        colour = _series_color_override(name)
+        if colour is None and _categories.is_pinned(name):
+            colour = _categories.get(name)
+        if colour is not None:
+            setter(artist, colour)
+
     # data curves (one per hue level) → line
     curves = [ln for ln in ax.lines if id(ln) not in already and len(ln.get_xdata()) and not _is_segment(ln)]
     if curves and len(curves) == len(names):
         for name, ln in zip(names, curves):
+            _pin(name, ln, lambda a, c: a.set_color(c))
             gx, gy = ln.get_data()
             reg.add(Mark(role="line", series=name, kind="line", x=_list(gx), y=_list(gy), live_data=True, label=name, artists=[ln]))
             _record(name, "line")
@@ -429,6 +475,8 @@ def tag_seaborn(ax, *, series=None, plot=None):
             patches = [p for p in cont.patches if id(p) not in already]
             if not patches:
                 continue
+            for patch in patches:
+                _pin(name, patch, lambda a, c: a.set_facecolor(c))
             orientation = getattr(cont, "orientation", "vertical")
             cx, cy, meta = _data.bar_data(patches, orientation)
             reg.add(Mark(role="bar", series=name, kind="bar", x=cx, y=cy, label=name,
