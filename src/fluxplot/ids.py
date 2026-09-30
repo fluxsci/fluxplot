@@ -35,13 +35,65 @@ _SLUG_DROP = re.compile(r"[^a-z0-9-]+")
 _SLUG_DASHES = re.compile(r"-+")
 _SEGMENT_RE = re.compile(r"^[a-z0-9-]+$")
 
+# Characters that are spelled out rather than dropped: Greek letters (α → alpha), the micro sign,
+# degrees, percent and the common maths signs scientific names carry.
+TRANSLITERATE = {
+    "α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta", "ε": "epsilon", "ζ": "zeta", "η": "eta",
+    "θ": "theta", "ι": "iota", "κ": "kappa", "λ": "lambda", "μ": "mu", "ν": "nu", "ξ": "xi",
+    "ο": "omicron", "π": "pi", "ρ": "rho", "σ": "sigma", "ς": "sigma", "τ": "tau", "υ": "upsilon",
+    "φ": "phi", "χ": "chi", "ψ": "psi", "ω": "omega", "ϵ": "epsilon", "ϑ": "theta", "ϕ": "phi",
+    "µ": "mu", "°": "deg", "%": "pct", "‰": "permille", "±": "pm", "×": "x", "∞": "inf",
+    "→": "to", "←": "from", "≤": "le", "≥": "ge", "≠": "ne", "−": "-", "–": "-", "—": "-", "‑": "-",
+    "&": "and", "+": "plus",
+}
+# Punctuation whose loss never confuses two names: sentence marks and quotes.
+_SOFT_DROP = set(".,;:!?'\u2019\"`")
+_HASH_LEN = 6
+
+
+def _fold(name: str) -> str:
+    """Lowercase, accents stripped, superscripts/subscripts and Greek spelled out."""
+    import unicodedata
+    out = []
+    for ch in unicodedata.normalize("NFKD", name):
+        if unicodedata.category(ch) == "Mn":  # a combining accent
+            continue
+        low = ch.lower()
+        out.append(TRANSLITERATE.get(low, low))
+    return "".join(out)
+
+
+def _slug_parts(name: object):
+    raw = str(name).strip()
+    folded = _fold(raw).replace("_", "-").replace(" ", "-")
+    dropped = [ch for ch in set(_SLUG_DROP.findall(folded.replace("-", ""))) for ch in ch]
+    lossy = any(ch not in _SOFT_DROP and not ch.isspace() for ch in dropped)
+    s = _SLUG_DROP.sub("-", folded)
+    s = _SLUG_DASHES.sub("-", s).strip("-")
+    return raw, s, lossy
+
 
 def slugify(name: object) -> str:
     """Turn an arbitrary series/category name into a stable id segment.
 
-    Deterministic: lowercase → spaces/underscores to ``-`` → drop other non-``[a-z0-9-]`` →
-    collapse repeated ``-`` → strip leading/trailing ``-``. Empty result falls back to ``series``.
+    Deterministic: accents folded, Greek letters / ``µ`` / ``°`` / ``%`` and super- or subscript
+    digits spelled out (``α`` → ``alpha``, ``CO₂`` → ``co2``), lowercase, spaces/underscores to
+    ``-``, other characters dropped, repeated ``-`` collapsed and trimmed. When dropping
+    characters lost information that could make two names collide (brackets, slashes, symbols —
+    ``IL-6 (pg/mL)`` vs ``IL-6 [pg/mL]``), or when nothing legible is left, a 6-hex-digit hash of
+    the original name is appended, so distinct names give distinct, stable ids. Empty input falls
+    back to ``series``.
     """
+    raw, s, lossy = _slug_parts(name)
+    if raw and (not s or s == "series" or lossy):
+        import hashlib
+        s = (s or "series") + "-" + hashlib.sha1(raw.encode("utf-8")).hexdigest()[:_HASH_LEN]
+    return s or "series"
+
+
+def legacy_slugify(name: object) -> str:
+    """The pre-0.3.2 slug (lowercase, ``_``/space → ``-``, everything else dropped): what an
+    older manifest called the same series, for ``idAliases``."""
     s = str(name).strip().lower().replace("_", "-").replace(" ", "-")
     s = _SLUG_DROP.sub("-", s)
     s = _SLUG_DASHES.sub("-", s).strip("-")

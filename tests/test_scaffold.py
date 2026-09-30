@@ -92,7 +92,7 @@ def test_polar_scaffold_tagged(tmp_path):
     plt.close(fig)
 
     # the outer 'polar' circle runs along theta → the x-axis spine
-    assert "axis.x.spine" in ids, "polar outer-circle spine untagged"
+    assert "axis.x.spine.polar" in ids, "polar outer-circle spine untagged"
     assert 'data-role="spine"' in svg
     # theta (x) and r (y) scaffold: real axis wrappers + tick labels + gridlines
     assert "axis.x" in ids and "axis.y" in ids
@@ -114,6 +114,6 @@ def test_polar_scaffold_tagged(tmp_path):
         return out
 
     referenced = refs(man["parts"], set())
-    assert "axis.x.spine" in referenced
+    assert "axis.x.spine.polar" in referenced
     dangling = sorted(r for r in referenced if r not in ids)
     assert not dangling, f"polar manifest references missing ids: {dangling}"

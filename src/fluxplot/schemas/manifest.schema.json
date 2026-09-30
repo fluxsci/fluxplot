@@ -349,6 +349,13 @@
           }
         }
       }
+    },
+    "idAliases": {
+      "type": "object",
+      "description": "Ids an older fluxplot gave the same parts: old id (or old id prefix, for a series root) → current id. Resolve saved overrides through it; kept for one minor version after a rename.",
+      "additionalProperties": {
+        "type": "string"
+      }
     }
   },
   "definitions": {

@@ -292,6 +292,15 @@ refers to, and a coordinate in "meaning space" (`role=point, series=control, ind
 (matplotlib's own ids use underscores and hex hashes and never contain dots, so FluxPlot's dotted
 namespace is provably disjoint from anything it autogenerates.)
 
+A series name becomes its id segment by a deterministic slug: accents folded, Greek letters and
+`µ` / `°` / `%` spelled out (`α` → `alpha`, `37 °C` → `37-degc`), super- and subscripts flattened
+(`CO₂` → `co2`), lowercase, spaces to `-`. When dropping characters would let two names collide
+(`IL-6 (pg/mL)` vs `IL-6 [pg/mL]`), a six-hex-digit hash of the name is appended, so distinct names
+stay distinct and stable. Spines are named by side (`axis.x.spine.bottom`, `axis.y.spine.left`).
+When a rule changes an id an older fluxplot emitted, the manifest's `idAliases` maps the old id (or
+a series' old root) to the new one for one minor version, so a consumer resolves saved overrides
+through it instead of losing them.
+
 Two orthogonal axes of labeling make this work: **role** = *what kind of thing it is* (`line`,
 `point`, `axis-title`) and **identity** = *which one* (`series=control`, `index=3`). Animation targets
 by role ("draw every `line`"); a caption targets by identity ("the `treatment` series"); a journal

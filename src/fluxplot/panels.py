@@ -137,6 +137,8 @@ def namespace(man, prefix):
         sc['mappables'] = [ref(v) for v in sc['mappables']]
         sc['colorbars'] = [ref(v) for v in sc['colorbars']]
     walk(man['parts'])
+    if man.get('idAliases'):
+        man['idAliases'] = {ref(k): ref(v) for k, v in man['idAliases'].items()}
     # The one legacy role token has figure-wide meaning and is retained once.
     man['build']['order'] = [ref(v) if v != 'gridlines' else v for v in man['build']['order']]
     return man
@@ -201,6 +203,11 @@ def manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterize
         out['colorScales'] = list(merged.values())
     else:
         out.pop('colorScales', None)
+    aliases = {k: v for d in documents for k, v in (d.get('idAliases') or {}).items()}
+    if aliases:
+        out['idAliases'] = aliases
+    else:
+        out.pop('idAliases', None)
     out['build'] = {'order': list(dict.fromkeys(v for d in documents for v in d['build']['order'])),
                     'presets': {k: v for d in documents for k, v in d['build']['presets'].items()}}
     return out

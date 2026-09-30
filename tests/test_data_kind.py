@@ -55,7 +55,7 @@ def test_svg_nodes_carry_data_kind(tmp_path):
     assert _kind_of(tags["dots.points"]) == "shape"  # the group mirrors its members
     assert _kind_of(tags["dots.point.0"]) == "shape"
     assert _kind_of(tags["counts.bar.0"]) == "shape"
-    assert _kind_of(tags["axis.x.spine"]) == "line"
+    assert _kind_of(tags["axis.x.spine.bottom"]) == "line"
     assert _kind_of(tags["figure.title"]) == "text"
     # every tick label is text, every gridline/tick a line
     for gid, tag in tags.items():

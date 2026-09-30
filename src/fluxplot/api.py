@@ -393,18 +393,24 @@ def tag_seaborn(ax, *, series=None, plot=None):
     reg = _tagger.registry_for(ax.figure)
     already = {id(a) for m in reg.marks for a in m.artists}
 
-    # seaborn appends empty proxy lines used only to build its legend — drop them so the
-    # orphan sweep doesn't dutifully tag invisible leftovers.
-    for ln in [ln for ln in ax.lines if len(ln.get_xdata()) == 0]:
-        ln.remove()
-
     legend = ax.get_legend()
+    legend_texts = {t.get_text() for t in legend.get_texts()} if legend is not None else set()
+    # seaborn appends empty proxy lines used only to build its legend — drop them so the orphan
+    # sweep doesn't dutifully tag invisible leftovers. Only seaborn's own are removed: an empty
+    # line is a proxy when its label is private (``_…``) or is one of the legend's entries; an
+    # empty line the user drew with a public label of their own is left alone.
+    for ln in [ln for ln in ax.lines if len(ln.get_xdata()) == 0]:
+        lbl = str(ln.get_label())
+        if lbl.startswith("_") or lbl in legend_texts:
+            ln.remove()
+
     if series is not None:
         names = [str(s) for s in series]
     elif legend is not None and legend.get_texts():
         names = [t.get_text() for t in legend.get_texts()]
     else:
-        names = [ax.get_ylabel() or "data"]
+        # a FacetGrid facet has no legend of its own: its title names the facet
+        names = [ax.get_ylabel() or ax.get_title() or "panel"]
 
     # Seaborn deliberately reverses hue iteration for distribution plots.
     # A legend does not encode this provenance. Require the plot kind for a
@@ -919,7 +925,9 @@ def _save(
                                 rasterized=not keep_vectors)
         raster_warnings.append(note)
         print(note, file=sys.stderr)
-    all_warnings = promo_warnings + geometry_warnings + lint_warnings + raster_warnings + post_warnings
+    persistent = _tagger.registry_for(fig)
+    tag_warnings, persistent.warnings = list(persistent.warnings), []
+    all_warnings = promo_warnings + tag_warnings + geometry_warnings + lint_warnings + raster_warnings + post_warnings
 
     # 6. assemble manifest + recipe. Drop scaffold guides matplotlib culled at draw
     # (boundary ticks/gridlines, empty axis titles) so the manifest references only

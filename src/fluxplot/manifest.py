@@ -349,9 +349,11 @@ def build_manifest(
     # tree (rather than each becoming a loose ref) while still appearing in the manifest overlays.
     extra_entries = []
     for e in extras:
-        ee = {"id": e["id"], "svgId": e["id"], "role": "extra"}
+        ee = {"id": e["id"], "svgId": e["id"], "role": e.get("role", "extra")}
         if e.get("kind"):
             ee["kind"] = e["kind"]
+        if e.get("text"):
+            ee["text"] = e["text"]
         if e["id"] in rasterized:
             ee["rasterized"] = True
         extra_entries.append(ee)
@@ -397,6 +399,21 @@ def build_manifest(
     }
     if scales:
         out["colorScales"] = list(scales.values())
+    # ids an older fluxplot gave the same parts (renamed spines; series whose slug changed with
+    # the 0.3.2 slug rule): a consumer resolves saved overrides through them. A key is an old id
+    # or an old id prefix (a series root stands for every part under it).
+    aliases = {g.data["alias"]: g.gid for g in guides if g.data.get("alias") and _keep(g.gid) and g.data["alias"] != g.gid}
+    roots_in_use = {_ids.series_root(series) for series in by_series}
+    legacy_roots = [_ids.legacy_slugify(series) for series in by_series]
+    for series, marks in by_series.items():
+        new_root = _ids.series_root(series)
+        old_root = _ids.legacy_slugify(series)
+        # only an unambiguous rename is aliased: two series that shared the old slug cannot be told apart
+        if (old_root != new_root and old_root not in roots_in_use and legacy_roots.count(old_root) == 1
+                and any(_keep(m.gid) or m.member_gids for m in marks)):
+            aliases[old_root] = new_root
+    if aliases:
+        out["idAliases"] = aliases
     if style is not None:
         out["style"] = style
     if quality is not None:
@@ -443,6 +460,8 @@ def _organize_guides(guides):
             annotations.append({"id": g.gid, "text": g.text})
         elif g.role == "extra":
             extras.append({"id": g.gid, "kind": g.kind})
+        elif g.role == "label" and g.gid.startswith("extra."):  # a swept anchored box's text
+            extras.append({"id": g.gid, "kind": g.kind, "role": "label", "text": g.text})
     return axes, legend_entries, figure_titles, annotations, extras, backgrounds
 
 
@@ -584,7 +603,8 @@ def _build_order(series_entries, guide_entries, overlay_entries, reg, figure_tit
             order.append(g.get("svgId", g["id"]))
     order.extend(g['svgId'] for g in guide_entries if g['role'] == 'colorbar')
     order.extend(figure_titles)  # titles reveal with the axes (phase 0)
-    order.append("gridlines")
+    if "gridline" in guide_roles:  # the legacy figure-wide token, only when gridlines exist
+        order.append("gridlines")
     # Use the same component inventory as the tree. Unknown/extension roles are
     # ordinary drawable parts, not exceptions silently excluded from animation.
     for s in series_entries:

@@ -27,6 +27,9 @@ class Registry:
         self._color_keys: set[str] = set()
         # shared colour scales declared with fp.color_scale (fields.SharedScale), by name
         self._scales: dict = {}
+        # problems the auto-tagger met that a save should report (SaveResult.warnings), instead
+        # of swallowing them
+        self.warnings: list[str] = []
 
     def add(self, mark: Mark) -> Mark:
         if mark.axes is None and mark.artists:
@@ -252,6 +255,7 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
         sides = (("polar", "x"), ("inner", "x"), ("start", "y"), ("end", "y"))
     else:
         sides = (("bottom", "x"), ("left", "y"), ("top", "x"), ("right", "y"))
+    seen_spines: dict[str, int] = {}
     for side, which in sides:
         try:
             sp = ax.spines[side]
@@ -259,9 +263,15 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
             continue
         if not sp.get_visible():
             continue
-        g = alloc.take(_ids.axis_id(which, "spine"))
+        # the side is part of the id (axis.x.spine.bottom): a second visible spine no longer
+        # depends on collision repair for its name. The id an older fluxplot gave this spine
+        # (axis.x.spine, axis.x.spine-2, …) travels as an alias for one minor version.
+        k = seen_spines.get(which, 0)
+        seen_spines[which] = k + 1
+        g = alloc.take(_ids.axis_id(which, "spine") + "." + side)
         sp.set_gid(g)
-        guides.append(GuideTag(gid=g, role="spine", axis=which, text=side))
+        legacy = _ids.axis_id(which, "spine") + ("" if k == 0 else f"-{k + 1}")
+        guides.append(GuideTag(gid=g, role="spine", axis=which, text=side, data={"alias": legacy}))
 
     # the grounds: the axes' and the figure's background patches (and a framed legend's box) are
     # parts too — the paints a theme swaps first. The figure patch is shared by every panel; the
@@ -296,8 +306,9 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
                 sg = alloc.take(_ids.join("legend", "entry", k, "swatch"))
                 h.set_gid(sg)
                 guides.append(GuideTag(gid=sg, role="legend-swatch", index=k))
-            except Exception:
-                pass
+            except Exception as exc:  # a handle that is no Artist: said, not swallowed
+                registry_for(ax.figure).warnings.append(
+                    f"legend entry {k}: swatch {type(h).__name__} could not be tagged ({exc})")
 
     # Titles: the house style writes a LEFT title (matplotlib's ax._left_title), so
     # inspecting only ax.title (center) misses it. Tag every title slot that carries
@@ -353,6 +364,10 @@ def _sweep_extra(ax, alloc: "_ids.IdAllocator", guides: list) -> None:
         # an <image> left with matplotlib's generated id is, by construction, one that
         # rasterization produced — which is how raster.reattach identifies them.
         ("image", list(ax.images) + list(ax.figure.images)),
+        # ax.artists holds what add_artist() placed: anchored boxes (an AnchoredSizeBar, an
+        # AnchoredText), offset images, arbitrary artists; ax.tables holds table() output.
+        ("artist", list(ax.artists)),
+        ("table", list(ax.tables)),
     ):
         n = 0
         for art in artists:
@@ -361,7 +376,52 @@ def _sweep_extra(ax, alloc: "_ids.IdAllocator", guides: list) -> None:
             if not art.get_visible() or art.get_gid():
                 continue
             g = alloc.take(_ids.join("extra", kind, n))
+            if kind == "artist" and _is_offsetbox(art):
+                # an OffsetBox draws its children without a wrapping group of its own: name the
+                # children so they, and not an invisible container, are addressable — the first
+                # drawable as the box's id, further drawables as .k, its text as .label
+                _tag_offsetbox(art, g, alloc, guides)
+                n += 1
+                continue
             art.set_gid(g)
             # "extra" has no static kind (role is heterogeneous) — infer from the artist
-            guides.append(GuideTag(gid=g, role="extra", index=n, kind=artist_kind(art)))
+            guides.append(GuideTag(gid=g, role="extra", index=n,
+                                   kind="container" if kind == "table" else artist_kind(art)))
             n += 1
+
+
+def _is_offsetbox(art) -> bool:
+    from matplotlib.offsetbox import OffsetBox
+    return isinstance(art, OffsetBox)
+
+
+def _tag_offsetbox(box, gid: str, alloc: "_ids.IdAllocator", guides: list) -> None:
+    from matplotlib.offsetbox import OffsetBox
+    from matplotlib.text import Text
+    leaves, texts = [], []
+
+    def visit(a):
+        if not a.get_visible():
+            return
+        if isinstance(a, OffsetBox):
+            for child in a.get_children():
+                visit(child)
+            patch = getattr(a, "patch", None)
+            if patch is not None and patch.get_visible() and a is box:
+                leaves.append(patch)
+        elif isinstance(a, Text):
+            if a.get_text().strip():
+                texts.append(a)
+        elif hasattr(a, "set_gid"):
+            leaves.append(a)
+
+    visit(box)
+    box.set_gid(gid)  # harmless: the box emits no group, and marks it swept
+    for k, leaf in enumerate(leaves):
+        g = gid if k == 0 else alloc.take(f"{gid}.{k}")
+        leaf.set_gid(g)
+        guides.append(GuideTag(gid=g, role="extra", index=k if k else None, kind=artist_kind(leaf)))
+    for k, txt in enumerate(texts):
+        g = alloc.take(f"{gid}.label" if k == 0 else f"{gid}.label.{k}")
+        txt.set_gid(g)
+        guides.append(GuideTag(gid=g, role="label", index=k if k else None, text=txt.get_text(), kind="text"))
