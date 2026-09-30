@@ -1181,7 +1181,7 @@
         "kind",
         "parts"
       ],
-      "description": "fp.surface payload: the complete value\u2192colour contract of a surface (brain) map and every part."
+      "description": "fp.surface payload: the complete value→colour contract of a surface (brain) map and every part."
     },
     "series": {
       "type": "object",
@@ -1660,6 +1660,57 @@
         },
         "rasterized": {
           "type": "boolean"
+        },
+        "stats": {
+          "type": "object",
+          "description": "The test behind a significance bracket (fp.brackets): the fp.stats row it was drawn from.",
+          "properties": {
+            "test": {
+              "type": "string"
+            },
+            "statistic": {
+              "type": "number"
+            },
+            "p": {
+              "type": "number"
+            },
+            "pCorrected": {
+              "type": "number"
+            },
+            "correction": {
+              "type": "string"
+            },
+            "effectSizeMethod": {
+              "type": "string"
+            },
+            "effectSize": {
+              "type": "number"
+            },
+            "ciLow": {
+              "type": "number"
+            },
+            "ciHigh": {
+              "type": "number"
+            },
+            "n": {
+              "type": [
+                "array",
+                "integer"
+              ],
+              "items": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "dof": {
+              "type": "number"
+            },
+            "alternative": {
+              "type": "string"
+            }
+          }
         }
       },
       "required": [

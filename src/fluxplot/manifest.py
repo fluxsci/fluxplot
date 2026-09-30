@@ -330,7 +330,7 @@ def build_manifest(
             oe["kind"] = mk
         if m.name is not None:
             oe["name"] = m.name
-        for key in ("label", "between", "p", "text"):  # carry the annotation text too
+        for key in ("label", "between", "p", "text", "stats"):  # carry the annotation text too
             if key in m.data:
                 oe[key] = m.data[key]
         if m.gid in rasterized:

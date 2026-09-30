@@ -274,6 +274,17 @@ class GlowbarResult:
     #: part → matplotlib artists (``glow``, ``caps``, ``mean``, ``median``, ``points``, ``lines``)
     artists: dict = field(default_factory=dict)
 
+    @property
+    def positions(self) -> dict:
+        """Category name → x (category ``i`` sits at ``i``), as :func:`fluxplot.brackets` wants it."""
+        return {str(c): float(i) for i, c in enumerate(self.categories)}
+
+    def brackets(self, rows, **kw) -> list:
+        """Draw ``fp.stats`` post-hoc rows as stacked significance brackets over these
+        categories: :func:`fluxplot.brackets` with this plot's ``positions``."""
+        from ..brackets import brackets as _brackets
+        return _brackets(self.ax, rows, positions=kw.pop("positions", self.positions), **kw)
+
 
 # ---------------------------------------------------------------------------
 # the scaffold every signature plot shares (fp.glowbar, fp.fluxbox): the table, the unit lanes and

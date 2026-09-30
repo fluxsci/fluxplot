@@ -538,13 +538,15 @@ def _tag_seaborn_fields(ax, reg, already, names, tagged) -> None:
 # first-class overlays
 # ---------------------------------------------------------------------------
 def significance_bracket(ax, *, x0, x1, y, label, between=None, p=None, name=None, height=None,
-                         color=None, text_kw=None, **kw):
+                         color=None, text_kw=None, stats=None, **kw):
     """A p-value bracket (spec §5: deliberately first-class — ubiquitous in science).
 
     ``color`` paints both the bracket line and its label (default: the theme's text colour,
     so a bracket reads on dark grounds too); ``text_kw`` are extra ``Text`` properties for the
     label (``fontsize``, ``fontweight``, …). ``height`` is the tip height in data units
-    (default: 3 % of the y range, or a 6 % step on a log axis).
+    (default: 3 % of the y range, or a 6 % step on a log axis). ``stats`` is the provenance of
+    the label — the test, statistic, p-values, effect size — recorded on the manifest overlay
+    (:func:`fluxplot.brackets` fills it from an ``fp.stats`` row).
     """
     reg = _tagger.registry_for(ax.figure)
     idx = reg.next_overlay_index("significance-bracket")
@@ -575,7 +577,10 @@ def significance_bracket(ax, *, x0, x1, y, label, between=None, p=None, name=Non
         data["between"] = list(between)
     if p is not None:
         data["p"] = p
+    if stats:
+        data["stats"] = dict(stats)
     reg.add(Mark(role="significance-bracket", series=None, name=name, artists=[br], data=data))
+    br._fluxplot_label = txt
     return br
 
 

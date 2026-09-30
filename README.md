@@ -549,9 +549,26 @@ test above over the pairs of a `{name: sample}` family and corrects across them:
 | `dunn(*groups, names=, adjust="holm")` | Dunn's rank-sum test after Kruskal–Wallis | Cliff's delta; Newcombe CI |
 | `pairwise(test, groups, pairs=None, adjust="holm"\|"bh")` | any two-group test per pair | that test's |
 
-`tests/test_stats_multi.py` pins them against pingouin / scikit-posthocs reference values. The
-post-hoc rows feed `fp.brackets` directly (below): each bracket then records which test its stars
-came from.
+`tests/test_stats_multi.py` pins them against pingouin / scikit-posthocs reference values.
+
+*From rows to brackets* — `fp.brackets(ax, rows, positions=…)` draws one significance bracket per
+post-hoc row and stacks them automatically: shortest span first, each bracket one `step` above the
+data it spans and above every bracket it overlaps in x (multiplicative steps on a log axis), so
+nothing crosses. `positions` maps group name → x; a glowbar / fluxbox result provides it, and
+`gb.brackets(rows)` is the one-liner:
+
+```python
+rows = fp.stats.pairwise(fp.stats.welch_hedges, {"ctl": ctl, "drug": drug, "sham": sham})
+gb = fp.glowbar(data=df, x="group", y="value", ax=ax)
+gb.brackets(rows)                                   # *** / ** / * / ns from p_corrected_holm
+gb.brackets(rows, label="p", ns=False, p_column="p_corrected_bh")   # "p = 0.003", drop ns pairs
+```
+
+`label` is `"stars"`, `"p"`, `"both"` or a callable on the row; `thresholds`, `top`, `step` and
+`tip` shape the stack; extra keywords reach `fp.significance_bracket`. Each bracket's manifest
+overlay carries `between: [a, b]`, `p` and a `stats` block — test, statistic, raw and corrected p,
+correction, effect size and its CI, sizes — so the figure states exactly which test each star came
+from.
 
 **Labels are identity** — a *conventional* labeled plot needs no helpers at all. At save time,
 raw artists carrying a public label (`ax.plot(..., label="Control")`, labeled `scatter`/`bar`/
