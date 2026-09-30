@@ -10,11 +10,19 @@
     "__fluxplot__": {
       "correlation": {
         "cmap": "viridis",
+        "extend": "neither",
+        "norm": {
+          "kind": "linear"
+        },
         "vmax": 1.0,
         "vmin": 0.0
       },
       "energy": {
         "cmap": "plasma",
+        "extend": "neither",
+        "norm": {
+          "kind": "linear"
+        },
         "vmax": 8.0,
         "vmin": 0.0
       }

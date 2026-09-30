@@ -10,6 +10,10 @@
     "__fluxplot__": {
       "cloud": {
         "cmap": "viridis",
+        "extend": "neither",
+        "norm": {
+          "kind": "linear"
+        },
         "vmax": 18.0,
         "vmin": 1.0
       }

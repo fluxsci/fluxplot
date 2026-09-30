@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://flux.dev/schemas/fluxplot-recipe-0.1.0.json",
+  "$id": "https://flux.dev/schemas/fluxplot-recipe-0.3.1.json",
   "title": "FluxPlot recipe",
   "type": "object",
   "required": ["spec", "schemaVersion", "plot", "outputs", "inputs"],
@@ -17,7 +17,10 @@
       }
     },
     "generatedAt": { "type": ["string", "null"] },
-    "script": { "type": ["object", "null"] },
+    "script": {
+      "type": ["object", "null"],
+      "properties": { "path": { "type": "string" } }
+    },
     "params": { "type": "object" },
     "command": { "type": "string" },
     "args": { "type": "array", "items": { "type": "string" } },
@@ -25,6 +28,7 @@
     "output": { "type": "string" },
     "provenance": {
       "type": "object",
+      "description": "How the producing script was determined, plus the interpreter, platform, package versions, script hash and Git state.",
       "required": ["scriptDiscovery"],
       "properties": {
         "scriptDiscovery": { "enum": ["automatic", "explicit", "unavailable", "suppressed"] },
