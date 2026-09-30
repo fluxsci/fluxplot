@@ -271,3 +271,17 @@ def test_defaults_are_the_house_glowbar():
     import matplotlib as mpl
     assert gb.group_colors["SD"] == pytest.approx(mpl.colormaps["YlOrRd"](0.75))
     plt.close(fig)
+
+
+def test_a_colour_name_is_a_colour_not_the_flexoki_ramp():
+    """B4.8: ``palette="red"`` is the single colour red (a pale → red → deep ramp); the 13-step
+    Flexoki ramp is ``"flexoki.red"``."""
+    from matplotlib.colors import to_rgba
+
+    from fluxplot.signature_fluxplots import _colour
+    single = _colour.resolve("red", "g")
+    assert single.fixed == to_rgba("red") and single.kind == "continuous"
+    ramp = _colour.resolve("flexoki.red", "g")
+    assert ramp.kind == "discrete" and len(ramp.colours) == 13 and ramp.fixed is None
+    assert _colour.resolve("#4cb391", "g").fixed == to_rgba("#4cb391")
+    assert _colour.resolve("viridis", "g").kind == "continuous"  # a map name is still a map

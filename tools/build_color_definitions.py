@@ -30,19 +30,41 @@ OUT = HERE.parent / "src" / "fluxplot" / "definitions"
 sys.path.insert(0, str(HERE.parent / "src"))
 SAMPLES = 256
 
+# The upstream packages register their maps with matplotlib on import, under the very names
+# fluxplot registers from its shipped JSON ("tol.sunset") — import them FIRST, so fluxplot's
+# best-effort registration yields to theirs instead of the other way round raising.
+for _pkg in ("cmcrameri", "tol_colors", "cmasher"):
+    try:
+        __import__(_pkg)
+    except ImportError:
+        pass
+
 
 def hexes(cm: Colormap, n: int = SAMPLES) -> list[str]:
     return [to_hex(c) for c in cm(np.linspace(0.0, 1.0, n))]
 
 
-def entry(name: str, cm: Colormap, kind: str, family: str | None = None) -> dict:
-    discrete = isinstance(cm, ListedColormap) and cm.N <= 128
-    colors = [to_hex(c) for c in cm.colors] if discrete else hexes(cm)
-    e = {"name": name, "type": kind, "colors": colors}
+#: A listed map with at most this many colours is stored as its exact colour list (any map is
+#: representable that way; above it, 256 samples ARE the lookup table matplotlib indexes).
+EXACT_MAX = 128
+
+
+def entry(name: str, cm: Colormap, kind: str, family: str | None = None, uniform: bool | None = None) -> dict:
+    """One map definition: ``colors`` is the exact lookup table (a listed map's own colours, or
+    256 samples of a continuous one), ``N`` its size, ``discrete`` whether the colours are a
+    set of classes (fluxplot's one threshold, ``colors.DISCRETE_MAX``), ``uniform`` whether the
+    map is perceptually uniform where that is known."""
+    from fluxplot.colors import DISCRETE_MAX
+
+    exact = isinstance(cm, ListedColormap) and cm.N <= EXACT_MAX
+    colors = [to_hex(c) for c in cm.colors] if exact else hexes(cm)
+    e = {"name": name, "type": kind, "N": int(cm.N) if exact else SAMPLES, "colors": colors}
     if family:
         e["family"] = family
-    if discrete:
+    if exact and cm.N <= DISCRETE_MAX:
         e["discrete"] = True
+    if uniform is not None:
+        e["uniform"] = uniform
     return e
 
 
@@ -76,7 +98,8 @@ def build_mpl() -> dict:
             for name in names:
                 if name not in matplotlib.colormaps:
                     continue
-                maps.append(entry(name, matplotlib.colormaps[name], kind, family or None))
+                maps.append(entry(name, matplotlib.colormaps[name], kind, family or None,
+                                  uniform=True if family == "perceptually uniform" else None))
     return {
         "id": "mpl", "name": "matplotlib",
         "description": "matplotlib's built-in colormaps, in its documented groups.",
@@ -110,7 +133,7 @@ def build_crameri() -> dict:
             kind, family = "sequential", "multi-sequential"
         else:
             kind, family = "sequential", None
-        maps.append(entry(name, cm, kind, family))
+        maps.append(entry(name, cm, kind, family, uniform=None if kind == "qualitative" else True))
     order = {"sequential": 0, "diverging": 1, "cyclic": 2, "qualitative": 3}
     maps.sort(key=lambda m: (order[m["type"]], m["name"].lower()))
     return {
@@ -160,7 +183,7 @@ def build_cmasher() -> dict:
         for name, cm in sorted(cmasher.cm.cmap_cd.get(kind, {}).items()):
             if name.endswith("_r"):
                 continue
-            maps.append(entry(name, cm, kind))
+            maps.append(entry(name, cm, kind, uniform=None if kind in ("qualitative", "misc") else True))
     return {
         "id": "cmasher", "name": "cmasher",
         "description": "cmasher — scientific colormaps for making accessible, informative and 'cmashing' plots.",
@@ -168,6 +191,49 @@ def build_cmasher() -> dict:
         "license": "BSD-3-Clause",
         "version": cmasher.__version__, "maps": maps,
     }
+
+
+# --- fluxplot's own house maps ----------------------------------------------------------------
+def build_flexoki() -> dict:
+    """The Flexoki-flavoured house maps, sampled from their palette anchors (fluxplot.colors)."""
+    from fluxplot.colors import FLEXOKI_MAP_ANCHORS, flexoki_map_from_anchors
+
+    maps = [entry(name, flexoki_map_from_anchors(name), kind, uniform=False)
+            for name, (kind, _anchors) in FLEXOKI_MAP_ANCHORS.items()]
+    return {
+        "id": "flexoki", "name": "Flexoki",
+        "description": "fluxplot's house maps: linear ramps through Flexoki palette anchors (not perceptually uniform).",
+        "url": "https://stephango.com/flexoki", "license": "MIT", "version": "1", "maps": maps,
+    }
+
+
+def _existing_collection(cid: str) -> dict | None:
+    """The shipped definition of a collection, for a refresh without its build-time package,
+    brought up to the current entry shape (``N``, the one ``discrete`` threshold)."""
+    from fluxplot.colors import DISCRETE_MAX
+
+    path = OUT / "colormaps.json"
+    if not path.exists():
+        return None
+    for c in json.loads(path.read_text())["collections"]:
+        if c["id"] == cid:
+            for m in c["maps"]:
+                m.setdefault("N", len(m["colors"]))
+                if m.get("discrete") and len(m["colors"]) > DISCRETE_MAX:
+                    del m["discrete"]  # an exact colour list, but too many colours to be classes
+            return c
+    return None
+
+
+def _try(builder, cid: str) -> dict:
+    try:
+        return builder()
+    except ImportError as exc:
+        kept = _existing_collection(cid)
+        if kept is None:
+            raise
+        print(f"colormaps: {cid:8} kept the shipped definition ({exc.name} not installed)")
+        return kept
 
 
 # --- palettes ---------------------------------------------------------------------------
@@ -180,8 +246,11 @@ FLEX_HUES = {"k": "base", "r": "red", "o": "orange", "y": "yellow", "g": "green"
 
 
 def build_palettes() -> dict:
-    from fluxplot.colors import _flex_data  # fluxplot's own Flexoki table is the source
-    import tol_colors as tc
+    from fluxplot.colors import _flex_data  # fluxplot's Flexoki table (from definitions/flexoki.tokens.json) is the source
+    try:
+        import tol_colors as tc
+    except ImportError:
+        tc = None
 
     groups: dict[str, list[dict]] = {}
     for key, meta in _flex_data.items():
@@ -210,12 +279,17 @@ def build_palettes() -> dict:
                         + [brewer_group(n, "diverging") for n in BREWER_DIV]
                         + [brewer_group(n, "qualitative") for n in BREWER_QUAL]}
 
-    tol = {"id": "tol", "name": "Paul Tol",
-           "description": "Paul Tol's qualitative colour sets, colour-blind safe and distinct in print.",
-           "url": "https://personal.sron.nl/~pault/", "license": "BSD-3-Clause (tol-colors)",
-           "groups": [{"name": name, "type": "qualitative",
-                       "swatches": [{"name": f, "hex": getattr(cs, f).lower()} for f in cs._fields]}
-                      for name, cs in tc.colorsets.items()]}
+    if tc is not None:
+        tol = {"id": "tol", "name": "Paul Tol",
+               "description": "Paul Tol's qualitative colour sets, colour-blind safe and distinct in print.",
+               "url": "https://personal.sron.nl/~pault/", "license": "BSD-3-Clause (tol-colors)",
+               "groups": [{"name": name, "type": "qualitative",
+                           "swatches": [{"name": f, "hex": getattr(cs, f).lower()} for f in cs._fields]}
+                          for name, cs in tc.colorsets.items()]}
+    else:
+        shipped = json.loads((OUT / "palettes.json").read_text())["collections"]
+        tol = next(c for c in shipped if c["id"] == "tol")
+        print("palettes:  tol      kept the shipped definition (tol_colors not installed)")
     return {"schema": "fluxplot.palettes/1", "collections": [flexoki, brewer, tol]}
 
 
@@ -229,7 +303,8 @@ def dump(data: dict) -> str:
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     cmaps = {"schema": "fluxplot.colormaps/1", "samples": SAMPLES,
-             "collections": [build_mpl(), build_crameri(), build_tol(), build_cmasher()]}
+             "collections": [build_flexoki(), build_mpl(), _try(build_crameri, "crameri"),
+                             _try(build_tol, "tol"), build_cmasher()]}
     (OUT / "colormaps.json").write_text(dump(cmaps))
     pals = build_palettes()
     (OUT / "palettes.json").write_text(dump(pals))

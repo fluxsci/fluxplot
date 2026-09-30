@@ -7,10 +7,11 @@ fluxplot knows about:
 * a colormap name from ``fp.colors.maps`` — qualified (``"cmasher.emerald"``, ``"crameri.batlow"``,
   ``"tol.sunset"``, ``"cmr.emerald"``) or bare (``"emerald"``, ``"YlGnBu"``), ``_r`` for reversed;
 * a palette from ``fp.colors.palettes`` — ``"brewer.Set2"``, ``"tol.bright"``, ``"flexoki.blue"`` or a
-  bare group name (``"bright"``) when no colormap has that name;
+  bare group name (``"bright"``) when no colormap or colour has that name;
 * any matplotlib-registered colormap name or a ``Colormap`` object;
 * a list of colours (a hand-made palette);
-* a single colour (it becomes a pale → colour → deep ramp).
+* a single colour (it becomes a pale → colour → deep ramp). A colour name wins over a palette
+  of the same name: ``"red"`` is the colour, ``"flexoki.red"`` the 13-step Flexoki ramp.
 
 **Ordered** sources (sequential maps / palettes — lightness runs one way) are oriented light → dark;
 points take equal perceptual steps between two lightness bounds and the group colour sits at a fixed
@@ -166,10 +167,17 @@ def resolve(spec, label="group") -> ColourSource:
 
 
 def _resolve_str(spec, label, info):
-    """A named colormap or palette → its source, or ``None`` when the name is neither."""
+    """A named colormap or palette → its source, or ``None`` when the name is neither.
+
+    A string that names a single colour (``"red"``, ``"#4cb391"``, ``"tab:blue"``) is that
+    colour — the Flexoki ramp of the same name is spelled ``"flexoki.red"``.
+    """
     import matplotlib as mpl
+    from matplotlib.colors import is_color_like
 
     from .. import colors as _colors
+    if is_color_like(spec) and spec not in mpl.colormaps:
+        return None  # resolve() turns it into a single-colour ramp
     if spec in mpl.colormaps:  # matplotlib's exact map (built-ins, cmr.*, fluxplot-registered names)
         return _from_colormap(mpl.colormaps[spec], label, info.get("type"), info.get("discrete"))
     try:  # fluxplot's collections: bare names ("emerald", "batlow"), "cmasher.emerald", …

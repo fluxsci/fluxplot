@@ -1,7 +1,7 @@
 """One value-to-color law shared by 2D surface and Scene3D; no geometry or rendering."""
 from __future__ import annotations
 import numpy as np
-from matplotlib.colors import Normalize, to_hex
+from matplotlib.colors import Normalize, to_hex, to_rgba
 
 
 def _normalise_missing(values, missing_below=None, missing_values=()):
@@ -43,7 +43,8 @@ def categorical_colors(names,palette=None,categories=None):
                     if nm==name and code in palette:
                         color=palette[code]; break
         if color is None: color=f'C{len(resolved)%10}'
-        resolved[name]=to_hex(color)
+        rgba=to_rgba(color)
+        resolved[name]=to_hex(rgba, keep_alpha=rgba[3] < 1)  # an opaque colour stays #rrggbb
     return resolved
 
 

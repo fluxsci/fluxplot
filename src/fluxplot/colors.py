@@ -97,162 +97,54 @@ def _key_to_attr(key: str) -> str:
     return key.replace("-", "")
 
 
-_flex_data = {
-    # Base (and paper/black)
-    "paper": {"h": "k", "l": 0, "hex": "#FFFCF0", "rgb": (255, 252, 240)},
-    "base-0": {
-        "h": "k",
-        "l": 0,
-        "hex": "#FFFCF0",
-        "rgb": (255, 252, 240),
-    },  # equivalent to paper
-    "base-50": {"h": "k", "l": 50, "hex": "#F2F0E5", "rgb": (242, 240, 229)},
-    "base-100": {"h": "k", "l": 100, "hex": "#E6E4D9", "rgb": (230, 228, 217)},
-    "base-150": {"h": "k", "l": 150, "hex": "#DAD8CE", "rgb": (218, 216, 206)},
-    "base-200": {"h": "k", "l": 200, "hex": "#CECDC3", "rgb": (206, 205, 195)},
-    "base-300": {"h": "k", "l": 300, "hex": "#B7B5AC", "rgb": (183, 181, 172)},
-    "base-400": {"h": "k", "l": 400, "hex": "#9F9D96", "rgb": (159, 157, 150)},
-    "base-500": {"h": "k", "l": 500, "hex": "#878580", "rgb": (135, 133, 128)},
-    "base-600": {"h": "k", "l": 600, "hex": "#6F6E69", "rgb": (111, 110, 105)},
-    "base-700": {"h": "k", "l": 700, "hex": "#575653", "rgb": (87, 86, 83)},
-    "base-800": {"h": "k", "l": 800, "hex": "#403E3C", "rgb": (64, 62, 60)},
-    "base-850": {"h": "k", "l": 850, "hex": "#343331", "rgb": (52, 51, 49)},
-    "base-900": {"h": "k", "l": 900, "hex": "#282726", "rgb": (40, 39, 38)},
-    "base-950": {"h": "k", "l": 950, "hex": "#1C1B1A", "rgb": (28, 27, 26)},
-    "base-1000": {
-        "h": "k",
-        "l": 1000,
-        "hex": "#100F0F",
-        "rgb": (16, 15, 15),
-    },  # equivalent to black
-    "black": {"h": "k", "l": 1000, "hex": "#100F0F", "rgb": (16, 15, 15)},
-    # Red
-    "red-50": {"h": "r", "l": 50, "hex": "#FFE1D5", "rgb": (255, 225, 213)},
-    "red-100": {"h": "r", "l": 100, "hex": "#FFCABB", "rgb": (255, 202, 187)},
-    "red-150": {"h": "r", "l": 150, "hex": "#FDB2A2", "rgb": (253, 178, 162)},
-    "red-200": {"h": "r", "l": 200, "hex": "#F89A8A", "rgb": (248, 154, 138)},
-    "red-300": {"h": "r", "l": 300, "hex": "#E8705F", "rgb": (232, 112, 95)},
-    "red-400": {"h": "r", "l": 400, "hex": "#D14D41", "rgb": (209, 77, 65)},
-    "red-500": {"h": "r", "l": 500, "hex": "#C03E35", "rgb": (192, 62, 53)},
-    "red-600": {"h": "r", "l": 600, "hex": "#AF3029", "rgb": (175, 48, 41)},
-    "red-700": {"h": "r", "l": 700, "hex": "#942822", "rgb": (148, 40, 34)},
-    "red-800": {"h": "r", "l": 800, "hex": "#6C201C", "rgb": (108, 32, 28)},
-    "red-850": {"h": "r", "l": 850, "hex": "#551B18", "rgb": (85, 27, 24)},
-    "red-900": {"h": "r", "l": 900, "hex": "#3E1715", "rgb": (62, 23, 21)},
-    "red-950": {"h": "r", "l": 950, "hex": "#261312", "rgb": (38, 19, 18)},
-    # Orange
-    "orange-50": {"h": "o", "l": 50, "hex": "#FFE7CE", "rgb": (255, 231, 206)},
-    "orange-100": {"h": "o", "l": 100, "hex": "#FED3AF", "rgb": (254, 211, 175)},
-    "orange-150": {"h": "o", "l": 150, "hex": "#FCC192", "rgb": (252, 193, 146)},
-    "orange-200": {"h": "o", "l": 200, "hex": "#F9AE77", "rgb": (249, 174, 119)},
-    "orange-300": {"h": "o", "l": 300, "hex": "#EC8B49", "rgb": (236, 139, 73)},
-    "orange-400": {"h": "o", "l": 400, "hex": "#DA702C", "rgb": (218, 112, 44)},
-    "orange-500": {"h": "o", "l": 500, "hex": "#CB6120", "rgb": (203, 97, 32)},
-    "orange-600": {"h": "o", "l": 600, "hex": "#BC5215", "rgb": (188, 82, 21)},
-    "orange-700": {"h": "o", "l": 700, "hex": "#9D4310", "rgb": (157, 67, 16)},
-    "orange-800": {"h": "o", "l": 800, "hex": "#71320D", "rgb": (113, 50, 13)},
-    "orange-850": {"h": "o", "l": 850, "hex": "#59290D", "rgb": (89, 41, 13)},
-    "orange-900": {"h": "o", "l": 900, "hex": "#40200D", "rgb": (64, 32, 13)},
-    "orange-950": {"h": "o", "l": 950, "hex": "#27180E", "rgb": (39, 24, 14)},
-    # Yellow
-    "yellow-50": {"h": "y", "l": 50, "hex": "#FAEEC6", "rgb": (250, 238, 198)},
-    "yellow-100": {"h": "y", "l": 100, "hex": "#F6E2A0", "rgb": (246, 226, 160)},
-    "yellow-150": {"h": "y", "l": 150, "hex": "#F1D67E", "rgb": (241, 214, 126)},
-    "yellow-200": {"h": "y", "l": 200, "hex": "#ECCB60", "rgb": (236, 203, 96)},
-    "yellow-300": {"h": "y", "l": 300, "hex": "#DFB431", "rgb": (223, 180, 49)},
-    "yellow-400": {"h": "y", "l": 400, "hex": "#D0A215", "rgb": (208, 162, 21)},
-    "yellow-500": {"h": "y", "l": 500, "hex": "#BE9207", "rgb": (190, 146, 7)},
-    "yellow-600": {"h": "y", "l": 600, "hex": "#AD8301", "rgb": (173, 131, 1)},
-    "yellow-700": {"h": "y", "l": 700, "hex": "#8E6B01", "rgb": (142, 107, 1)},
-    "yellow-800": {"h": "y", "l": 800, "hex": "#664D01", "rgb": (102, 77, 1)},
-    "yellow-850": {"h": "y", "l": 850, "hex": "#503D02", "rgb": (80, 61, 2)},
-    "yellow-900": {"h": "y", "l": 900, "hex": "#3A2D04", "rgb": (58, 45, 4)},
-    "yellow-950": {"h": "y", "l": 950, "hex": "#241E08", "rgb": (36, 30, 8)},
-    # Olive (original flexoki green)
-    "olive-50": {"h": "ol", "l": 50, "hex": "#EDEECF", "rgb": (237, 238, 207)},
-    "olive-100": {"h": "ol", "l": 100, "hex": "#DDE2B2", "rgb": (221, 226, 178)},
-    "olive-150": {"h": "ol", "l": 150, "hex": "#CDD597", "rgb": (205, 213, 151)},
-    "olive-200": {"h": "ol", "l": 200, "hex": "#BEC97E", "rgb": (190, 201, 126)},
-    "olive-300": {"h": "ol", "l": 300, "hex": "#A0AF54", "rgb": (160, 175, 84)},
-    "olive-400": {"h": "ol", "l": 400, "hex": "#879A39", "rgb": (135, 154, 57)},
-    "olive-500": {"h": "ol", "l": 500, "hex": "#768D21", "rgb": (118, 141, 33)},
-    "olive-600": {"h": "ol", "l": 600, "hex": "#66800B", "rgb": (102, 128, 11)},
-    "olive-700": {"h": "ol", "l": 700, "hex": "#536907", "rgb": (83, 105, 7)},
-    "olive-800": {"h": "ol", "l": 800, "hex": "#3D4C07", "rgb": (61, 76, 7)},
-    "olive-850": {"h": "ol", "l": 850, "hex": "#313D07", "rgb": (49, 61, 7)},
-    "olive-900": {"h": "ol", "l": 900, "hex": "#252D09", "rgb": (37, 45, 9)},
-    "olive-950": {"h": "ol", "l": 950, "hex": "#1A1E0C", "rgb": (26, 30, 12)},
-    # Green
-    "green-50": {"h": "g", "l": 50, "hex": "#A9E3B2", "rgb": (169, 227, 178)},
-    "green-100": {"h": "g", "l": 100, "hex": "#95DCA1", "rgb": (149, 220, 161)},
-    "green-150": {"h": "g", "l": 150, "hex": "#7FD68D", "rgb": (127, 214, 141)},
-    "green-200": {"h": "g", "l": 200, "hex": "#67D379", "rgb": (103, 211, 121)},
-    "green-300": {"h": "g", "l": 300, "hex": "#44C55A", "rgb": (68, 197, 90)},
-    "green-400": {"h": "g", "l": 400, "hex": "#35AB49", "rgb": (53, 171, 73)},
-    "green-500": {"h": "g", "l": 500, "hex": "#2C973E", "rgb": (44, 151, 62)},
-    "green-600": {"h": "g", "l": 600, "hex": "#228833", "rgb": (34, 136, 51)},
-    "green-700": {"h": "g", "l": 700, "hex": "#1C722A", "rgb": (28, 114, 42)},
-    "green-800": {"h": "g", "l": 800, "hex": "#165421", "rgb": (22, 84, 33)},
-    "green-850": {"h": "g", "l": 850, "hex": "#13421B", "rgb": (19, 66, 27)},
-    "green-900": {"h": "g", "l": 900, "hex": "#113016", "rgb": (17, 48, 22)},
-    "green-950": {"h": "g", "l": 950, "hex": "#0F1E11", "rgb": (15, 30, 17)},
-    # Cyan
-    "cyan-50": {"h": "c", "l": 50, "hex": "#DDF1E4", "rgb": (221, 241, 228)},
-    "cyan-100": {"h": "c", "l": 100, "hex": "#BFE8D9", "rgb": (191, 232, 217)},
-    "cyan-150": {"h": "c", "l": 150, "hex": "#A2DECE", "rgb": (162, 222, 206)},
-    "cyan-200": {"h": "c", "l": 200, "hex": "#87D3C3", "rgb": (135, 211, 195)},
-    "cyan-300": {"h": "c", "l": 300, "hex": "#5ABDAC", "rgb": (90, 189, 172)},
-    "cyan-400": {"h": "c", "l": 400, "hex": "#3AA99F", "rgb": (58, 169, 159)},
-    "cyan-500": {"h": "c", "l": 500, "hex": "#2F968D", "rgb": (47, 150, 141)},
-    "cyan-600": {"h": "c", "l": 600, "hex": "#24837B", "rgb": (36, 131, 123)},
-    "cyan-700": {"h": "c", "l": 700, "hex": "#1C6C66", "rgb": (28, 108, 102)},
-    "cyan-800": {"h": "c", "l": 800, "hex": "#164F4A", "rgb": (22, 79, 74)},
-    "cyan-850": {"h": "c", "l": 850, "hex": "#143F3C", "rgb": (20, 63, 60)},
-    "cyan-900": {"h": "c", "l": 900, "hex": "#122F2C", "rgb": (18, 47, 44)},
-    "cyan-950": {"h": "c", "l": 950, "hex": "#101F1D", "rgb": (16, 31, 29)},
-    # Blue
-    "blue-50": {"h": "b", "l": 50, "hex": "#E1ECEB", "rgb": (225, 236, 235)},
-    "blue-100": {"h": "b", "l": 100, "hex": "#C6DDE8", "rgb": (198, 221, 232)},
-    "blue-150": {"h": "b", "l": 150, "hex": "#ABCFE2", "rgb": (171, 207, 226)},
-    "blue-200": {"h": "b", "l": 200, "hex": "#92BFDB", "rgb": (146, 191, 219)},
-    "blue-300": {"h": "b", "l": 300, "hex": "#66A0C8", "rgb": (102, 160, 200)},
-    "blue-400": {"h": "b", "l": 400, "hex": "#4385BE", "rgb": (67, 133, 190)},
-    "blue-500": {"h": "b", "l": 500, "hex": "#3171B2", "rgb": (49, 113, 178)},
-    "blue-600": {"h": "b", "l": 600, "hex": "#205EA6", "rgb": (32, 94, 166)},
-    "blue-700": {"h": "b", "l": 700, "hex": "#1A4F8C", "rgb": (26, 79, 140)},
-    "blue-800": {"h": "b", "l": 800, "hex": "#163B66", "rgb": (22, 59, 102)},
-    "blue-850": {"h": "b", "l": 850, "hex": "#133051", "rgb": (19, 48, 81)},
-    "blue-900": {"h": "b", "l": 900, "hex": "#12253B", "rgb": (18, 37, 59)},
-    "blue-950": {"h": "b", "l": 950, "hex": "#101A24", "rgb": (16, 26, 36)},
-    # Purple
-    "purple-50": {"h": "p", "l": 50, "hex": "#F0EAEC", "rgb": (240, 234, 236)},
-    "purple-100": {"h": "p", "l": 100, "hex": "#E2D9E9", "rgb": (226, 217, 233)},
-    "purple-150": {"h": "p", "l": 150, "hex": "#D3CAE6", "rgb": (211, 202, 230)},
-    "purple-200": {"h": "p", "l": 200, "hex": "#C4B9E0", "rgb": (196, 185, 224)},
-    "purple-300": {"h": "p", "l": 300, "hex": "#A699D0", "rgb": (166, 153, 208)},
-    "purple-400": {"h": "p", "l": 400, "hex": "#8B7EC8", "rgb": (139, 126, 200)},
-    "purple-500": {"h": "p", "l": 500, "hex": "#735EB5", "rgb": (115, 94, 181)},
-    "purple-600": {"h": "p", "l": 600, "hex": "#5E409D", "rgb": (94, 64, 157)},
-    "purple-700": {"h": "p", "l": 700, "hex": "#4F3685", "rgb": (79, 54, 133)},
-    "purple-800": {"h": "p", "l": 800, "hex": "#3C2A62", "rgb": (60, 42, 98)},
-    "purple-850": {"h": "p", "l": 850, "hex": "#31234E", "rgb": (49, 35, 78)},
-    "purple-900": {"h": "p", "l": 900, "hex": "#261C39", "rgb": (38, 28, 57)},
-    "purple-950": {"h": "p", "l": 950, "hex": "#1A1623", "rgb": (26, 22, 35)},
-    # Magenta
-    "magenta-50": {"h": "m", "l": 50, "hex": "#FEE4E5", "rgb": (254, 228, 229)},
-    "magenta-100": {"h": "m", "l": 100, "hex": "#FCCFDA", "rgb": (252, 207, 218)},
-    "magenta-150": {"h": "m", "l": 150, "hex": "#F9B9CF", "rgb": (249, 185, 207)},
-    "magenta-200": {"h": "m", "l": 200, "hex": "#F4A4C2", "rgb": (244, 164, 194)},
-    "magenta-300": {"h": "m", "l": 300, "hex": "#E47DA8", "rgb": (228, 125, 168)},
-    "magenta-400": {"h": "m", "l": 400, "hex": "#CE5D97", "rgb": (206, 93, 151)},
-    "magenta-500": {"h": "m", "l": 500, "hex": "#B74583", "rgb": (183, 69, 131)},
-    "magenta-600": {"h": "m", "l": 600, "hex": "#A02F6F", "rgb": (160, 47, 111)},
-    "magenta-700": {"h": "m", "l": 700, "hex": "#87285E", "rgb": (135, 40, 94)},
-    "magenta-800": {"h": "m", "l": 800, "hex": "#641F46", "rgb": (100, 31, 70)},
-    "magenta-850": {"h": "m", "l": 850, "hex": "#4F1B39", "rgb": (79, 27, 57)},
-    "magenta-900": {"h": "m", "l": 900, "hex": "#39172B", "rgb": (57, 23, 43)},
-    "magenta-950": {"h": "m", "l": 950, "hex": "#24131D", "rgb": (36, 19, 29)},
-}
+# The Flexoki palette. The canonical definition is the design-token export
+# ``definitions/flexoki.tokens.json`` (the W3C design-tokens format Figma writes); this table is
+# built from it at import. Two house conventions ride on top: fluxplot's "green" is the custom
+# hue the tokens file stores under ``GRN`` (Flexoki's own green is kept as "olive"), and
+# ``base-0`` / ``base-1000`` alias ``paper`` / ``black``. ``definitions/palettes.json``'s Flexoki
+# collection is generated from this table by ``tools/build_color_definitions.py``; the three
+# copies can never disagree (``tests/test_color_definitions.py::test_single_source``).
+_HUE_OF_GROUP = {"base": "k", "red": "r", "orange": "o", "yellow": "y", "olive": "ol", "GRN": "g",
+                 "cyan": "c", "blue": "b", "purple": "p", "magenta": "m"}
+
+
+@functools.lru_cache(maxsize=None)
+def _definitions(name: str) -> dict:
+    with resources.files("fluxplot").joinpath(f"definitions/{name}.json").open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _rgb(hex_: str) -> tuple:
+    return tuple(int(hex_[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def _load_flexoki_tokens() -> dict:
+    tokens = _definitions("flexoki.tokens")
+    data: dict[str, dict] = {}
+    for group, hue in _HUE_OF_GROUP.items():
+        entries = {}
+        for name, token in tokens.get(group, {}).items():
+            if not isinstance(token, dict) or "$value" not in token or name.endswith("-opacity-10"):
+                continue
+            hex_ = str(token["$value"]["hex"]).upper()
+            tail = name.rsplit("-", 1)[-1]
+            level = int(tail) if tail.isdigit() else {"paper": 0, "black": 1000}.get(name, 0)
+            entries[name] = {"h": hue, "l": level, "hex": hex_, "rgb": _rgb(hex_)}
+        if group == "base":  # paper, base-0 (= paper), base-50 … base-950, base-1000 (= black), black
+            levels = sorted((e for n, e in entries.items() if n.startswith("base-")), key=lambda e: e["l"])
+            data["paper"] = entries["paper"]
+            data["base-0"] = dict(entries["paper"])
+            for e in levels:
+                data[f"base-{e['l']}"] = e
+            data["base-1000"] = dict(entries["black"])
+            data["black"] = entries["black"]
+        else:
+            for e in sorted(entries.values(), key=lambda e: e["l"]):
+                data[f"{group if group != 'GRN' else 'green'}-{e['l']}"] = e
+    return data
+
+
+_flex_data = _load_flexoki_tokens()
 
 flex = _FlexPalette(_flex_data)
 
@@ -277,16 +169,15 @@ flex = _FlexPalette(_flex_data)
 _MAP_COLLECTION_ORDER = ("mpl", "crameri", "tol", "cmasher")
 
 
-@functools.lru_cache(maxsize=None)
-def _definitions(name: str) -> dict:
-    with resources.files("fluxplot").joinpath(f"definitions/{name}.json").open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
 def _build_cmap(full_name: str, m: dict) -> Colormap:
-    if m.get("discrete"):
-        return ListedColormap(list(m["colors"]), name=full_name)
-    return LinearSegmentedColormap.from_list(full_name, list(m["colors"]), N=256)
+    """Rebuild a shipped map from its definition. ``colors`` is the map's exact lookup table:
+    a listed map's own colours (``N`` of them, ``discrete`` when few enough to be classes), or
+    256 samples of a continuous map — which, resampled through ``from_list`` at ``N=256``, is
+    byte for byte the table matplotlib indexes."""
+    colors = list(m["colors"])
+    if m.get("discrete") or m.get("N", 256) != 256 or len(colors) != 256:
+        return ListedColormap(colors, name=full_name)
+    return LinearSegmentedColormap.from_list(full_name, colors, N=256)
 
 
 class _MapRegistry:
@@ -301,6 +192,7 @@ class _MapRegistry:
 
     def __init__(self) -> None:
         self._custom: dict[str, Colormap] = {}
+        self._alias_of: dict[str, str] = {}  # "flexoki_diverging" -> "flexoki.diverging"
         # collection id -> {bare name: Colormap}; built from the JSON once
         self._collections: dict[str, dict[str, Colormap]] | None = None
         self._info: dict[str, dict] = {}
@@ -318,6 +210,7 @@ class _MapRegistry:
                     self._info[full] = {
                         "collection": c["id"], "name": m["name"], "type": m["type"],
                         "family": m.get("family"), "discrete": bool(m.get("discrete")),
+                        "uniform": m.get("uniform"), "N": int(m.get("N", len(m["colors"]))),
                     }
                     for variant in (cm, cm.reversed()):
                         try:
@@ -329,14 +222,22 @@ class _MapRegistry:
 
     def collections(self) -> list[str]:
         """The map collections: ``'flexoki'`` (fluxplot's own) then the shipped ones."""
-        return ["flexoki", *self._ensure()]
+        return list(dict.fromkeys(["flexoki", *self._ensure()]))
 
     def get(self, name: str) -> Colormap:
         """Resolve a colormap by name: ``'crameri.batlow'``, a bare ``'batlow'`` (the
         first collection that has it — matplotlib, Crameri, Tol, cmasher), a fluxplot
-        custom map, or any of those with ``_r`` for the reversed map."""
+        custom map, any of those with ``_r`` for the reversed map, or a truncation
+        ``'batlow[0.2:0.8]'`` (see :meth:`truncate`)."""
         if name in self._custom:
             return self._custom[name]
+        if name.endswith("]") and "[" in name:
+            base_name, _, span = name[:-1].rpartition("[")
+            lo, _, hi = span.partition(":")
+            try:
+                return self.truncate(base_name, float(lo), float(hi))
+            except ValueError:
+                raise KeyError(f"No colormap {name!r}: a truncation is spelled 'name[lo:hi]' with 0 <= lo < hi <= 1") from None
         base, reversed_ = (name[:-2], True) if name.endswith("_r") else (name, False)
         cols = self._ensure()
         found: Colormap | None = None
@@ -358,11 +259,60 @@ class _MapRegistry:
         return found.reversed() if reversed_ else found
 
     def info(self, name: str) -> dict:
-        """Collection, type (sequential / diverging / cyclic / qualitative / misc),
-        family and discreteness of a shipped map (``'crameri.batlow'`` or bare)."""
+        """Collection, type (sequential / diverging / cyclic / qualitative / misc), family,
+        discreteness, table size ``N`` and perceptual uniformity (``True`` / ``False`` /
+        ``None`` = not assessed) of a shipped map (``'crameri.batlow'`` or bare)."""
         cm = self.get(name)
         key = cm.name[:-2] if cm.name.endswith("_r") else cm.name
-        return dict(self._info.get(key) or {"collection": "flexoki", "name": key, "type": "custom", "family": None, "discrete": False})
+        key = key.split("[", 1)[0]  # a truncation reports its source map
+        found = self._info.get(key) or self._info.get(self._alias_of.get(key, ""))
+        return dict(found or {"collection": "flexoki", "name": key, "type": "custom", "family": None,
+                              "discrete": isinstance(cm, ListedColormap) and cm.N <= DISCRETE_MAX,
+                              "uniform": None, "N": int(cm.N)})
+
+    # -- derived maps -----------------------------------------------------
+    def truncate(self, cmap, lo: float, hi: float, n: int = 256) -> Colormap:
+        """The stretch ``[lo, hi]`` of a map as a map of its own, named ``"<name>[lo:hi]"`` —
+        which :meth:`get` resolves again, so a recipe can record it."""
+        if not (0.0 <= lo < hi <= 1.0):
+            raise ValueError(f"truncate: need 0 <= lo < hi <= 1, got {lo!r}, {hi!r}")
+        cm = cmap if isinstance(cmap, Colormap) else self._resolve_any(cmap)
+        import numpy as np
+        name = f"{cm.name}[{lo:g}:{hi:g}]"
+        return LinearSegmentedColormap.from_list(name, cm(np.linspace(lo, hi, n)), N=n)
+
+    def discretize(self, cmap, boundaries=None, *, n: int | None = None, vmin=None, vmax=None,
+                   extend: str = "neither"):
+        """A binned scale: ``(ListedColormap, BoundaryNorm)`` with one colour per bin. Give the
+        ``boundaries`` (bin edges), or ``n`` bins between ``vmin`` and ``vmax``. ``extend``
+        adds under / over colours from the map's ends. Helpers accept the norm as ``norm=``;
+        the colour scale is then recorded as ``kind: "binned"``."""
+        import numpy as np
+        from matplotlib.colors import BoundaryNorm
+        cm = cmap if isinstance(cmap, Colormap) else self._resolve_any(cmap)
+        if boundaries is None:
+            if n is None or vmin is None or vmax is None:
+                raise ValueError("discretize: give boundaries, or n with vmin and vmax")
+            boundaries = np.linspace(vmin, vmax, int(n) + 1)
+        b = np.asarray(boundaries, dtype=float)
+        if b.ndim != 1 or b.size < 2 or not np.all(np.diff(b) > 0):
+            raise ValueError("discretize: boundaries must be at least two increasing numbers")
+        if extend not in ("neither", "min", "max", "both"):
+            raise ValueError("discretize: extend must be neither, min, max or both")
+        bins = b.size - 1
+        extra = (extend in ("min", "both")) + (extend in ("max", "both"))
+        # with extend, matplotlib's BoundaryNorm reserves the map's first / last colour for the
+        # under / over region (a Colormap's default under / over ARE its end entries), so the
+        # listed map carries bins + extensions colours and the norm counts all of them
+        colours = cm(np.linspace(0, 1, bins + extra))
+        listed = ListedColormap(colours, name=f"{cm.name}[{bins} bins{'+' + extend if extra else ''}]")
+        listed.set_bad(cm.get_bad())
+        return listed, BoundaryNorm(b, bins + extra, extend=extend)
+
+    def _resolve_any(self, name: str) -> Colormap:
+        if name in mpl.colormaps:
+            return mpl.colormaps[name]
+        return self.get(name)
 
     # -- attribute access -----------------------------------------------
     def __getattr__(self, name: str) -> Colormap:
@@ -439,9 +389,11 @@ class _MapRegistry:
 
     def _map_set(self, set_name: str) -> list[tuple[str, Colormap]]:
         s = set_name.lower()
-        if s in ("flexoki", "fluxplot", "flux"):
-            return sorted((n, cm) for n, cm in self._custom.items() if not n.endswith("_r"))
         cols = self._ensure()
+        if s in ("flexoki", "fluxplot", "flux"):
+            shipped = [(f"flexoki.{n}", cm) for n, cm in cols.get("flexoki", {}).items()]
+            custom = [(n, cm) for n, cm in self._custom.items() if not n.endswith("_r") and n not in self._alias_of]
+            return shipped + sorted(custom)
         if s in cols:
             return list(cols[s].items())
         raise ValueError(
@@ -509,59 +461,43 @@ class _Palettes:
 
 palettes = _Palettes()
 
-# Flexoki-flavoured custom maps, built from the canonical palette above. The
-# light-centred diverging map (blue–paper–red) is handy for correlation matrices.
-# NB: linear ramps through flexoki anchors — pleasant, but not perceptually
-# uniform; prefer the cmasher maps when uniformity matters.
-maps.register(
-    LinearSegmentedColormap.from_list(
-        "flexoki_sequential",
-        [flex.paper, flex.blue150, flex.blue400, flex.blue600, flex.blue800],
-    )
-)
-maps.register(
-    LinearSegmentedColormap.from_list(
-        "flexoki_warm",
-        [flex.paper, flex.yellow400, flex.orange400, flex.red600, flex.red850],
-    )
-)
-maps.register(
-    LinearSegmentedColormap.from_list(
-        "flexoki_diverging",
-        [flex.blue600, flex.blue400, flex.paper, flex.red400, flex.red600],
-    )
-)
-maps.register(
-    LinearSegmentedColormap.from_list(
-        "flexoki_terrain",
-        [
-            flex.blue800,
-            flex.blue600,
-            flex.cyan400,
-            flex.olive400,
-            flex.yellow400,
-            flex.orange600,
-            flex.paper,
-        ],
-    )
-)
-maps.register(
-    LinearSegmentedColormap.from_list(
-        "flexoki_spectrum",
-        [
-            flex.red600,
-            flex.orange600,
-            flex.yellow600,
-            flex.olive600,
-            flex.green600,
-            flex.cyan600,
-            flex.blue600,
-            flex.purple600,
-            flex.magenta600,
-            flex.red600,
-        ],
-    )
-)
+# Flexoki-flavoured house maps: linear ramps through palette anchors (pleasant, NOT perceptually
+# uniform — ``maps.info(...)["uniform"] is False``; prefer the cmasher / Crameri maps when
+# uniformity matters). The anchors are the source ``tools/build_color_definitions.py`` samples
+# into the ``flexoki`` collection of ``definitions/colormaps.json``; at runtime the shipped
+# collection is used and each map is aliased under its historical bare name (``flexoki_diverging``
+# == ``flexoki.diverging``), so both spellings resolve to the same table.
+FLEXOKI_MAP_ANCHORS = {
+    # name: (type, [token names, light → dark or end → end])
+    "sequential": ("sequential", ["paper", "blue-150", "blue-400", "blue-600", "blue-800"]),
+    "warm": ("sequential", ["paper", "yellow-400", "orange-400", "red-600", "red-850"]),
+    "diverging": ("diverging", ["blue-600", "blue-400", "paper", "red-400", "red-600"]),
+    "terrain": ("sequential", ["blue-800", "blue-600", "cyan-400", "olive-400", "yellow-400", "orange-600", "paper"]),
+    "spectrum": ("cyclic", ["red-600", "orange-600", "yellow-600", "olive-600", "green-600", "cyan-600",
+                            "blue-600", "purple-600", "magenta-600", "red-600"]),
+}
+
+
+def flexoki_map_from_anchors(name: str) -> Colormap:
+    """The house map ``name`` built straight from its palette anchors (what the builder samples)."""
+    kind, tokens = FLEXOKI_MAP_ANCHORS[name]
+    return LinearSegmentedColormap.from_list(f"flexoki.{name}", [flex.get(t)["hex"] for t in tokens])
+
+
+def _install_house_maps() -> None:
+    shipped = maps._ensure().get("flexoki", {})
+    for name in FLEXOKI_MAP_ANCHORS:
+        source = shipped.get(name) or flexoki_map_from_anchors(name)  # the JSON, or the anchors on a fresh build
+        alias = source.copy()
+        alias.name = f"flexoki_{name}"
+        maps.register(alias)
+        maps._alias_of[alias.name] = f"flexoki.{name}"
+        if f"flexoki.{name}" not in maps._info:
+            maps._info[f"flexoki.{name}"] = {"collection": "flexoki", "name": name, "type": FLEXOKI_MAP_ANCHORS[name][0],
+                                             "family": None, "discrete": False, "uniform": False, "N": source.N}
+
+
+_install_house_maps()
 
 
 # -------------------------------------------

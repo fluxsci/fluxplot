@@ -810,7 +810,24 @@ reverse from `import fluxplot` on, so `cmap="crameri.batlow"` (or `"tol.sunset_r
 works in any matplotlib call; `fx.maps.get("batlow")` resolves a bare name through the
 collections in that order, `fx.maps.names("crameri")` lists a collection and
 `fx.maps.info("tol.sunset")` tells you its type (`sequential` / `diverging` / `cyclic` /
-`qualitative` / `misc`), family and whether it is discrete.
+`qualitative` / `misc`), family, table size `N`, whether it is `discrete` (a listed map of at
+most `fx.DISCRETE_MAX` = 32 colours — a set of classes to pick from) and whether it is
+perceptually `uniform` (`True` / `False` / `None` = not assessed). Each definition's `colors`
+is the map's exact lookup table, so a consumer reproduces it colour for colour.
+
+The house maps are the `flexoki` collection — `flexoki.sequential`, `.warm`, `.diverging`,
+`.terrain`, `.spectrum`, linear ramps through palette anchors (`fx.FLEXOKI_MAP_ANCHORS`) and
+therefore *not* uniform (`info()["uniform"] is False`); their historical bare names
+(`flexoki_diverging`) are aliases of the same tables.
+
+Two derived maps: `fx.maps.truncate("batlow", 0.2, 0.8)` is the stretch of a map as a map of its
+own, named `crameri.batlow[0.2:0.8]` — a name `fx.maps.get` (and so a recipe) resolves again —
+and `fx.maps.discretize("viridis", [0, 2, 5, 10], extend="both")` returns a `(ListedColormap,
+BoundaryNorm)` pair, one colour per bin, that any helper takes as `cmap=` / `norm=` (the colour
+scale is then recorded as `kind: "binned"`).
+
+In a signature plot's `palette=`, a colour *name* is the colour (`"red"` → a pale → red → deep
+ramp of one hue); the 13-step Flexoki ramp is `"flexoki.red"`.
 
 Palettes live beside them under `fx.palettes`: `flexoki` (the default), `brewer`
 (ColorBrewer — 9-class sequential, 11-class diverging and the qualitative sets) and
@@ -819,7 +836,12 @@ Palettes live beside them under `fx.palettes`: `flexoki` (the default), `brewer`
 
 The JSON is built by `tools/build_color_definitions.py` from the upstream packages
 (matplotlib, cmcrameri, tol-colors, cmasher) — a build-time input only, re-run when a
-collection should be refreshed.
+collection should be refreshed (`uv run --with cmcrameri --with tol-colors python
+tools/build_color_definitions.py`; without a package its shipped definition is kept). The
+Flexoki palette itself has one canonical source, the design-token export
+`src/fluxplot/definitions/flexoki.tokens.json`: `fx.flex` is built from it at import and the
+`flexoki` palette collection is generated from it (fluxplot's "green" is the tokens' custom
+`GRN` hue; Flexoki's original green is `olive`).
 
 Every `fx.use_*` theme installs the house sequential map (`cmasher.rainforest`, `fx.SEQUENTIAL`)
 as matplotlib's default `image.cmap`, so a heatmap without `cmap=` is in the house style;

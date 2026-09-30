@@ -308,3 +308,10 @@ def test_cmap_names_resolve_through_fluxplot_collections(mesh, tmp_path):
     with pytest.raises(ValueError, match="unknown colormap"):
         fp.surface(ax, values, series="field", surfaces=mesh, kind="continuous", cmap="not-a-map")
     plt.close(fig)
+
+
+def test_categorical_colors_keep_a_translucent_alpha_only():
+    from fluxplot._fieldmap import categorical_colors
+    out = categorical_colors(["a", "b"], palette={"a": "#4C78A8", "b": (0.2, 0.4, 0.6, 0.5)})
+    assert out["a"] == "#4c78a8"  # opaque stays six digits (existing manifests unchanged)
+    assert out["b"] == "#33669980"  # translucency is recorded
