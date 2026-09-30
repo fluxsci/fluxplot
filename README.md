@@ -339,6 +339,8 @@ fp.bar(ax, x, height, *, series, **mpl_kwargs)
 fp.errorbar(ax, x, y, *, series, yerr=None, xerr=None, **mpl_kwargs)    # <s>.line, <s>.point.k, <s>.cap, <s>.errorbar
 fp.legend(ax, handles=None, labels=None, **mpl_kwargs)               # keeps entry → artist for the manifest
 fp.area(ax, x, y1, y2=0, *, series, **mpl_kwargs)                    # manifest band = {x, y1, y2}
+fp.regression(ax, x, y, *, series, kind="linear"|"poly"|"lowess", ci=0.95, degree=1, points=True)  # <s>.fit + <s>.band + points
+fp.kde(ax, values, *, series, bw="scott", fill=False)                # <s>.line (+ <s>.fill), grid + density recorded
 fp.step(ax, x, y, *, series, where="pre", **mpl_kwargs)             # manifest step = {where, drawstyle}
 fp.stem(ax, x, y, *, series, **mpl_kwargs)                           # <s>.point.k, <s>.segment, <s>.baseline
 fp.secondary_axis(ax, "top"|"right", functions=(f, g), label=None)   # the panel's axis.x2 / axis.y2, transform sampled
@@ -380,6 +382,13 @@ category under it, also `data-key` on the element); heatmap cells and hexagons c
 data-space box as `data-x0` / `data-x1` / `data-y0` / `data-y1` and a `data-key` of `row.col`.
 `capabilities.valueMorph` is true for a series whose members are keyed that way, so two versions
 of the plot can be tweened member by member.
+
+**Fits.** `fp.regression` fits `y ~ x` (a line, a polynomial of `degree`, or a lowess smooth with
+span `frac`) and draws the fit (`<s>.fit`), its confidence band (`<s>.band`, the t-interval of
+the mean response; a seeded bootstrap for lowess) and the points as one series, recording
+`regression = {kind, degree, coefficients, r2, p, n, ci, grid, fit}` so a caption states the fit
+as drawn. `fp.kde` draws a Gaussian kernel density (scipy's `gaussian_kde`) as a line, optionally
+filled, recording `kde = {grid, density, bandwidth, method, n}`.
 
 **Categories, dates, insets.** On a categorical axis a series' `data` carries `xLabels` (the
 category behind each plotted number), on a date axis `xIso` (ISO-8601), likewise for y. An

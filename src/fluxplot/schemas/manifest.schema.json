@@ -1780,6 +1780,124 @@
               "type": "string"
             }
           }
+        },
+        "regression": {
+          "type": "object",
+          "description": "fp.regression: the fit as drawn.",
+          "required": [
+            "kind",
+            "n",
+            "ci"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "linear",
+                "poly",
+                "lowess"
+              ]
+            },
+            "degree": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "coefficients": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "number"
+              }
+            },
+            "r2": {
+              "type": "number"
+            },
+            "p": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "n": {
+              "type": "integer"
+            },
+            "ci": {
+              "type": "number"
+            },
+            "dof": {
+              "type": "integer"
+            },
+            "frac": {
+              "type": "number"
+            },
+            "bootstrap": {
+              "type": "integer"
+            },
+            "grid": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "fit": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "kde": {
+          "type": "object",
+          "description": "fp.kde: the density as drawn.",
+          "required": [
+            "grid",
+            "density",
+            "bandwidth",
+            "n"
+          ],
+          "properties": {
+            "grid": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "density": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "bandwidth": {
+              "type": "number"
+            },
+            "method": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "n": {
+              "type": "integer"
+            }
+          }
         }
       },
       "required": [

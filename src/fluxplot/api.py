@@ -858,7 +858,7 @@ def _warn_log_zero_anchors(plot_axes, plot_name: str) -> list:
 
 def _infer_plot_type(reg) -> str:
     kinds = [m.kind for m in reg.marks if m.kind]
-    for k in ("glowbar", "fluxbox", "hexmatrix", "image", "line", "scatter", "bar", "errorbar", "area", "box", "violin", "heatmap", "contour", "contourf", "surface"):
+    for k in ("glowbar", "fluxbox", "hexmatrix", "image", "regression", "kde", "line", "scatter", "bar", "errorbar", "area", "box", "violin", "heatmap", "contour", "contourf", "surface"):
         if k in kinds:
             return k
     return "plot"

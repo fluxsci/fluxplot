@@ -178,7 +178,8 @@ def build_manifest(
                     extra = axis_value_labels(mpl_axis, data[key])
                     for k, v in extra.items():
                         data[key + k] = v
-        for field in ("bar", "band", "uncertainty", "field", "glowbar", "fluxbox", "hexmatrix", "image", "step", "stem"):
+        for field in ("bar", "band", "uncertainty", "field", "glowbar", "fluxbox", "hexmatrix", "image", "step", "stem",
+                      "regression", "kde"):
             payload = next((m.data[field] for m in marks if m.data.get(field)), None)
             if payload is not None:
                 entry[field] = payload
