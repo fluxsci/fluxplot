@@ -251,6 +251,33 @@
                 }
               }
             }
+          },
+          "color": {
+            "type": "object",
+            "description": "The series' colour: scale = the colorScales[] id colouring it; hex / alpha / token / palette follow (B2).",
+            "properties": {
+              "scale": {
+                "type": "string"
+              },
+              "hex": {
+                "type": "string"
+              },
+              "alpha": {
+                "type": "number"
+              },
+              "token": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "palette": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            }
           }
         }
       }
@@ -344,6 +371,221 @@
           },
           "label": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "colorScales": {
+      "type": "array",
+      "description": "Portable colour scales (colorscale.py): the exact lookup table and norm of every colour-mapped mark, the svg groups it colours and the colour keys drawing it. The id equals the recipe's colour-control key.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "colormap",
+          "norm",
+          "mappables",
+          "colorbars",
+          "recolor",
+          "editable"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "continuous",
+              "binned",
+              "categorical"
+            ]
+          },
+          "colormap": {
+            "type": "object",
+            "required": [
+              "name",
+              "source",
+              "N",
+              "lut",
+              "under",
+              "over",
+              "bad",
+              "discrete"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "N": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "lut": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-f]{8}$"
+                },
+                "minItems": 1
+              },
+              "under": {
+                "type": "string",
+                "pattern": "^#[0-9a-f]{8}$"
+              },
+              "over": {
+                "type": "string",
+                "pattern": "^#[0-9a-f]{8}$"
+              },
+              "bad": {
+                "type": "string",
+                "pattern": "^#[0-9a-f]{8}$"
+              },
+              "discrete": {
+                "type": "boolean"
+              },
+              "approximate": {
+                "type": "boolean"
+              }
+            }
+          },
+          "norm": {
+            "type": "object",
+            "required": [
+              "kind",
+              "vmin",
+              "vmax",
+              "clip",
+              "extend"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "linear",
+                  "log",
+                  "symlog",
+                  "power",
+                  "twoslope",
+                  "centered",
+                  "boundary",
+                  "none",
+                  "custom"
+                ]
+              },
+              "vmin": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "vmax": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "clip": {
+                "type": "boolean"
+              },
+              "extend": {
+                "enum": [
+                  "neither",
+                  "min",
+                  "max",
+                  "both"
+                ]
+              },
+              "vcenter": {
+                "type": "number"
+              },
+              "halfrange": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "gamma": {
+                "type": "number"
+              },
+              "linthresh": {
+                "type": "number"
+              },
+              "linscale": {
+                "type": "number"
+              },
+              "base": {
+                "type": "number"
+              },
+              "boundaries": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "ncolors": {
+                "type": "integer"
+              },
+              "className": {
+                "type": "string"
+              }
+            }
+          },
+          "mappables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "colorbars": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recolor": {
+            "enum": [
+              "live",
+              "raster",
+              "regenerate"
+            ]
+          },
+          "valueRaster": {
+            "type": "string"
+          },
+          "editable": {
+            "type": "object",
+            "required": [
+              "cmap",
+              "limits",
+              "normKinds",
+              "center"
+            ],
+            "properties": {
+              "cmap": {
+                "type": "boolean"
+              },
+              "limits": {
+                "type": "boolean"
+              },
+              "normKinds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "center": {
+                "type": "boolean"
+              }
+            }
           }
         }
       }

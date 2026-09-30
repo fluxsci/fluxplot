@@ -71,10 +71,45 @@ def line(ax, x, y, *, series, marker=None, label=None, **kw):
     return ln
 
 
-def scatter(ax, x, y, *, series, label=None, **kw):
+def _is_value_array(c, x) -> bool:
+    """matplotlib's own rule for ``scatter(c=…)``: a 1-D numeric array as long as ``x`` is
+    colour-MAPPED (through cmap and norm); anything else is a colour or a list of colours."""
+    if c is None or isinstance(c, str):
+        return False
+    arr = np.asarray(c)
+    return arr.ndim == 1 and arr.dtype.kind in "iuf" and arr.size == np.size(x)
+
+
+def scatter(ax, x, y, *, series, label=None, key=None, **kw):
+    """A named scatter, every point addressable.
+
+    With ``c=`` an array of values the points are colour-mapped: the scale becomes a recipe colour
+    control (named ``key``, default the series), the manifest carries its exact lookup table, each
+    point carries its value (``data-value``) and a :func:`colorbar` links to it — so Flux can
+    recolour or re-range the points live.
+    """
     reg = _tagger.registry_for(ax.figure)
+    data: dict = {}
+    if _is_value_array(kw.get("c"), x):
+        from . import fields as _fields
+        from ._fieldmap import resolve_colormap
+        ctl = _fields._options(ax, series, key, kw)
+        extend = kw.pop("_extend", None)
+        if isinstance(kw.get("cmap"), str):
+            kw["cmap"] = resolve_colormap(kw["cmap"])
+        config = {"kind": "scatter", "controlKey": ctl, "shape": [int(np.size(kw["c"]))]}
+        if extend:
+            config["extend"] = extend
+        data = {"field_config": config}
     coll = ax.scatter(x, y, label=label, **kw)
-    reg.add(Mark(role="point", series=series, kind="scatter", live_data=True, x=None, y=None, label=label, artists=[coll], indexed=True))
+    if data:
+        data["field_artist"] = coll
+        data["c"] = _data.values(coll.get_array())
+    sizes = coll.get_sizes()
+    if len(sizes) > 1:
+        data["size"] = _data.values(sizes)
+    reg.add(Mark(role="point", series=series, kind="scatter", live_data=True, x=None, y=None, label=label,
+                 artists=[coll], indexed=True, data=data))
     return coll
 
 
@@ -301,15 +336,23 @@ def tag_seaborn(ax, *, series=None, plot=None):
     # Seaborn deliberately reverses hue iteration for distribution plots.
     # A legend does not encode this provenance. Require the plot kind for a
     # multi-hue adapter instead of inferring identity from color or geometry.
-    if plot not in (None, "lineplot", "scatterplot", "barplot", "countplot", "histplot", "kdeplot", "regplot"):
+    if plot not in (None, "lineplot", "scatterplot", "barplot", "countplot", "histplot", "kdeplot", "regplot", "heatmap"):
         raise ValueError("unsupported seaborn plot kind")
+    tagged: dict = {}
+    if plot in ("heatmap", "histplot", "kdeplot"):
+        # colour-mapped fields: sns.heatmap's mesh, a bivariate histplot's mesh, a bivariate
+        # kdeplot's contour set — each becomes an fp.heatmap / fp.contour-style field mark whose
+        # colour scale is recorded and whose colour key links (the seaborn call has already drawn,
+        # so recipe colour controls are recorded for the editor but cannot be applied on a rerun)
+        _tag_seaborn_fields(ax, reg, already, [str(s) for s in series] if series is not None else None, tagged)
+        if plot == "heatmap":
+            return tagged
     if len(names) > 1 and series is None and plot is None:
         warnings.warn("tag_seaborn: multi-hue identity needs plot='lineplot', 'histplot', "
                       "'barplot', etc.; ambiguous artists remain addressable as extras", stacklevel=2)
         return {}
     if plot in ("histplot", "kdeplot") and series is None:
         names.reverse()
-    tagged: dict = {}
 
     def _record(name, role):
         tagged.setdefault(str(name), []).append(role)
@@ -409,6 +452,36 @@ def tag_seaborn(ax, *, series=None, plot=None):
             _record(name, "errorbar")
 
     return tagged
+
+
+def _tag_seaborn_fields(ax, reg, already, names, tagged) -> None:
+    from matplotlib.collections import QuadMesh
+    from matplotlib.contour import ContourSet
+
+    from . import fields as _fields
+    from . import raster as _raster
+
+    mappables = [c for c in ax.collections if id(c) not in already
+                 and (isinstance(c, QuadMesh) or (isinstance(c, ContourSet) and c.get_array() is not None))]
+    for k, art in enumerate(mappables):
+        name = names[k] if names is not None and k < len(names) else ("heatmap" if k == 0 else f"heatmap-{k}")
+        key, _legacy = _fields.control_key(ax, name)
+        if isinstance(art, QuadMesh):
+            arr = np.ma.asarray(art.get_array())
+            shape = list(arr.shape) if arr.ndim == 2 else [int(arr.size), 1]
+            config = {"kind": "heatmap", "shape": shape, "includeValues": False, "controlKey": key}
+            reg.add(Mark(role="x-heatmap", series=name, kind="heatmap", artists=[art],
+                         data={"field_config": config, "field_artist": art,
+                               "cells": int(arr.size) <= _raster.DEFAULT_THRESHOLD}))
+            tagged.setdefault(name, []).append("x-heatmap")
+        else:
+            config = {"kind": "contourf" if art.filled else "contour", "levels": _data.values(art.levels),
+                      "extend": art.extend, "controlKey": key}
+            reg.add(Mark(role="x-contourf" if art.filled else "x-contour", series=name, kind=config["kind"],
+                         artists=[art], axes=ax,
+                         data={"field_config": config, "field_artist": art, "contour_paths": True}))
+            tagged.setdefault(name, []).append(config["kind"])
+        already.add(id(art))
 
 
 # ---------------------------------------------------------------------------
@@ -642,9 +715,16 @@ def _save(
 
     reg = _registry if _registry is not None else _tagger.snapshot(fig)
     alloc = _ids.IdAllocator()
+    from . import fields as _fields
+
+    # a value raster (fp.heatmap(value_raster=True)) is named before capture, so the colour scale
+    # can point at the sidecar it travels with
+    for m in reg.marks:
+        if m.data.get('value_raster') is not None and m.data.get('field_config'):
+            m.data['value_raster']['filename'] = f"{plot_name}.{m.data['field_config']['controlKey']}.values.json"
 
     panels = _panels.plan(fig)
-    promo_warnings, guides_by_panel, axes_capture = [], [], []
+    promo_warnings, guides_by_panel, axes_capture, scales_by_panel = [], [], [], []
     registered = {id(m) for m in reg.marks}
     for i, panel in enumerate(panels):
         ax = panel.axes
@@ -668,8 +748,10 @@ def _save(
         scoped = _panels.ScopedAllocator(alloc, panel.prefix)
         _tagger.resolve_gids(sub, scoped)
         ax.set_gid(panel.svg_id)
-        from .fields import colorbar_guides
-        guides_by_panel.append(_tagger.autotag_scaffold(ax, scoped) + colorbar_guides(fig, ax, scoped))
+        guides_by_panel.append(_tagger.autotag_scaffold(ax, scoped) + _fields.colorbar_guides(fig, ax, scoped))
+        # raw colour-mapped artists (an imshow, a pcolormesh, a scatter with c=) the sweep just
+        # named get an anonymous colour scale: no series, but a linked key and editable colours
+        scales_by_panel.append(_fields.anonymous_scales(ax, reg))
         axes_capture.append({"id": "plot-area", "svgId": "plot-area", **_capture.capture_axes(ax, fig)})
     plot_axes = [p.axes for p in panels]
     guides = [g for local in guides_by_panel for g in local]
@@ -684,7 +766,7 @@ def _save(
     raster_items = [] if keep_vectors else heavy
     raster_warnings = []
     # 4. render deterministically (hashsalt derived from the plot name)
-    with _raster.rasterizing(fig, heavy, force_vectors=keep_vectors):
+    with _raster.rasterizing(fig, heavy, force_vectors=keep_vectors), _fields.vector_colorbars(fig):
         svg_bytes = _render.render_svg(
             fig,
             hashsalt=plot_name or "fluxplot",
@@ -693,8 +775,10 @@ def _save(
 
     # 5. inject data-* + canonicalize
     plot_type = _infer_plot_type(reg)
+    extra_scales = [sc for local in scales_by_panel for sc in local]
     out_svg, post_warnings, present = _postprocess.postprocess(
-        svg_bytes, reg, guides, plot_type, raster_items=raster_items, check_ids=validate
+        svg_bytes, reg, guides, plot_type, raster_items=raster_items, check_ids=validate,
+        extra_scales=extra_scales,
     )
     rendered_heavy = [it for it in heavy if it.gid in present]
     if rendered_heavy:
@@ -712,6 +796,7 @@ def _save(
     rasterized_gids = {it.gid for it in raster_items if it.gid and it.gid in present}
     man = _panels.manifest(
         fig, reg, kept_guides, panels, axes_capture, present, rasterized_gids,
+        extra_scales_by_panel=scales_by_panel,
         plot_type=plot_type, svg_filename=svg_filename, spec_version=SPEC_VERSION,
         fluxplot_version=__version__, mpl_version=matplotlib.__version__,
         svg_sha256=hashlib.sha256(out_svg).hexdigest(),
@@ -721,11 +806,11 @@ def _save(
         manifest_filename=manifest_filename, spec_version=SPEC_VERSION,
         recipe_dir=os.path.dirname(os.path.abspath(svg_path)), now=_now,
     )
-    controls = {m.data['field']['controlKey']: {
-        'cmap': m.data['field']['cmap'],
-        'vmin': m.data['field']['normalization']['vmin'],
-        'vmax': m.data['field']['normalization']['vmax'],
-    } for m in reg.marks if m.data.get('field')}
+    # the complete current state of every colour scale (colorscale.controls_state): what the Flux
+    # editor starts from, and what a rerun replays byte for byte
+    from .colorscale import controls_state
+    controls = {m.data['field']['controlKey']: controls_state(m.data['field'])
+                for m in reg.marks if m.data.get('field')}
     if controls:
         rec['params'] = {**rec['params'], '__fluxplot__': controls}
     if validate:
@@ -737,9 +822,14 @@ def _save(
     # manifest checksum is the commit marker a consumer verifies against the SVG it sees.
     out_dir = os.path.dirname(os.path.abspath(svg_path))
     os.makedirs(out_dir, exist_ok=True)
+    # value rasters sit between the SVG and the manifest that references them
+    value_files = [(os.path.join(out_dir, m.data['value_raster']['filename']),
+                    _cjson.dumps(m.data['value_raster']['payload']).encode("utf-8"))
+                   for m in reg.marks if m.data.get('value_raster') and m.data['value_raster'].get('payload')]
     _write_staged(
         [
             (svg_path, out_svg),
+            *value_files,
             (manifest_path, _cjson.dumps(man).encode("utf-8")),
             (recipe_path, _cjson.dumps(rec).encode("utf-8")),
         ]

@@ -49,6 +49,7 @@ def build_manifest(
     present: set | None = None,
     svg_sha256: str | None = None,
     rasterized: set | None = None,
+    extra_scales=(),
 ) -> dict:
     vbw, vbh = svg_viewbox(fig)
     # gids rendered as a single embedded <image> instead of vector primitives (raster.py).
@@ -164,6 +165,10 @@ def build_manifest(
             payload = next((m.data[field] for m in marks if m.data.get(field)), None)
             if payload is not None:
                 entry[field] = payload
+        # the series' colour: for now the scale colouring it (B2 adds the primary paint)
+        scale = next((m.data["color_scale"]["id"] for m in marks if m.data.get("color_scale") and _keep(m.gid)), None)
+        if scale is not None:
+            entry["color"] = {"scale": scale}
         ordinary = all(m.role in ('line', 'point') for m in marks)
         ordinary = ordinary and len([m for m in marks if m.role == 'line']) <= 1
         ordinary = ordinary and len([m for m in marks if m.role == 'point']) <= 1
@@ -259,11 +264,48 @@ def build_manifest(
             entries.append(e)
         guide_entries.append({"id": "legend", "svgId": "legend", "role": "legend", "entries": entries})
 
+    # colour scales: one record per control key, listing every group it colours and every colour
+    # key drawing it (colorscale.py). Private capture state (keys starting with "_") never leaves.
+    import copy as _copy
+    scales: dict = {}
+    scale_of_mappable: dict = {}
+    for m in reg.marks:
+        rec = m.data.get('color_scale')
+        if not rec or not _keep(m.gid):
+            continue
+        entry = scales.get(rec['id'])
+        if entry is None:
+            entry = scales[rec['id']] = _copy.deepcopy(rec)
+        if m.gid not in entry['mappables']:
+            entry['mappables'].append(m.gid)
+        scale_of_mappable[m.gid] = entry
+        if m.gid in rasterized and entry['recolor'] == 'live':
+            entry['recolor'] = 'regenerate'
+    for extra in extra_scales:  # raw colour-mapped artists: a scale named after their gid
+        gid = extra['gid']
+        if not _keep(gid):
+            continue
+        entry = scales.get(extra['record']['id'])
+        if entry is None:
+            entry = scales[extra['record']['id']] = _copy.deepcopy(extra['record'])
+        if gid not in entry['mappables']:
+            entry['mappables'].append(gid)
+        scale_of_mappable[gid] = entry
+        if gid in rasterized and entry['recolor'] == 'live':
+            entry['recolor'] = 'regenerate'
+
     for g in guides:
         if g.role == 'colorbar':
-            payload = dict(g.data)
+            payload = {k: v for k, v in g.data.items() if not k.startswith('_')}
             payload['parts'] = [part for part in payload.get('parts', []) if _keep(part['svgId'])]
             if not _keep(payload.get('mappable')): payload.pop('mappable', None)
+            scale = scale_of_mappable.get(payload.get('mappable'))
+            if scale is not None:
+                payload['colorScale'] = scale['id']
+                if g.gid not in scale['colorbars']:
+                    scale['colorbars'].append(g.gid)
+                if not scale.get('label') and payload.get('label'):
+                    scale['label'] = payload['label']
             guide_entries.append({'id': g.gid, 'svgId': g.gid, 'role': g.role, **payload})
 
     overlay_entries = []
@@ -340,6 +382,8 @@ def build_manifest(
         "parts": parts,
         "build": build,
     }
+    if scales:
+        out["colorScales"] = list(scales.values())
     if svg_sha256 is not None:
         # checksum of the FINAL postprocessed SVG bytes: deterministic (the SVG is
         # byte-stable) and acyclic (the SVG does not contain the manifest). Consumers use it

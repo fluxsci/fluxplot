@@ -89,6 +89,10 @@ def local_mark(mark, prefix):
         data['field_members'] = [local(g) for g in data['field_members']]
     if data.get('label_gid'):
         data['label_gid'] = local(data['label_gid'])
+    if data.get('hexmatrix', {}).get('bins'):
+        payload = dict(data['hexmatrix'])
+        payload['bins'] = [{**b, 'svgId': local(b['svgId'])} if b.get('svgId') else b for b in payload['bins']]
+        data['hexmatrix'] = payload
     return replace(mark, gid=local(mark.gid), member_gids=[local(g) for g in mark.member_gids], data=data)
 
 
@@ -117,6 +121,8 @@ def namespace(man, prefix):
             p['svgId'] = ref(p['svgId'])
         for part in s.get('surface', {}).get('parts', []):
             if part.get('ref'): part['ref'] = ref(part['ref'])
+        for b in s.get('hexmatrix', {}).get('bins', []):
+            if b.get('svgId'): b['svgId'] = ref(b['svgId'])
     for g in man.get('guides', []):
         walk(g)
         if g.get('mappable'): g['mappable'] = ref(g['mappable'])
@@ -126,18 +132,25 @@ def namespace(man, prefix):
                 if entry.get(key): entry[key] = ref(entry[key])
     for o in man.get('overlays', []):
         walk(o)
+    for sc in man.get('colorScales', []):
+        # the scale id is the recipe key and stays literal; what it colours is namespaced
+        sc['mappables'] = [ref(v) for v in sc['mappables']]
+        sc['colorbars'] = [ref(v) for v in sc['colorbars']]
     walk(man['parts'])
     # The one legacy role token has figure-wide meaning and is retained once.
     man['build']['order'] = [ref(v) if v != 'gridlines' else v for v in man['build']['order']]
     return man
 
 
-def manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterized, **kwargs):
+def manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterized, extra_scales_by_panel=None, **kwargs):
     from .manifest import build_manifest
     documents = []
-    for panel, guides, capture in zip(panels, guides_by_panel, axes_capture):
+    extra_scales_by_panel = extra_scales_by_panel or [[] for _ in panels]
+    for panel, guides, capture, extra in zip(panels, guides_by_panel, axes_capture, extra_scales_by_panel):
         prefix = panel.prefix
         marks = [local_mark(m, prefix) for m in reg.marks if getattr(m, '_panel_axes', m.axes) is panel.axes]
+        local_scales = [{**sc, 'gid': sc['gid'][len(prefix):] if prefix and sc['gid'].startswith(prefix) else sc['gid']}
+                        for sc in extra]
         local_guides = []
         for g in guides:
             def local(v):
@@ -150,7 +163,7 @@ def manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterize
         kept = {g[len(prefix):] if prefix else g for g in present if not prefix or g.startswith(prefix)}
         rasters = {g[len(prefix):] if prefix else g for g in rasterized if not prefix or g.startswith(prefix)}
         doc = build_manifest(fig, SimpleNamespace(marks=marks), local_guides, [capture],
-                             present=kept, rasterized=rasters, **kwargs)
+                             present=kept, rasterized=rasters, extra_scales=local_scales, **kwargs)
         namespace(doc, prefix)
         if panel.id:
             for s in doc['series']:
@@ -171,6 +184,23 @@ def manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterize
     out['parts'] = {'id': 'figure', 'role': 'figure', 'kind': 'container', 'children': parts}
     for key in ('axes', 'series', 'guides', 'overlays'):
         out[key] = [entry for d in documents for entry in d[key]]
+    # one colour scale may span panels (fp.color_scale): merge by id, union what it colours
+    merged: dict = {}
+    for d in documents:
+        for sc in d.get('colorScales', []):
+            have = merged.get(sc['id'])
+            if have is None:
+                merged[sc['id']] = sc
+                continue
+            have['mappables'] += [v for v in sc['mappables'] if v not in have['mappables']]
+            have['colorbars'] += [v for v in sc['colorbars'] if v not in have['colorbars']]
+            have['label'] = have.get('label') or sc.get('label')
+            if sc['recolor'] != 'live':
+                have['recolor'] = sc['recolor']
+    if merged:
+        out['colorScales'] = list(merged.values())
+    else:
+        out.pop('colorScales', None)
     out['build'] = {'order': list(dict.fromkeys(v for d in documents for v in d['build']['order'])),
                     'presets': {k: v for d in documents for k, v in d['build']['presets'].items()}}
     return out

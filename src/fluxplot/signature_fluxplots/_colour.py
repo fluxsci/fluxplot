@@ -101,8 +101,10 @@ class ColourSource:
 
 def _from_colormap(cm, label, kind_hint=None, discrete_hint=None):
     from matplotlib.colors import ListedColormap
+
+    from ..colors import DISCRETE_MAX
     discrete = discrete_hint if discrete_hint is not None else (
-        isinstance(cm, ListedColormap) and cm.N <= 32)
+        isinstance(cm, ListedColormap) and cm.N <= DISCRETE_MAX)
     if discrete and hasattr(cm, "colors"):
         return _from_list(list(cm.colors), label, kind_hint)
     if kind_hint in ("sequential", "diverging", "cyclic", "qualitative"):

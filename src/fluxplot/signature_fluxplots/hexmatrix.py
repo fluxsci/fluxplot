@@ -690,6 +690,7 @@ def hexmatrix(
             "vmax": vmax if vmax is not None else hi,
             "norm": _make_norm(norm, center, None, None, gamma)}
     control_key = _options(ax, series, key, opts, resolve=_resolve_cmap)  # any Flux recipe override
+    cb_extend = opts.pop("_extend", None)
     the_cmap = base_cmap if opts["cmap"] == base_cmap.name else _resolve_cmap(opts["cmap"])
     the_norm = opts["norm"]
     if "vmin" in opts:  # _options moved the limits onto the (copied) Normalize itself
@@ -728,10 +729,12 @@ def hexmatrix(
                                                          counts if counts is not None else [None] * len(rows),
                                                          value)]}
     reg = _tagger.registry_for(ax.figure)
+    field_config = {"kind": "hexbin", "controlKey": control_key, "shape": [int(len(rows))]}
+    if cb_extend:
+        field_config["extend"] = cb_extend
     reg.add(Mark(role="x-hexbin", series=series, name="hexes", kind="hexmatrix", artists=[hexes],
-                 data={"field_config": {"kind": "hexbin", "controlKey": control_key,
-                                        "shape": [int(len(rows))]},
-                       "field_artist": hexes, "field_names": names, "field_member_prefix": "hex",
+                 data={"field_config": field_config, "field_artist": hexes, "field_resolve": _resolve_cmap,
+                       "field_names": names, "field_member_prefix": "hex",
                        "field_member_role": "x-hex", "field_attrs": attrs, "hexmatrix": payload}))
     artists = {"hexes": hexes, "lattice": lat}
 
@@ -779,6 +782,7 @@ def hexmatrix(
             colorbar_label = {"count": "Count per hexbin", "density": "Density",
                               "probability": "Probability", "percent": "Percent"}[stat]
     payload["valueLabel"] = colorbar_label or None
+    field_config["label"] = colorbar_label or None
 
     # ---- marginals ------------------------------------------------------------------------------------
     marginal_axes = {}

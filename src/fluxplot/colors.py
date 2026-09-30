@@ -27,7 +27,12 @@ import functools
 import json
 from importlib import resources
 
-__all__ = ["flex", "maps"]
+__all__ = ["flex", "maps", "DISCRETE_MAX"]
+
+#: A ``ListedColormap`` with at most this many colours is a *discrete* map (a set of classes to
+#: pick from); above it, a listed map is treated as a continuous ramp. One threshold for the
+#: colour-scale records, the signature plots' palette resolution and the definitions builder.
+DISCRETE_MAX = 32
 
 
 class _FlexPalette:

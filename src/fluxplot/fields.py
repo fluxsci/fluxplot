@@ -5,7 +5,7 @@ are always recorded, while large fields use the normal bounded raster pipeline.
 """
 from __future__ import annotations
 import numpy as np
-from . import ids, tagger
+from . import colorscale, ids, tagger
 from ._fieldmap import resolve_colormap
 from .descriptors import Mark, GuideTag
 from .data import values
@@ -47,18 +47,6 @@ def control_key(ax, series, key=None):
     return chosen, positional
 
 
-def _cmap_name(cmap, resolve):
-    """The name a cmap spec resolves to (a str is resolved when possible), else ``None``."""
-    if cmap is None:
-        return None
-    if not isinstance(cmap, str):
-        return getattr(cmap, 'name', None)
-    try:
-        return getattr(resolve(cmap), 'name', cmap)
-    except (ValueError, KeyError):
-        return cmap
-
-
 def _options(ax, series, key, kwargs, *, resolve=None):
     """Apply the recipe's colour controls for one colour-mapped series; return its control key.
 
@@ -81,23 +69,8 @@ def _options(ax, series, key, kwargs, *, resolve=None):
     if overrides is None and legacy != key:
         overrides = controls.get(legacy)
     overrides = dict(overrides or {})
-    if 'cmap' in overrides:
-        wanted = overrides['cmap']
-        if isinstance(wanted, str) and wanted == _cmap_name(kwargs.get('cmap'), resolve):
-            pass  # the script's own map, recorded and replayed: keep the script's object
-        elif isinstance(wanted, str):
-            try:
-                kwargs['cmap'] = resolve(wanted)
-            except (ValueError, KeyError):
-                raise ValueError(
-                    f"colour control {key!r}: unknown colormap {wanted!r}; use a matplotlib name, "
-                    "a fluxplot map (fp.colors.maps.collections()) or a registered custom map"
-                ) from None
-        else:
-            kwargs['cmap'] = wanted
-    for option in ('vmin', 'vmax'):
-        if option in overrides:
-            kwargs[option] = overrides[option]
+    if overrides:
+        colorscale.apply_override(kwargs, overrides, key, resolve=resolve)
     # A caller's Normalize object may carry a nonlinear scale. Change its limits
     # without replacing the scale or mutating the caller-owned instance.
     if kwargs.get('norm') is not None and not isinstance(kwargs['norm'], str):
@@ -111,23 +84,30 @@ def _options(ax, series, key, kwargs, *, resolve=None):
 
 
 def normalization(artist):
-    from matplotlib import colors
-    norm = artist.norm
-    out = {'kind': type(norm).__name__, 'vmin': float(norm.vmin) if norm.vmin is not None else None,
-           'vmax': float(norm.vmax) if norm.vmax is not None else None, 'clip': bool(norm.clip)}
-    for attr in ('vcenter', 'gamma', 'linthresh', 'linscale'):
-        if hasattr(norm, attr): out[attr] = float(getattr(norm, attr))
-    if isinstance(norm, colors.BoundaryNorm): out['boundaries'] = values(norm.boundaries)
+    """The norm as ``field.normalization`` records it: ``kind`` is the matplotlib class name (kept
+    as an alias of the portable ``colorScales[].norm.kind``), the parameters are the record's."""
+    record = colorscale.norm_record(artist.norm)
+    out = {'kind': type(artist.norm).__name__, 'vmin': record['vmin'], 'vmax': record['vmax'], 'clip': record['clip']}
+    for attr in ('vcenter', 'halfrange', 'gamma', 'linthresh', 'linscale', 'base', 'boundaries'):
+        if record.get(attr) is not None:
+            out[attr] = record[attr]
     return out
 
 
-def _capture(artist, config):
+def _capture(artist, config, resolve=None):
     out = dict(config)
     out['normalization'] = normalization(artist)
     out['cmap'] = artist.get_cmap().name
     out['missingColor'] = artist.get_cmap().get_bad().tolist()
     out['underColor'] = artist.get_cmap().get_under().tolist()
     out['overColor'] = artist.get_cmap().get_over().tolist()
+    # the portable colour scale (colorscale.py): the recipe names the map the way it can rebuild
+    # it, the manifest's colorScales[] entry carries the exact LUT, and the field points at it
+    out['cmapSpec'] = colorscale.cmap_spec(artist.get_cmap(), resolve or resolve_colormap)
+    out['colorScale'] = out['controlKey']
+    if not out.get('extend'):
+        cb = getattr(artist, 'colorbar', None)
+        out['extend'] = getattr(cb, 'extend', None) or getattr(artist, 'extend', None) or 'neither'
     # imshow / pcolormesh can be edited after helper construction.
     if out['kind'] == 'heatmap':
         arr = np.ma.masked_invalid(np.ma.asarray(artist.get_array(), dtype=float))
@@ -149,12 +129,15 @@ def _capture(artist, config):
 
 
 def heatmap(ax, data, *, series, x=None, y=None, cells=False, include_values=False,
-            key=None, **kwargs):
+            key=None, value_raster=False, **kwargs):
     """Draw a scalar matrix. ``x``/``y`` select pcolormesh (including irregular grids).
 
     ``cells=True`` gives modest meshes row/column cell IDs; above the raster
     threshold only the layer is addressable. ``include_values`` stores raw values.
     ``key`` names the recipe color controls; defaults to the owning axes and series.
+    ``value_raster=True`` writes the matrix as ``<plot>.<key>.values.json`` beside the SVG
+    (row-major, ``null`` for missing) and points the colour scale at it, so a consumer can
+    repaint an image layer from its values instead of regenerating.
     """
     arr = np.ma.masked_invalid(np.ma.asarray(data, dtype=float))
     if arr.ndim != 2 or not arr.size:
@@ -162,6 +145,7 @@ def heatmap(ax, data, *, series, x=None, y=None, cells=False, include_values=Fal
     if (x is None) != (y is None):
         raise ValueError('heatmap x and y must be supplied together')
     key = _options(ax, series, key, kwargs)
+    extend = kwargs.pop('_extend', None)
     if isinstance(kwargs.get('cmap'), str):
         kwargs['cmap'] = resolve_colormap(kwargs['cmap'])  # 'emerald', 'crameri.batlow', 'batlow_r'
     if x is not None or cells:
@@ -172,14 +156,21 @@ def heatmap(ax, data, *, series, x=None, y=None, cells=False, include_values=Fal
         artist = ax.imshow(arr, **kwargs)
     config = {'kind': 'heatmap', 'shape': list(arr.shape), 'includeValues': bool(include_values),
               'controlKey': key}
-    mark = Mark(role='x-heatmap', series=series, kind='heatmap', artists=[artist],
-                data={'field_config': config, 'field_artist': artist, 'cells': bool(cells)})
+    if extend:
+        config['extend'] = extend
+    data = {'field_config': config, 'field_artist': artist, 'cells': bool(cells)}
+    if value_raster:
+        data['value_raster'] = {}  # filename and payload are fixed at save time
+    mark = Mark(role='x-heatmap', series=series, kind='heatmap', artists=[artist], data=data)
     tagger.registry_for(ax.figure).add(mark)
     return artist
 
 
 def _contour(ax, args, series, filled, include_values, key, kwargs):
     key = _options(ax, series, key, kwargs)
+    extend = kwargs.pop('_extend', None)
+    if extend:
+        kwargs['extend'] = extend  # an edited extend replaces the script's: the bands change with it
     if isinstance(kwargs.get('cmap'), str):
         kwargs['cmap'] = resolve_colormap(kwargs['cmap'])
     artist = (ax.contourf if filled else ax.contour)(*args, **kwargs)
@@ -216,24 +207,157 @@ def contourf(ax, *args, series, include_values=False, key=None, **kwargs):
     return _contour(ax, args, series, True, include_values, key, kwargs)
 
 
+def _field_mark(fig, artist):
+    return next((m for m in tagger.registry_for(fig).marks if m.data.get('field_artist') is artist), None)
+
+
 def colorbar(mappable, *, name='color', ax=None, **kwargs):
-    """Create a named, linked color key using Figure.colorbar's usual options."""
+    """Create a named, linked color key using Figure.colorbar's usual options.
+
+    The key follows its scale's recipe controls: an ``extend`` edited in Flux is applied here
+    (and recorded) unless the call names its own.
+    """
     owner = ax if ax is not None else getattr(mappable, 'axes', None)
     if owner is None:
         raise ValueError('colorbar needs ax when the mappable has no owning axes')
+    mark = _field_mark(owner.figure, mappable)
+    if mark is not None and mark.data['field_config'].get('extend') and 'extend' not in kwargs:
+        kwargs['extend'] = mark.data['field_config']['extend']
     cb = owner.figure.colorbar(mappable, ax=owner, **kwargs)
+    if mark is not None:
+        mark.data['field_config']['extend'] = cb.extend
     cb.ax._fluxplot_colorbar_name = str(name)
     cb.ax._fluxplot_owner_axes = owner
     return cb
 
 
+def paint_of(artist) -> str:
+    """Which paint properties a colour scale drives on an artist's elements: ``"fill"`` for filled
+    shapes and images, ``"stroke"`` for line contours and line collections, ``"fill stroke"`` for a
+    collection whose edges take the face colour (``edgecolor="face"``: hexagons, scatter markers)."""
+    from matplotlib.collections import Collection, LineCollection
+    from matplotlib.contour import ContourSet
+    from matplotlib.image import AxesImage
+    if isinstance(artist, ContourSet):
+        return 'fill' if artist.filled else 'stroke'
+    if isinstance(artist, AxesImage):
+        return 'fill'
+    if isinstance(artist, LineCollection):
+        return 'stroke'
+    if isinstance(artist, Collection):
+        ec, fc = artist.get_edgecolor(), artist.get_facecolor()
+        if len(fc) and len(ec) and np.array_equal(ec, fc):
+            return 'fill stroke'
+        if not len(fc):
+            return 'stroke'
+    return 'fill'
+
+
 def capture_mark(mark):
     if 'field_config' not in mark.data: return
-    mark.data['field'] = _capture(mark.data['field_artist'], mark.data['field_config'])
+    artist, resolve = mark.data['field_artist'], mark.data.get('field_resolve')
+    field = _capture(artist, mark.data['field_config'], resolve)
+    mark.data['field'] = field
+    from matplotlib.image import AxesImage
+    recolor = 'regenerate' if isinstance(artist, AxesImage) else 'live'
+    raster = mark.data.get('value_raster')
+    if recolor == 'regenerate' and raster:
+        recolor = 'raster'  # the values travel beside the SVG: a canvas can repaint them
+    mark.data['color_scale'] = colorscale.scale_record(
+        field['controlKey'], artist, label=field.get('label'), extend=field['extend'], recolor=recolor)
+    mark.data['color_paint'] = paint_of(artist)
+    if raster:
+        arr = np.ma.masked_invalid(np.ma.asarray(artist.get_array(), dtype=float))
+        raster['payload'] = {'spec': 'fluxplot/values', 'scale': field['controlKey'],
+                             'shape': list(arr.shape), 'values': values(arr.reshape(-1))}
+        mark.data['color_scale']['valueRaster'] = raster['filename']
+
+
+def anonymous_scales(ax, reg):
+    """Colour scales for the raw colour-mapped artists on ``ax`` no helper tagged: every image
+    or collection with a data array (``imshow``, ``pcolormesh``, ``scatter(c=…)``, a contour set)
+    gets a scale named after its own gid, so its colour key links and its colours are editable.
+    Returns ``[{"gid", "record", "paint"}]``; there is no series — just the scale."""
+    from matplotlib.image import AxesImage
+    tagged = {id(a) for m in reg.marks for a in m.artists}
+    out = []
+    for art in list(ax.images) + list(ax.collections):
+        if id(art) in tagged or not art.get_gid() or not art.get_visible():
+            continue
+        if getattr(art, 'get_array', None) is None or art.get_array() is None:
+            continue
+        gid = art.get_gid()
+        record = colorscale.scale_record(gid, art, recolor='regenerate' if isinstance(art, AxesImage) else 'live')
+        out.append({'gid': gid, 'record': record, 'paint': paint_of(art)})
+    return out
+
+
+class vector_colorbars:
+    """Render colour-key solids as vectors (matplotlib rasterizes them by default) so postprocess
+    can replace the quads with one exact gradient rect; restores each colorbar's setting after."""
+
+    def __init__(self, fig):
+        from .panels import all_axes
+        self.solids = [ax._colorbar.solids for ax in all_axes(fig)
+                       if getattr(ax, '_colorbar', None) is not None and ax._colorbar.solids is not None]
+
+    def __enter__(self):
+        self.before = [(s, s.get_rasterized()) for s in self.solids]
+        for s in self.solids:
+            s.set_rasterized(False)
+
+    def __exit__(self, *exc):
+        for s, was in self.before:
+            s.set_rasterized(was)
+
+
+def _tick_kinds(axis):
+    """Portable names for the colour key's tick locator and formatter classes."""
+    from matplotlib import ticker
+    loc, fmt = axis.get_major_locator(), axis.get_major_formatter()
+    if isinstance(loc, ticker.LogLocator):
+        locator = 'log'
+    elif isinstance(loc, ticker.FixedLocator):
+        locator = 'fixed'
+    else:
+        locator = 'auto'
+    if isinstance(fmt, ticker.LogFormatter):
+        formatter = 'log'
+    elif isinstance(fmt, ticker.PercentFormatter):
+        formatter = 'percent'
+    elif isinstance(fmt, ticker.ScalarFormatter):
+        formatter = 'sci' if fmt.get_offset() else 'plain'
+    else:
+        formatter = 'custom'
+    return locator, formatter
+
+
+def _gradient(cb, fig):
+    """The exact vector form of a colour key's solids: one hard-stepped gradient along its long
+    axis. Offsets are the quad boundaries (``cb._y``) in SVG user units along the axis — uniform
+    in the axis' own scale, whatever the norm — and the colours are the quads' own."""
+    from matplotlib.colors import to_hex, to_rgba
+    from .capture import data_to_svg
+    vertical = cb.orientation == 'vertical'
+    y = np.asarray(cb._y, dtype=float)
+    along = np.array([(data_to_svg(cb.ax, fig, 0.5, v) if vertical else data_to_svg(cb.ax, fig, v, 0.5))
+                      [1 if vertical else 0] for v in y])
+    span = along[-1] - along[0]
+    offsets = (along - along[0]) / span if span else np.linspace(0, 1, len(along))
+    values = np.asarray(cb._values)[cb._inside]
+    rgba = cb.cmap(cb.norm(values))
+    colours = [to_hex(c, keep_alpha=False) for c in rgba]
+    alpha = float(cb.alpha) if cb.alpha is not None else None
+    opacities = [round(float(c[3]) * (alpha if alpha is not None else 1.0), 6) for c in rgba]
+    if len(colours) != len(offsets) - 1:
+        return None
+    return {'axis': 'y' if vertical else 'x', 'start': float(along[0]), 'end': float(along[-1]),
+            'offsets': [float(o) for o in offsets], 'colors': colours, 'opacities': opacities}
 
 
 def colorbar_guides(fig, owner, alloc):
     from .panels import all_axes
+    from .capture import data_to_svg
     guides = []
     for ax in all_axes(fig):
         cb = getattr(ax, '_colorbar', None)
@@ -242,7 +366,8 @@ def colorbar_guides(fig, owner, alloc):
         if parent is not owner: continue
         gid = alloc.take('colorbar.' + ids.slugify(getattr(ax, '_fluxplot_colorbar_name', 'color')))
         ax.set_gid(gid)
-        axis = ax.yaxis if cb.orientation == 'vertical' else ax.xaxis
+        vertical = cb.orientation == 'vertical'
+        axis = ax.yaxis if vertical else ax.xaxis
         parts = []
         artists = [('label', axis.label), ('outline', cb.outline)]
         primary_side = 2 if axis.get_ticks_position() in ('right', 'top') else 1
@@ -250,6 +375,11 @@ def colorbar_guides(fig, owner, alloc):
                        for suffix, role, _, art in tagger.axis_tick_artists(axis, primary_side)
                        if role in ('tick', 'tick-label', 'gridline'))
         if cb.solids is not None: artists.append(('solids', cb.solids))
+        # the extend triangles / rectangles beyond the ends: lower first, then upper
+        extend_parts = {}
+        sides = [side for side, on in (('min', cb._extend_lower()), ('max', cb._extend_upper())) if on]
+        for side, patch in zip(sides, getattr(cb, '_extend_patches', [])):
+            artists.append((f'extend-{side}', patch))
         for suffix, art in artists:
             if not art.get_visible(): continue
             part = gid + '.' + suffix
@@ -258,8 +388,11 @@ def colorbar_guides(fig, owner, alloc):
             else: art.set_gid(part)
             role = next(token for token in suffix.split('.')
                         if token not in ('minor', 'secondary'))
+            if role.startswith('extend-'):
+                extend_parts[role[len('extend-'):]] = part
+                role = 'extend'
             kind = {'label': 'text', 'tick-label': 'text', 'tick': 'line',
-                    'gridline': 'line', 'outline': 'line', 'solids': 'shape'}[role]
+                    'gridline': 'line', 'outline': 'line', 'solids': 'shape', 'extend': 'shape'}[role]
             parts.append({'svgId': part, 'role': 'colorbar-' + role, 'kind': kind})
             guides.append(GuideTag(gid=part, role=parts[-1]['role'], kind=kind))
         lo, hi = sorted(axis.get_view_interval())
@@ -267,9 +400,25 @@ def colorbar_guides(fig, owner, alloc):
                          if np.isfinite(t.get_loc()) and lo <= t.get_loc() <= hi
                          and t.get_visible() and any(a.get_visible() for a in
                              (t.tick1line, t.tick2line, t.label1, t.label2))]
-        guides.append(GuideTag(gid=gid, role='colorbar', data={
-            'orientation': cb.orientation, 'label': axis.label.get_text(),
-            'ticks': values(visible_ticks), 'normalization': normalization(cb.mappable),
-            'cmap': cb.mappable.get_cmap().name, 'parts': parts,
-            'mappable': cb.mappable.get_gid() if hasattr(cb.mappable, 'get_gid') else None}))
+        # data ↔ SVG anchors along the long axis, exactly as capture_axes does for plot axes
+        anchors = []
+        norm = cb.norm
+        for value in (norm.vmin, getattr(norm, 'vcenter', None), norm.vmax):
+            if value is None or not np.isfinite(value): continue
+            sx, sy = data_to_svg(ax, fig, 0.5, value) if vertical else data_to_svg(ax, fig, value, 0.5)
+            anchors.append({'value': float(value), 'svg': sy if vertical else sx})
+        locator, formatter = _tick_kinds(axis)
+        data = {'orientation': cb.orientation, 'label': axis.label.get_text(),
+                'ticks': values(visible_ticks), 'normalization': normalization(cb.mappable),
+                'cmap': cb.mappable.get_cmap().name, 'parts': parts,
+                'mappable': cb.mappable.get_gid() if hasattr(cb.mappable, 'get_gid') else None,
+                'anchors': anchors, 'axisLength': abs(anchors[-1]['svg'] - anchors[0]['svg']) if len(anchors) > 1 else None,
+                'tickLocator': locator, 'tickFormatter': formatter, 'extend': cb.extend}
+        if extend_parts:
+            data['extendParts'] = extend_parts
+        if cb.solids is not None and cb.solids.get_visible():
+            gradient = _gradient(cb, fig)
+            if gradient is not None:
+                data['_gradient'] = dict(gradient, solids=cb.solids.get_gid())  # consumed by postprocess
+        guides.append(GuideTag(gid=gid, role='colorbar', data=data))
     return guides

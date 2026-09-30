@@ -37,8 +37,13 @@ def _set(el, **attrs) -> None:
         el.set(k.replace("_", "-"), _fmt(v))
 
 
-def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=(), check_ids=True):
-    """Return ``(processed_svg_bytes, warnings, present)``."""
+def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=(), check_ids=True,
+                extra_scales=()):
+    """Return ``(processed_svg_bytes, warnings, present)``.
+
+    ``extra_scales`` are the anonymous colour scales of raw colour-mapped artists
+    (``fields.anonymous_scales``): their groups get ``data-color-scale`` / ``data-paint`` too.
+    """
     parser = etree.XMLParser(remove_blank_text=True)
     root = etree.fromstring(svg_bytes, parser)
     warnings: list[str] = []
@@ -87,6 +92,22 @@ def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=(), 
                     _set(el, data_role=m.role, data_series=m.series, data_kind=kind)
         else:
             _inject_overlay(m, id_map)
+
+    # 4b. colour scales: every group a scale colours names it and says which paint properties
+    # the scale drives; each coloured element already carries its value (see _inject_field /
+    # _inject_points), so a consumer can recolour the plot from the manifest's colorScales alone.
+    for m in reg.marks:
+        rec = m.data.get('color_scale')
+        el = id_map.get(m.gid) if rec else None
+        if el is not None:
+            _set(el, data_color_scale=rec['id'], data_paint=m.data.get('color_paint'))
+    for extra in extra_scales:
+        el = id_map.get(extra['gid'])
+        if el is not None:
+            _set(el, data_color_scale=extra['record']['id'], data_paint=extra.get('paint'))
+
+    # 4c. colour keys: the solids become one exact gradient rect instead of N quads
+    _vectorize_colorbars(root, guides, id_map, warnings)
 
     # 5. inject data-role (+ data-kind hint) on scaffold/guides
     for g in guides:
@@ -161,17 +182,21 @@ def _inject_points(m: Mark, id_map, warnings) -> None:
             return
     xs = list(m.x) if m.x is not None else [None] * n
     ys = list(m.y) if m.y is not None else [None] * n
+    cs = m.data.get("c")  # the colour-mapped value of each point (fp.scatter c=)
     for k, use_el in enumerate(members):
         use_el.set("id", m.member_gids[k])
+        i = m.member_indices[k]
         _set(
             use_el,
             data_role="point",
             data_series=m.series,
-            data_index=m.member_indices[k],
-            data_x=xs[m.member_indices[k]],
-            data_y=ys[m.member_indices[k]],
+            data_index=i,
+            data_x=xs[i],
+            data_y=ys[i],
             data_kind=kind_for_role("point"),
         )
+        if cs is not None and i < len(cs):
+            _set_value(use_el, cs[i])
 
 
 def _inject_indexed(m: Mark, id_map, role: str) -> None:
@@ -307,6 +332,23 @@ def _serialize(root) -> bytes:
     return ('<?xml version="1.0" encoding="utf-8" standalone="no"?>\n' + body).encode("utf-8")
 
 
+def _set_value(el, value) -> None:
+    """The value an element was coloured by: ``data-value``, or ``data-missing`` for a gap."""
+    if value is None or (isinstance(value, float) and value != value):
+        _set(el, data_missing=1)
+    else:
+        _set(el, data_value=float(value))
+
+
+def _level_text(v) -> str:
+    """A contour level boundary for ``data-level-low`` / ``-high``: matplotlib stands in
+    ``±1e250`` for an extend band's open end — say ``-inf`` / ``inf`` instead."""
+    v = float(v)
+    if abs(v) >= 1e249:
+        return "-inf" if v < 0 else "inf"
+    return repr(v)
+
+
 def _inject_field(mark, id_map, warnings):
     group = id_map.get(mark.gid)
     if group is None or group.get('data-rasterized') == '1': return
@@ -314,7 +356,9 @@ def _inject_field(mark, id_map, warnings):
     # order. Exclude definitions/clip paths; reject any backend count mismatch.
     paths = group.findall(f'{{{SVG}}}path')
     field = mark.data['field']
+    artist = mark.data['field_artist']
     base, role, attrs = mark.gid, 'cell' if mark.data.get('cells') else 'contour-level', None
+    cell_values = levels = None
     if mark.data.get('field_names'):
         # Helper-authored member names (e.g. hexmatrix ``hex.<row>.<col>``), in path order, with
         # per-member data-* attributes. Members hang off the series root, beside the layer id.
@@ -328,14 +372,24 @@ def _inject_field(mark, id_map, warnings):
         rows, cols = field['shape']
         count = rows * cols
         names = [f'cell.{i // cols}.{i % cols}' for i in range(count)]
+        import numpy as _np
+        arr = _np.ma.masked_invalid(_np.ma.asarray(artist.get_array(), dtype=float)).reshape(-1)
+        cell_values = [None if m else float(v) for v, m in zip(arr.filled(_np.nan), _np.ma.getmaskarray(arr))]
     else:
-        artist = mark.data['field_artist']
         count = len(artist.get_paths())
         names = [f'level.{i}' for i in range(count)]
+        # a band is coloured by its layer value (the midpoint of its bounding levels, an extend
+        # band by matplotlib's far stand-in); a line by its level — exactly what data-value says
+        cvalues = [float(v) for v in getattr(artist, 'cvalues', [])]
+        bounds = [float(v) for v in getattr(artist, '_levels', [])]
+        if artist.filled and len(bounds) == count + 1:
+            levels = list(zip(bounds[:-1], bounds[1:]))
+        cell_values = cvalues if len(cvalues) == count else None
     if len(paths) != count:
         warnings.append(f"field '{mark.gid}': backend path count differs; keeping layer identity")
         return
     members = []
+    bins = (mark.data.get('hexmatrix') or {}).get('bins')
     for i, (path, name) in enumerate(zip(paths, names)):
         gid = base + '.' + name
         path.set('id', gid)
@@ -344,9 +398,75 @@ def _inject_field(mark, id_map, warnings):
             _set(path, **attrs[i])
         elif mark.data.get('cells'):
             _set(path, data_row=i // cols, data_column=i % cols)
+        if cell_values is not None:
+            _set_value(path, cell_values[i])
+        if levels is not None:
+            path.set('data-level-low', _level_text(levels[i][0]))
+            path.set('data-level-high', _level_text(levels[i][1]))
+        if bins is not None and i < len(bins):
+            bins[i]['svgId'] = gid
         members.append(gid)
         id_map[gid] = path
     mark.data['field_members'] = members
+
+
+_NUM = __import__('re').compile(r'[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?')
+
+
+def _vectorize_colorbars(root, guides, id_map, warnings) -> None:
+    """Replace each colour key's N solid quads with ONE ``<rect>`` filled by a hard-stepped
+    ``<linearGradient>`` (two stops per colour) in ``<defs>``: byte-light, exactly the quads'
+    colours, and redrawable by a consumer from the manifest's colour scale. The rect is the quads'
+    bounding box in SVG user units; the gradient runs along the key's long axis between the first
+    and last quad boundary, in user space, so an inverted axis just runs backwards. The solids
+    group keeps its id and role."""
+    for g in guides:
+        grad = g.data.get('_gradient') if g.role == 'colorbar' else None
+        if not grad:
+            continue
+        group = id_map.get(grad['solids'])
+        if group is None or group.get('data-rasterized') == '1':
+            continue
+        paths = group.findall(f'{{{SVG}}}path')
+        if len(paths) != len(grad['colors']):
+            warnings.append(f"colorbar '{g.gid}': {len(paths)} solid quads vs {len(grad['colors'])} colours; kept as drawn")
+            continue
+        xs, ys = [], []
+        for path in paths:
+            nums = [float(t) for t in _NUM.findall(path.get('d', ''))]
+            xs.extend(nums[0::2])
+            ys.extend(nums[1::2])
+        if not xs:
+            continue
+        x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+        gid = grad['solids'] + '.gradient'
+        defs = root.find(f'{{{SVG}}}defs')
+        if defs is None:
+            defs = etree.SubElement(root, f'{{{SVG}}}defs')
+            root.insert(0, defs)
+        lg = etree.SubElement(defs, f'{{{SVG}}}linearGradient', id=gid, gradientUnits='userSpaceOnUse')
+        mid_x, mid_y = (x0 + x1) / 2, (y0 + y1) / 2
+        if grad['axis'] == 'y':
+            lg.set('x1', _fmt(mid_x)); lg.set('x2', _fmt(mid_x))
+            lg.set('y1', _fmt(grad['start'])); lg.set('y2', _fmt(grad['end']))
+        else:
+            lg.set('y1', _fmt(mid_y)); lg.set('y2', _fmt(mid_y))
+            lg.set('x1', _fmt(grad['start'])); lg.set('x2', _fmt(grad['end']))
+        offsets = grad['offsets']
+        for k, colour in enumerate(grad['colors']):
+            for offset in (offsets[k], offsets[k + 1]):
+                stop = etree.SubElement(lg, f'{{{SVG}}}stop', offset=_fmt(offset))
+                stop.set('stop-color', colour)
+                if grad['opacities'][k] < 1:
+                    stop.set('stop-opacity', _fmt(grad['opacities'][k]))
+        rect = etree.Element(f'{{{SVG}}}rect', x=_fmt(x0), y=_fmt(y0), width=_fmt(x1 - x0), height=_fmt(y1 - y0))
+        clip = paths[0].get('clip-path')
+        if clip:
+            rect.set('clip-path', clip)
+        rect.set('style', f'fill: url(#{gid}); stroke: none')
+        for path in paths:
+            group.remove(path)
+        group.append(rect)
 
 
 def _group_legacy_contour(mark, id_map):

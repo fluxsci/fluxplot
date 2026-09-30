@@ -159,6 +159,11 @@ def plan(fig, threshold: int = DEFAULT_THRESHOLD) -> list:
         except Exception:
             continue
         n = primitive_count(artist)
+        # A colour key's solids are drawn as one exact vector gradient by postprocess (A6), never
+        # as an image — matplotlib's default rasterization of them is undone around the render.
+        cb = getattr(getattr(artist, 'axes', None), '_colorbar', None)
+        if cb is not None and artist is cb.solids:
+            continue
         # An artist the CALLER already flagged rasterized is planned too, however few primitives it
         # has. matplotlib will emit an <image> for it either way, and reattach keeps each image in its own
         # explicit draw scope, including caller-rasterized lightweight artists. The commonest case is a

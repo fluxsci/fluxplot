@@ -30,3 +30,25 @@ def test_resaving_same_figure_is_stable(tmp_path):
     b = open(r2.manifest, "rb").read()
     plt.close(fig)
     assert a == b
+
+
+def test_colour_scaled_plots_are_byte_stable(tmp_path):
+    """A hexmatrix and a colour-mapped scatter (LUTs, gradients, per-element values) are as
+    deterministic as a line plot."""
+    import numpy as np
+
+    def build():
+        rng = np.random.default_rng(11)
+        fig, (a, b) = plt.subplots(1, 2, figsize=(6, 2.6))
+        fp.hexmatrix(x=rng.normal(size=300), y=rng.normal(size=300), ax=a, gridsize=8, series="h", norm="log")
+        pts = fp.scatter(b, rng.normal(size=40), rng.normal(size=40), c=rng.uniform(size=40), s=rng.uniform(5, 40, 40), series="p")
+        fp.colorbar(pts, extend="both")
+        return fig
+
+    outputs = []
+    for _ in range(2):
+        fig = build()
+        res = fp.save(fig, str(tmp_path / "c.svg"), recipe=False)
+        outputs.append((open(res.svg, "rb").read(), open(res.manifest, "rb").read()))
+        plt.close(fig)
+    assert outputs[0] == outputs[1]

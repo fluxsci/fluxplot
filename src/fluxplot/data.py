@@ -47,6 +47,8 @@ def refresh(mark):
     art = mark.artists[0]
     from .fields import capture_mark
     capture_mark(mark)
+    if mark.data.get('field_config', {}).get('kind') == 'scatter' and hasattr(art, 'get_array'):
+        mark.data['c'] = values(art.get_array())  # the colour-mapped values, as drawn
     if mark.live_data:
         if mark.role == 'bar':
             mark.x, mark.y, meta = bar_data(mark.artists, mark.data.get('bar', {}).get('orientation', 'vertical'))
