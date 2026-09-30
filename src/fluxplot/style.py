@@ -43,6 +43,7 @@ from .colors import maps as _maps
 __all__ = [
     "CYCLE_DARK",
     "CYCLE_LIGHT",
+    "CYCLE_ORDER",
     "CYCLIC",
     "DEFAULT_DIVERGING",
     "DIVERGING",
@@ -97,23 +98,15 @@ for _name in _ACCENTS:
 
 # Categorical cycles — a distinct, harmonious hue order. The active theme installs
 # one as matplotlib's prop_cycle, so un-coloured series are assigned from it.
-CYCLE_LIGHT = [
-    FLEXOKI[c]
-    for c in ("blue", "orange", "green", "purple", "cyan", "magenta", "yellow", "red")
-]
-CYCLE_DARK = [
-    FLEXOKI[c]
-    for c in (
-        "blue2",
-        "orange2",
-        "green2",
-        "purple2",
-        "cyan2",
-        "magenta2",
-        "yellow2",
-        "red2",
-    )
-]
+# The order keeps every ADJACENT pair apart for colour-deficient readers: measured with
+# fluxplot.colorcheck (Machado 2009, CIEDE2000), the smallest adjacent distance under
+# protanopia / deuteranopia / tritanopia is 20.4 in the light cycle and 15.4 in the dark one
+# (the pre-2026-09-30 order had cyan next to magenta at 5.6 and orange next to green at 7.8).
+# Greyscale separation cannot be fixed by ordering alone at one weight; a print-safe figure
+# should still vary marker or line style. tests/test_colorcheck.py pins the adjacency.
+CYCLE_ORDER = ("blue", "orange", "purple", "green", "magenta", "yellow", "cyan", "red")
+CYCLE_LIGHT = [FLEXOKI[c] for c in CYCLE_ORDER]
+CYCLE_DARK = [FLEXOKI[c + "2"] for c in CYCLE_ORDER]
 
 
 # ---------------------------------------------------------------------------

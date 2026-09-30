@@ -900,6 +900,13 @@ pairs that collapse under a deficiency (`cvd-confusable`, ΔE < 10) or in greysc
 inks: findings go to `SaveResult.warnings` and the manifest's `quality.color`; `lint="error"`
 refuses the save. Off by default.
 
+Measured with it, the house cycles were reordered (2026-09-30) so that no two *adjacent* colours
+collapse for a colour-deficient reader: `fx.CYCLE_ORDER` is now blue, orange, purple, green,
+magenta, yellow, cyan, red (the smallest adjacent distance under any deficiency is ΔE 20 in the
+light cycle, 15 in the dark one; cyan next to magenta used to be 5.6). Plots that let the cycle
+pick their colours get different colours from the third series on. Greyscale separation cannot
+be fixed by order alone at one weight — vary marker or line style for a print-safe figure.
+
 ### Colour controls in the recipe
 
 Every colour scale is a recipe control: `fp.save` writes its complete state under

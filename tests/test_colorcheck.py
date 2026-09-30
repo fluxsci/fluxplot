@@ -87,3 +87,15 @@ def test_save_lint_records_findings(tmp_path):
     assert "quality" not in json.loads((tmp_path / "q.fluxplot.json").read_text())
     with pytest.raises(ValueError, match="lint must be"):
         fp.save(fig, str(tmp_path / "x.svg"), recipe=False, lint="loud")
+
+
+def test_house_cycles_keep_adjacent_colours_apart_for_every_deficiency():
+    """The reordered cycles: no two neighbours collapse under any simulated deficiency."""
+    for cycle in (style.CYCLE_LIGHT, style.CYCLE_DARK):
+        rgb = cc._rgb(cycle)
+        for kind in cc.CVD_KINDS:
+            labs = cc.lab(cc.simulate(rgb, kind, 1.0))
+            adjacent = [float(cc._ciede2000(labs[i:i + 1], labs[i + 1:i + 2])[0]) for i in range(len(cycle) - 1)]
+            assert min(adjacent) >= cc.THRESHOLDS["cvd-confusable"], (kind, adjacent)
+    assert style.CYCLE_LIGHT[0] == style.FLEXOKI["blue"] and style.CYCLE_DARK[0] == style.FLEXOKI["blue2"]
+    assert len(set(style.CYCLE_ORDER)) == 8
