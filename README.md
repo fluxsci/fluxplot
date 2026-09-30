@@ -323,11 +323,36 @@ fp.scatter(ax, x, y, *, series, label=None, key=None, **mpl_kwargs)   # c=values
 fp.bar(ax, x, height, *, series, **mpl_kwargs)
 fp.errorbar(ax, x, y, *, series, yerr=None, **mpl_kwargs)
 fp.area(ax, x, y1, y2=0, *, series, **mpl_kwargs)                    # manifest band = {x, y1, y2}
+fp.image(ax, data, *, series, pixel_size=None, units="µm", channels=None, luts=None, display_range=None, ...)
+fp.scalebar(ax, length, units="µm", *, loc="lower right", label=None, color=None, thickness=2.0, pad=0.4)
 fp.band(ax, x, lo, hi, *, series, what="95% CI", **mpl_kwargs)        # <series>.band beside <series>.line
 fp.box(ax, values, *, series, label=None, include_values=False, **mpl_kwargs)     # one box per call
 fp.violin(ax, values, *, series, label=None, include_values=False, **mpl_kwargs)  # one violin per call
 fp.hist(ax, values, *, series, bins=None, label=None, include_values=False, **mpl_kwargs)
 ```
+
+**Images and scale bars** — a micrograph is data too:
+
+```python
+im = fp.image(ax, np.stack([dapi, gfp]), series="cells", channels=["dapi", "gfp"],
+              luts=["blue", "green"], display_range=[(0, 900), None],    # None → 1st–99.8th percentiles
+              pixel_size=0.325, units="µm", composite="add")           # or "max"; value_raster=True
+fp.scalebar(ax, 10, "µm")                                              # a vector bar, exactly 10 data units
+fp.colorbar(im.mappables["gfp"], ax=ax, name="gfp", label="GFP")
+```
+
+`fp.image` takes a `(H, W)` image or a `(C, H, W)` / `(H, W, C)` stack, gives every channel a LUT
+(a colormap name, or a colour meaning a black-to-colour ramp) and a display range (the black and
+white points), composites them into one RGB `imshow` in Python, and puts the axes in physical
+units from `pixel_size`. Each channel is a colour scale in the manifest (`cells.dapi`,
+`cells.gfp`; a 2-D image's is just `cells`) with a linear norm over its display range and
+`recolor: "regenerate"` (`"raster"` with `value_raster=True`, when the channel's values travel
+beside the SVG), and a recipe control of the same name — so Flux's colour-scale editor adjusts a
+channel's brightness/contrast or LUT and reruns. The series' `image` payload records the channels,
+LUTs, display ranges, pixel size, units, extent and composite. `fp.scalebar` is a `Line2D` whose x
+extent is exactly `length` data units, anchored in a corner (`loc`), with its label
+(`"<length> <units>"`) as `scalebar.<n>.label`; it takes the theme's ink. `examples/image_example.py`
+draws a two-channel field.
 
 `fp.band` is the uncertainty band of a line: registered under the **same series** (so `ctl.band`
 sits beside `ctl.line`), in the line's colour at `alpha=0.25`, with `band = {x, lo, hi, what}` in

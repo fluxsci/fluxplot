@@ -1477,6 +1477,88 @@
         },
         "surface": {
           "$ref": "#/definitions/surface"
+        },
+        "image": {
+          "type": "object",
+          "description": "An fp.image: its channels (each a colorScales[] entry, <series>.<channel>), LUTs, display ranges, pixel size and extent.",
+          "properties": {
+            "shape": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            },
+            "channels": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "lut": {
+                    "type": [
+                      "string",
+                      "object"
+                    ]
+                  },
+                  "displayRange": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  "scale": {
+                    "type": "string"
+                  },
+                  "controlKey": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "scale",
+                  "displayRange"
+                ]
+              }
+            },
+            "composite": {
+              "type": "string",
+              "enum": [
+                "add",
+                "max"
+              ]
+            },
+            "origin": {
+              "type": "string",
+              "enum": [
+                "upper",
+                "lower"
+              ]
+            },
+            "extent": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            "units": {
+              "type": "string"
+            },
+            "pixelSize": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "required": [
+            "shape",
+            "channels"
+          ]
         }
       },
       "required": [
@@ -1730,6 +1812,13 @@
               "type": "string"
             }
           }
+        },
+        "length": {
+          "type": "number",
+          "description": "A scale bar's length in data units."
+        },
+        "units": {
+          "type": "string"
         }
       },
       "required": [

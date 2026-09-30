@@ -163,7 +163,7 @@ def build_manifest(
             "data": data,
             "components": components,
         }
-        for field in ("bar", "band", "uncertainty", "field", "glowbar", "fluxbox", "hexmatrix"):
+        for field in ("bar", "band", "uncertainty", "field", "glowbar", "fluxbox", "hexmatrix", "image"):
             payload = next((m.data[field] for m in marks if m.data.get(field)), None)
             if payload is not None:
                 entry[field] = payload
@@ -282,17 +282,18 @@ def build_manifest(
     scales: dict = {}
     scale_of_mappable: dict = {}
     for m in reg.marks:
-        rec = m.data.get('color_scale')
-        if not rec or not _keep(m.gid):
+        records = ([m.data['color_scale']] if m.data.get('color_scale') else []) + list(m.data.get('color_scales') or [])
+        if not records or not _keep(m.gid):
             continue
-        entry = scales.get(rec['id'])
-        if entry is None:
-            entry = scales[rec['id']] = _copy.deepcopy(rec)
-        if m.gid not in entry['mappables']:
-            entry['mappables'].append(m.gid)
-        scale_of_mappable[m.gid] = entry
-        if m.gid in rasterized and entry['recolor'] == 'live':
-            entry['recolor'] = 'regenerate'
+        for rec in records:  # an fp.image carries one scale per channel
+            entry = scales.get(rec['id'])
+            if entry is None:
+                entry = scales[rec['id']] = _copy.deepcopy(rec)
+            if m.gid not in entry['mappables']:
+                entry['mappables'].append(m.gid)
+            scale_of_mappable[m.gid] = entry
+            if m.gid in rasterized and entry['recolor'] == 'live':
+                entry['recolor'] = 'regenerate'
     for extra in extra_scales:  # raw colour-mapped artists: a scale named after their gid
         gid = extra['gid']
         if not _keep(gid):
@@ -330,7 +331,7 @@ def build_manifest(
             oe["kind"] = mk
         if m.name is not None:
             oe["name"] = m.name
-        for key in ("label", "between", "p", "text", "stats"):  # carry the annotation text too
+        for key in ("label", "between", "p", "text", "stats", "length", "units"):  # carry the annotation text too
             if key in m.data:
                 oe[key] = m.data[key]
         if m.gid in rasterized:

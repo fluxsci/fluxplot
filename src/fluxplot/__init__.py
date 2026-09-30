@@ -54,6 +54,7 @@ from .mesh3d import mesh3d, can_morph
 from .surface3d import surface3d
 from .fields import heatmap, contour, contourf, colorbar, color_scale
 from .brackets import brackets
+from .images import image, scalebar
 from .panels import panel
 from .version import SPEC_VERSION, __version__  # noqa: F401
 
@@ -71,6 +72,8 @@ __all__ = [
     "colorbar",
     "color_scale",
     "brackets",
+    "image",
+    "scalebar",
     "SPEC_VERSION",
     "colors",
     "colorcheck",

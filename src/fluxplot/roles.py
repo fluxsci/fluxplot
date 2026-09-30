@@ -29,6 +29,7 @@ CORE_ROLES = frozenset(
         # data marks (geoms)
         "series",
         "mesh", "pane", "scalebar",
+        "image",
         "line",
         "point",
         "bar",
@@ -104,6 +105,7 @@ KIND_BY_ROLE = {
     "segment": "line",
     "significance-bracket": "line",
     # shape
+    "image": "shape",
     "area": "shape",
     "bar": "shape",
     "point": "shape",

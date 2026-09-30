@@ -693,7 +693,7 @@ def _warn_log_zero_anchors(plot_axes, plot_name: str) -> list:
 
 def _infer_plot_type(reg) -> str:
     kinds = [m.kind for m in reg.marks if m.kind]
-    for k in ("glowbar", "fluxbox", "hexmatrix", "line", "scatter", "bar", "errorbar", "area", "box", "violin", "heatmap", "contour", "contourf", "surface"):
+    for k in ("glowbar", "fluxbox", "hexmatrix", "image", "line", "scatter", "bar", "errorbar", "area", "box", "violin", "heatmap", "contour", "contourf", "surface"):
         if k in kinds:
             return k
     return "plot"
@@ -835,6 +835,11 @@ def _save(
     for m in reg.marks:
         if m.data.get('value_raster') is not None and m.data.get('field_config'):
             m.data['value_raster']['filename'] = f"{plot_name}.{m.data['field_config']['controlKey']}.values.json"
+        for vr in m.data.get('value_rasters') or []:  # fp.image: one sidecar per channel
+            vr['filename'] = f"{plot_name}.{vr['key']}.values.json"
+            for rec in m.data.get('color_scales') or []:
+                if rec['id'] == vr['key']:
+                    rec['valueRaster'] = vr['filename']
 
     panels = _panels.plan(fig)
     promo_warnings, guides_by_panel, axes_capture, scales_by_panel = [], [], [], []
@@ -940,6 +945,8 @@ def _save(
     from .colorscale import controls_state
     controls = {m.data['field']['controlKey']: controls_state(m.data['field'])
                 for m in reg.marks if m.data.get('field')}
+    for m in reg.marks:  # fp.image: one control per channel
+        controls.update(m.data.get('color_controls') or {})
     if style_record["theme"] is not None:  # the theme is a recipe control too (__fluxplot__.theme)
         controls["theme"] = style_record["theme"]
     if controls:
@@ -957,6 +964,8 @@ def _save(
     value_files = [(os.path.join(out_dir, m.data['value_raster']['filename']),
                     _cjson.dumps(m.data['value_raster']['payload']).encode("utf-8"))
                    for m in reg.marks if m.data.get('value_raster') and m.data['value_raster'].get('payload')]
+    value_files += [(os.path.join(out_dir, vr['filename']), _cjson.dumps(vr['payload']).encode("utf-8"))
+                    for m in reg.marks for vr in (m.data.get('value_rasters') or [])]
     _write_staged(
         [
             (svg_path, out_svg),
