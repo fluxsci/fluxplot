@@ -99,10 +99,10 @@ def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=(), 
     # the scale drives; each coloured element already carries its value (see _inject_field /
     # _inject_points), so a consumer can recolour the plot from the manifest's colorScales alone.
     for m in reg.marks:
-        rec = m.data.get('color_scale')
-        el = id_map.get(m.gid) if rec else None
-        if el is not None:
-            _set(el, data_color_scale=rec['id'], data_paint=m.data.get('color_paint'))
+        records = ([m.data['color_scale']] if m.data.get('color_scale') else []) + list(m.data.get('color_scales') or [])
+        el = id_map.get(m.gid) if records else None
+        if el is not None:  # an fp.image names every channel's scale, space-separated
+            _set(el, data_color_scale=' '.join(r['id'] for r in records), data_paint=m.data.get('color_paint'))
     for extra in extra_scales:
         el = id_map.get(extra['gid'])
         if el is not None:
@@ -427,6 +427,7 @@ INK_ROLES = {
     "annotation": "ink", "tick": "tick", "spine": "axis", "gridline": "grid", "axis": "axis",
     "colorbar-label": "label", "colorbar-tick-label": "ink", "colorbar-tick": "tick", "colorbar-outline": "axis",
     "colorbar-gridline": "grid", "significance-bracket": "ink", "reference-line": None, "label": "ink",
+    "scalebar": "ink",
 }
 _BACKGROUND_TOKEN = {"axes": "plot", "figure": "paper", "legend": "plot"}
 _DRAWABLE = {f"{{{SVG}}}{t}" for t in ("path", "text", "rect", "line", "polygon", "polyline", "circle", "ellipse", "use")}
@@ -571,6 +572,7 @@ def _vectorize_colorbars(root, guides, id_map, warnings) -> None:
         offsets = grad['offsets']
         for k, colour in enumerate(grad['colors']):
             for offset in (offsets[k], offsets[k + 1]):
+                offset = min(max(float(offset), 0.0), 1.0) + 0.0  # clamp; "+ 0.0" turns -0.0 into 0.0
                 stop = etree.SubElement(lg, f'{{{SVG}}}stop', offset=_fmt(offset))
                 stop.set('stop-color', colour)
                 if grad['opacities'][k] < 1:
