@@ -39,6 +39,7 @@ from .surface import (  # noqa: E402,F401
 from .signature_fluxplots import (  # noqa: E402,F401  (preset plot types unique to Flux)
     fluxbox,
     glowbar,
+    hexmatrix,
 )
 from .style import (  # noqa: E402,F401  (re-exported for convenience)
     use_dark,
@@ -58,6 +59,7 @@ __all__ = [
     "surface",
     "glowbar",
     "fluxbox",
+    "hexmatrix",
     "panel",
     "heatmap",
     "contour",

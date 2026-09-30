@@ -444,6 +444,56 @@ median outright), `median_contrast`, `mean_notch_depth`, `mean_notch_height`, `w
 and naming keyword is the glowbar's. It returns a `FluxboxResult` with the same fields as a
 `GlowbarResult`. `examples/fluxbox_example.py` draws both designs.
 
+The **hexmatrix** tiles the plane with regular hexagons, each one a named part. One call covers a
+point cloud's density, a 2D gradient of a third variable, and a matrix drawn on a hex lattice:
+
+```python
+hm = fp.hexmatrix(df, x="x", y="y", ax=ax, color="#4CB391", marginals=True)       # jointplot-style
+hm = fp.hexmatrix(df, x="wake", y="nrem", ax=ax, xscale="log", yscale="log",      # log-log density
+                  norm="log", identity_line=True, colorbar_label="Synapses per hexbin")
+hm = fp.hexmatrix(df, x="ccf_x", y="ccf_z", ax=ax, aspect="equal", binwidth=0.15, # spatial, 0.15 mm bins
+                  norm="log", colorbar_label="somata / hexbin")
+hm = fp.hexmatrix(df, x="x", y="y", C="rate", reduce="median", ax=ax,             # a gradient of C
+                  cmap="RdBu_r", center=0)
+hm = fp.hexmatrix(matrix=weights, ax=ax, gap=0.08)                                # a hex lattice map
+```
+
+Hexagons are addressed by their lattice position: `row` counts up the y axis and `col` along x, so
+`<series>.hex.<row>.<col>` names the same hexagon in every plot with the same `extent` and grid,
+whatever the data. They are regular *on the page*. `aspect="auto"` locks the axes' box aspect so a
+later layout pass can't squash them, and `aspect="equal"` bins in true data units. Log axes bin in
+log space.
+
+The colour can be a count, `stat="density"`/`"probability"`/`"percent"` (optionally `weights=`), or
+a `reduce` of `C` (`mean`, `median`, `sum`, `min`, `max`, `std`, `count` or a callable). The scale is
+set by `cmap`/`color` (a single-hue ramp), `norm` (`linear`/`log`/`sqrt` or any `Normalize`),
+`vmin`/`vmax`, `robust` and `center`. Further keywords:
+
+* `mincnt=0` draws the empty hexagons too;
+* `sparse=k` draws points instead of hexagons where fewer than `k` observations fall;
+* `show_points` overlays every observation;
+* `gap`, `edgecolor`, `linewidth` and `orientation="flat"` shape the hexagons;
+* `marginals`, `colorbar` and `identity_line` add furniture.
+
+The colormap and colour limits are recipe controls, exactly as for `fp.heatmap`: Flux's Color scales
+editor can change them and regenerate.
+
+| part | default id | role |
+|---|---|---|
+| all hexagons | `<series>.hexes` | `x-hexbin` |
+| one hexagon (`data-row`, `data-column`, `data-x`, `data-y`, `data-count`, `data-value`) | `<series>.hex.<row>.<col>` | `x-hex` |
+| sparse / overlaid points | `<series>-points.points`, `….point.<k>` | `point` |
+| identity line | `reference-line.identity` | `reference-line` |
+| marginal histograms (own panels) | `<series>-x.bar.<k>`, `<series>-y.bar.<k>` | `bar` |
+
+The series carries a `hexmatrix` manifest payload: the lattice (orientation, radius, aspect,
+scales, extent), the statistic, and every hexagon drawn (`row`, `col`, `x`, `y`, `count`, `value`).
+It also carries the usual `field` colour payload; the `plotType` is `"hexmatrix"`. The call returns
+a `HexMatrixResult` (`.ax`, `.hexes`, `.bins`, `.cmap`, `.norm`, `.colorbar`, `.marginal_axes`,
+`.points`, `.hex_id(row, col)`, `.lookup(x, y)`). A layer of more than 800 hexagons is rasterized
+like any heavy layer; its hexagons stay in the manifest. Pass `force_vectors=True` to `fp.save` to
+keep every hexagon addressable. `examples/hexmatrix_example.py` draws all five.
+
 **Statistics** — `fp.stats` holds the tests behind the plots, one per branch of the house
 statistics guidance. Each takes `(a, b)`, orients signs as `a - b`, and returns one reporting row
 (a dict keyed by `fp.stats.REPORT_COLUMNS`: `sig_test_used`, `test_statistic_value`, `p-value`,
@@ -604,12 +654,13 @@ fluxplot/
     manifest.py       # assemble *.fluxplot.json
     recipe.py         # assemble *.recipe.json
     roles.py          # the role vocabulary (+ x- extensions)
-    signature_fluxplots/  # preset plot types unique to Flux (fp.glowbar, fp.fluxbox)
+    signature_fluxplots/  # preset plot types unique to Flux (fp.glowbar, fp.fluxbox, fp.hexmatrix)
     stats/            # tests behind the plots, returning reporting rows (fp.stats.welch_hedges, …)
     schemas/          # JSON Schemas for the manifest and recipe (validated on every save)
   examples/growth_plot.py     # the worked example above
   examples/glowbar_example.py # the glowbar signature plot, unpaired + paired
   examples/fluxbox_example.py # the fluxbox signature plot, unpaired + paired
+  examples/hexmatrix_example.py # the hexmatrix: joint, log-log, spatial, gradient, lattice map
   tests/                      # determinism, the marker-DOM probe, ids, capture, schema
   NOTES_matplotlib_svg.md     # the verified matplotlib SVG mechanics this rides on
 ```

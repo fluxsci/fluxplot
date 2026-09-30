@@ -182,6 +182,10 @@
             "type": "object",
             "description": "fp.fluxbox payload: part=summary carries the statistics drawn for a category (n, mean, median, sd, sem, q1, q3, iqr, whis, whiskerLow, whiskerHigh, outliers, x, groupColor); part=unit carries a unit's identity (units column, unit value, categories, colors)."
           },
+          "hexmatrix": {
+            "type": "object",
+            "description": "fp.hexmatrix payload: the hex lattice (orientation, hexRadius, aspect, scale, gridsize/binwidth, extent), the statistic (mode points|matrix, stat or reduce, weighted, mincnt, sparse, n, dropped, hexArea, valueLabel) and every hexagon drawn (bins: row, col, x, y, count, value)."
+          },
           "points": {
             "type": "array",
             "items": {

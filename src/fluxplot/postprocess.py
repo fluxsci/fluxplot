@@ -71,7 +71,7 @@ def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=(), 
     for m in reg.marks:
         if m.data.get('contour_legacy'):
             _group_legacy_contour(m, id_map)
-        if m.data.get('cells') or m.data.get('contour_paths'):
+        if m.data.get('cells') or m.data.get('contour_paths') or m.data.get('field_names'):
             _inject_field(m, id_map, warnings)
         if m.role == "point":
             _inject_points(m, id_map, warnings)
@@ -305,7 +305,17 @@ def _inject_field(mark, id_map, warnings):
     # order. Exclude definitions/clip paths; reject any backend count mismatch.
     paths = group.findall(f'{{{SVG}}}path')
     field = mark.data['field']
-    if mark.data.get('cells'):
+    base, role, attrs = mark.gid, 'cell' if mark.data.get('cells') else 'contour-level', None
+    if mark.data.get('field_names'):
+        # Helper-authored member names (e.g. hexmatrix ``hex.<row>.<col>``), in path order, with
+        # per-member data-* attributes. Members hang off the series root, beside the layer id.
+        names = mark.data['field_names']
+        count = len(names)
+        role = mark.data.get('field_member_role', 'cell')
+        attrs = mark.data.get('field_attrs')
+        if mark.data.get('field_member_prefix'):
+            base = mark.gid.rsplit('.', 1)[0] + '.' + mark.data['field_member_prefix']
+    elif mark.data.get('cells'):
         rows, cols = field['shape']
         count = rows * cols
         names = [f'cell.{i // cols}.{i % cols}' for i in range(count)]
@@ -318,11 +328,12 @@ def _inject_field(mark, id_map, warnings):
         return
     members = []
     for i, (path, name) in enumerate(zip(paths, names)):
-        gid = mark.gid + '.' + name
+        gid = base + '.' + name
         path.set('id', gid)
-        _set(path, data_role='cell' if mark.data.get('cells') else 'contour-level',
-             data_index=i, data_series=mark.series, data_kind='shape')
-        if mark.data.get('cells'):
+        _set(path, data_role=role, data_index=i, data_series=mark.series, data_kind='shape')
+        if attrs:
+            _set(path, **attrs[i])
+        elif mark.data.get('cells'):
             _set(path, data_row=i // cols, data_column=i % cols)
         members.append(gid)
         id_map[gid] = path
