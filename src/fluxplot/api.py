@@ -249,6 +249,54 @@ def legend(ax, handles=None, labels=None, **kw):
     return leg
 
 
+def step(ax, x, y, *, series, where="pre", label=None, **kw):
+    """A step line (``Axes.step``) whose ``where`` (``pre`` / ``post`` / ``mid``) and drawstyle
+    the manifest records under ``step``, so a consumer re-projects the treads, not the corners."""
+    if where not in ("pre", "post", "mid"):
+        raise ValueError(f"step: where must be 'pre', 'post' or 'mid', got {where!r}")
+    reg = _tagger.registry_for(ax.figure)
+    _series_color(series, kw)
+    (ln,) = ax.step(x, y, where=where, label=label, **kw)
+    reg.add(Mark(role="line", series=series, kind="step", live_data=True, x=None, y=None, label=label, artists=[ln],
+                 data={"step": {"where": where, "drawstyle": ln.get_drawstyle()}}))
+    return ln
+
+
+def stem(ax, x, y, *, series, label=None, **kw):
+    """A stem plot as one series: the markers (``<series>.point.k``), the stems
+    (``<series>.segment``) and the baseline (``<series>.baseline``)."""
+    reg = _tagger.registry_for(ax.figure)
+    _series_color(series, kw, key="linefmt", auto=False) if "linefmt" in kw else None
+    container = ax.stem(x, y, label=label, **kw)
+    markerline, stemlines, baseline = container.markerline, container.stemlines, container.baseline
+    xs, ys = _data.converted(ax, x, y)
+    reg.add(Mark(role="point", series=series, kind="stem", live_data=True, x=None, y=None, label=label,
+                 artists=[markerline], indexed=True))
+    reg.add(Mark(role="segment", series=series, kind="stem", x=xs, y=ys, artists=[stemlines],
+                 data={"stem": {"baseline": float(baseline.get_ydata()[0]) if len(baseline.get_ydata()) else 0.0,
+                                "orientation": kw.get("orientation", "vertical")}}))
+    reg.add(Mark(role="reference-line", series=series, name="baseline", kind="stem", artists=[baseline]))
+    return container
+
+
+def secondary_axis(ax, location, *, functions, label=None, **kw):
+    """A secondary x (``"top"`` / ``"bottom"``) or y (``"right"`` / ``"left"``) axis showing the
+    same data through ``functions=(forward, inverse)`` — wavelength beside frequency, mm beside
+    pixels. It is tagged as the panel's ``axis.x2`` / ``axis.y2`` and the manifest records the
+    transform as samples (``axes[].x2.secondary.samples``), so a consumer can re-tick it."""
+    if location in ("top", "bottom"):
+        sec = ax.secondary_xaxis(location, functions=functions, **kw)
+        if label:
+            sec.set_xlabel(label)
+    elif location in ("left", "right"):
+        sec = ax.secondary_yaxis(location, functions=functions, **kw)
+        if label:
+            sec.set_ylabel(label)
+    else:
+        raise ValueError(f"secondary_axis: location must be 'top', 'bottom', 'left' or 'right', got {location!r}")
+    return sec
+
+
 def _broadcast(v, n):
     arr = np.asarray(v, dtype=float)
     return _data.values(np.broadcast_to(arr, (n,)) if arr.ndim == 0 else arr)

@@ -136,4 +136,15 @@ def capture_axes(ax, fig, twins=()) -> dict:
     for twin, which in twins:
         if which not in out:  # the first twin of each kind; a third value axis has no slot
             out[which] = _axis_capture(twin, fig, "y" if which == "y2" else "x")
+            functions = getattr(twin, "_functions", None)
+            if functions is not None and callable(functions[0]):
+                # a secondary axis: the parent → secondary transform as samples across the parent's range
+                lo, hi = (ax.get_xlim() if which == "x2" else ax.get_ylim())
+                grid = np.linspace(lo, hi, 9)
+                try:
+                    mapped = np.asarray(functions[0](grid), dtype=float)
+                    out[which]["secondary"] = {"of": "x" if which == "x2" else "y",
+                                               "samples": [[float(a), float(b)] for a, b in zip(grid, mapped) if np.isfinite(b)]}
+                except Exception:  # a transform that rejects the grid: the axis stays, unsampled
+                    out[which]["secondary"] = {"of": "x" if which == "x2" else "y", "samples": []}
     return out

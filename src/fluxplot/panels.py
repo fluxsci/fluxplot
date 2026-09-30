@@ -49,6 +49,8 @@ class Panel:
     index: int
     #: secondary axes sharing this panel's frame: ``[(axes, "y2" | "x2")]`` (twinx / twiny)
     twins: list = field(default_factory=list)
+    #: the panel this one is an inset of (``ax.inset_axes``), or ``None``
+    parent: object = None
 
     @property
     def all_axes(self):
@@ -71,9 +73,18 @@ class ScopedAllocator:
         return self.allocator.take(candidate if self.prefix and candidate.startswith(self.prefix) else self.prefix + candidate)
 
 
+def is_secondary_axis(ax) -> bool:
+    from matplotlib.axes._secondary_axes import SecondaryAxis
+    return isinstance(ax, SecondaryAxis)
+
+
 def twin_of(primary, other):
     """``"y2"`` when ``other`` is ``primary``'s twinx (same frame, shared x), ``"x2"`` for a
-    twiny, else ``None``."""
+    twiny — or for a ``secondary_xaxis`` child (``"y2"`` for ``secondary_yaxis``) — else ``None``."""
+    if is_secondary_axis(other):
+        if other in primary.child_axes:
+            return 'x2' if getattr(other, '_orientation', 'x') == 'x' else 'y2'
+        return None
     pa, pb = primary.get_position().bounds, other.get_position().bounds
     if any(abs(u - v) > 1e-9 for u, v in zip(pa, pb)):
         return None
@@ -108,6 +119,11 @@ def plan(fig):
             label = _letters(n); n += 1
         result.append(Panel(ax, 'panel.' + ids.slugify(label) if multi else None, label, index,
                             twins=twins.get(id(ax), [])))
+    by_axes = {id(p.axes): p for p in result}
+    for pnl in result:  # an inset axes is a panel inside another panel
+        for host in axes:
+            if host is not pnl.axes and pnl.axes in host.child_axes and id(host) in by_axes:
+                pnl.parent = by_axes[id(host)]
     return result
 
 
@@ -229,7 +245,10 @@ def _panel_manifest(fig, reg, guides_by_panel, panels, axes_capture, present, ra
     for p, d in zip(panels, documents):
         parts.append({'id': p.id, 'role': 'panel', 'label': p.label, 'kind': 'container',
                       'children': d['parts']['children']})
-        descriptions.append({'id': p.id, 'svgId': p.svg_id, 'label': p.label, 'index': p.index})
+        desc = {'id': p.id, 'svgId': p.svg_id, 'label': p.label, 'index': p.index}
+        if p.parent is not None and p.parent.id:
+            desc['insetOf'] = p.parent.id
+        descriptions.append(desc)
     out['panels'] = descriptions
     out['parts'] = {'id': 'figure', 'role': 'figure', 'kind': 'container', 'children': parts}
     for key in ('axes', 'series', 'guides', 'overlays'):

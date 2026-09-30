@@ -170,7 +170,15 @@ def build_manifest(
             "data": data,
             "components": components,
         }
-        for field in ("bar", "band", "uncertainty", "field", "glowbar", "fluxbox", "hexmatrix", "image"):
+        # categorical / date axes: say what each x (y) means, beside the number matplotlib plots
+        owner = next((m.axes for m in marks if m.axes is not None), None)
+        if data and owner is not None:
+            for key, mpl_axis in (("x", owner.xaxis), ("y", owner.yaxis)):
+                if data.get(key):
+                    extra = axis_value_labels(mpl_axis, data[key])
+                    for k, v in extra.items():
+                        data[key + k] = v
+        for field in ("bar", "band", "uncertainty", "field", "glowbar", "fluxbox", "hexmatrix", "image", "step", "stem"):
             payload = next((m.data[field] for m in marks if m.data.get(field)), None)
             if payload is not None:
                 entry[field] = payload
@@ -454,6 +462,27 @@ def build_manifest(
         # to detect a stale/mismatched sidecar pair instead of silently degrading (plan §5).
         out["artifact"] = {"svgSha256": svg_sha256}
     return out
+
+
+def axis_value_labels(mpl_axis, numbers) -> dict:
+    """``{"Labels": [...]}`` for a categorical axis (the category each number stands for) or
+    ``{"Iso": [...]}`` for a date axis (ISO-8601), else ``{}``."""
+    converter = getattr(mpl_axis, "get_converter", lambda: getattr(mpl_axis, "converter", None))()
+    module = type(converter).__module__ if converter else ""
+    if module == "matplotlib.category":
+        mapping = getattr(getattr(mpl_axis, "units", None), "_mapping", None) or {}
+        inverse = {float(v): str(k) for k, v in mapping.items()}
+        return {"Labels": [None if v is None else inverse.get(float(v)) for v in numbers]}
+    if module == "matplotlib.dates":
+        from matplotlib.dates import num2date
+        out = []
+        for v in numbers:
+            try:
+                out.append(None if v is None else num2date(v).isoformat())
+            except (ValueError, OverflowError):
+                out.append(None)
+        return {"Iso": out}
+    return {}
 
 
 def figure_scope(figure_guides, reg, present=None, rasterized=None):

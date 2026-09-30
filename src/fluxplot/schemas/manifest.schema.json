@@ -236,6 +236,10 @@
           },
           "index": {
             "type": "integer"
+          },
+          "insetOf": {
+            "type": "string",
+            "description": "The panel this panel is an inset of (ax.inset_axes)."
           }
         },
         "required": [
@@ -496,6 +500,34 @@
         },
         "tickFormatter": {
           "type": "string"
+        },
+        "secondary": {
+          "type": "object",
+          "description": "A secondary axis: samples of the parent → secondary transform.",
+          "required": [
+            "of",
+            "samples"
+          ],
+          "properties": {
+            "of": {
+              "type": "string",
+              "enum": [
+                "x",
+                "y"
+              ]
+            },
+            "samples": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          }
         }
       },
       "required": [
@@ -1304,8 +1336,45 @@
                   "null"
                 ]
               }
+            },
+            "xLabels": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "yLabels": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "xIso": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "yIso": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
             }
-          }
+          },
+          "description": "The series' numbers as plotted; xLabels / yLabels name the category behind each on a categorical axis, xIso / yIso the ISO-8601 instant on a date axis."
         },
         "label": {
           "type": "string"
@@ -1681,6 +1750,36 @@
             "y2"
           ],
           "description": "Present when the series is drawn against a twin's value axis (axes[].y2 / .x2)."
+        },
+        "step": {
+          "type": "object",
+          "properties": {
+            "where": {
+              "type": "string",
+              "enum": [
+                "pre",
+                "post",
+                "mid"
+              ]
+            },
+            "drawstyle": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "where"
+          ]
+        },
+        "stem": {
+          "type": "object",
+          "properties": {
+            "baseline": {
+              "type": "number"
+            },
+            "orientation": {
+              "type": "string"
+            }
+          }
         }
       },
       "required": [

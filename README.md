@@ -339,6 +339,9 @@ fp.bar(ax, x, height, *, series, **mpl_kwargs)
 fp.errorbar(ax, x, y, *, series, yerr=None, xerr=None, **mpl_kwargs)    # <s>.line, <s>.point.k, <s>.cap, <s>.errorbar
 fp.legend(ax, handles=None, labels=None, **mpl_kwargs)               # keeps entry → artist for the manifest
 fp.area(ax, x, y1, y2=0, *, series, **mpl_kwargs)                    # manifest band = {x, y1, y2}
+fp.step(ax, x, y, *, series, where="pre", **mpl_kwargs)             # manifest step = {where, drawstyle}
+fp.stem(ax, x, y, *, series, **mpl_kwargs)                           # <s>.point.k, <s>.segment, <s>.baseline
+fp.secondary_axis(ax, "top"|"right", functions=(f, g), label=None)   # the panel's axis.x2 / axis.y2, transform sampled
 fp.image(ax, data, *, series, pixel_size=None, units="µm", channels=None, luts=None, display_range=None, ...)
 fp.scalebar(ax, length, units="µm", *, loc="lower right", label=None, color=None, thickness=2.0, pad=0.4)
 fp.band(ax, x, lo, hi, *, series, what="95% CI", **mpl_kwargs)        # <series>.band beside <series>.line
@@ -377,6 +380,11 @@ category under it, also `data-key` on the element); heatmap cells and hexagons c
 data-space box as `data-x0` / `data-x1` / `data-y0` / `data-y1` and a `data-key` of `row.col`.
 `capabilities.valueMorph` is true for a series whose members are keyed that way, so two versions
 of the plot can be tweened member by member.
+
+**Categories, dates, insets.** On a categorical axis a series' `data` carries `xLabels` (the
+category behind each plotted number), on a date axis `xIso` (ISO-8601), likewise for y. An
+`ax.inset_axes` panel records `insetOf` (its host panel); a `fp.secondary_axis` is the panel's
+`axis.x2` / `axis.y2` with the parent → secondary transform sampled in `axes[].x2.secondary`.
 
 **Twin axes and figure-scope parts.** An `ax.twinx()` / `twiny()` is the same panel seen through
 a second value axis, not a panel of its own: its axis is `axis.y2.*` / `axis.x2.*` (title, ticks,

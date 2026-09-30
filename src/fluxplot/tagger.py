@@ -270,7 +270,10 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator", secondary: str | None = None
         )
 
         # a twin's value axis draws its ticks on the far side (right / top): that side is its primary
-        for suffix, role, k, art in axis_tick_artists(mpl_axis, primary_side=2 if secondary else 1):
+        far = secondary is not None and mpl_axis.get_ticks_position() in ("top", "right", "default", "unknown")
+        if secondary is not None and mpl_axis.get_ticks_position() in ("bottom", "left"):
+            far = False  # a secondary_xaxis("bottom") keeps the near side
+        for suffix, role, k, art in axis_tick_artists(mpl_axis, primary_side=2 if far else 1):
             g = alloc.take(f"axis.{which}.{suffix}")
             art.set_gid(g)
             guides.append(GuideTag(gid=g, role=role, axis=which, index=k,
@@ -282,10 +285,11 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator", secondary: str | None = None
     # x → axis "x"): the outer "polar" circle and the "inner" circle run along theta → x;
     # the "start"/"end" wedge edges run along r → y. Invisible/absent sides are skipped;
     # the spine's own key travels as `text`, exactly like the rectangular sides do.
-    if secondary == "y2":
-        sides = (("right", "y2"),)
-    elif secondary == "x2":
-        sides = (("top", "x2"),)
+    if secondary is not None:  # a twin's or secondary axis' own spine(s): whichever are visible
+        wanted = ("left", "right") if secondary == "y2" else ("bottom", "top")
+        sides = tuple((side, secondary) for side in wanted if side in ax.spines and ax.spines[side].get_visible())
+        if getattr(ax, "_functions", None) is None:  # a plain twin shares the primary's near spine
+            sides = tuple((side, w) for side, w in sides if side in ("right", "top"))
     elif getattr(ax, "name", None) == "polar":
         sides = (("polar", "x"), ("inner", "x"), ("start", "y"), ("end", "y"))
     else:
