@@ -532,3 +532,62 @@ def test_invalid_controls_name_the_key(monkeypatch, override, message):
     fig, ax = plt.subplots()
     with pytest.raises(ValueError, match=f"colour control 'm'.*{message}"):
         fp.heatmap(ax, M, series="m")
+
+
+# =================================================================================================
+# A4 — one scale shared across panels
+# =================================================================================================
+def test_shared_scale_takes_the_union_and_records_one_entry(tmp_path, monkeypatch):
+    A = np.array([[0.1, 0.5], [0.2, 0.9]])
+    B = np.array([[-0.4, 0.3], [0.7, 0.0]])
+    fig, (a, b) = plt.subplots(1, 2)
+    fp.panel(a, "left"); fp.panel(b, "right")
+    fp.color_scale("corr", cmap="RdBu_r", fig=fig)
+    ia = fp.heatmap(a, A, series="ca", scale="corr", cells=True)
+    ib = fp.heatmap(b, B, series="cb", scale="corr", cells=True)
+    fp.colorbar(scale="corr", ax=[a, b], label="r")
+    res, man, rec, root = _save_all(fig, tmp_path)
+    assert (ia.norm.vmin, ia.norm.vmax) == (ib.norm.vmin, ib.norm.vmax) == (-0.4, 0.9)
+    (scale,) = man["colorScales"]
+    assert scale["id"] == "corr" and sorted(scale["mappables"]) == ["panel.left.ca.x-heatmap", "panel.right.cb.x-heatmap"]
+    assert scale["colorbars"] == ["panel.left.colorbar.color"] and scale["label"] == "r"
+    assert scale["norm"]["vmin"] == -0.4 and scale["norm"]["vmax"] == 0.9 and scale["colormap"]["name"] == "RdBu_r"
+    for s in man["series"]:
+        assert s["field"]["colorScale"] == "corr" and s["field"]["controlKey"] == "corr"
+    assert set(rec["params"]["__fluxplot__"]) - {"theme"} == {"corr"}
+    # an override applies to every member
+    monkeypatch.setenv("FLUX_PARAMS", json.dumps({"__fluxplot__": {"corr": {"vmax": 0.5, "cmap": "magma"}}}))
+    fig, (a, b) = plt.subplots(1, 2)
+    fp.color_scale("corr", cmap="RdBu_r", fig=fig)
+    ia = fp.heatmap(a, A, series="ca", scale="corr")
+    ib = fp.heatmap(b, B, series="cb", scale="corr")
+    fp.colorbar(scale="corr", ax=[a, b])
+    assert ia.norm.vmax == ib.norm.vmax == 0.5 and ia.get_cmap().name == ib.get_cmap().name == "magma"
+
+
+def test_shared_scale_declaration_rules(tmp_path):
+    fig, (a, b) = plt.subplots(1, 2)
+    fp.color_scale("fixed", vmin=0, vmax=1, norm="log", fig=fig)
+    with pytest.raises(ValueError, match="not declared"):
+        fp.heatmap(a, M, series="m", scale="nope")
+    # declared limits stay; a centred scale is symmetric about its centre over the union
+    fp.color_scale("fixed", vmin=1, vmax=10, norm="log", fig=fig)
+    im = fp.heatmap(a, M + 1, series="m", scale="fixed")
+    fp.hexmatrix(x=np.random.default_rng(0).normal(size=200), y=np.random.default_rng(1).normal(size=200), ax=b,
+                 gridsize=6, series="h", scale="fixed", colorbar=False)
+    fp.save(fig, str(tmp_path / "f.svg"), recipe=False)
+    assert type(im.norm).__name__ == "LogNorm" and (im.norm.vmin, im.norm.vmax) == (1, 10)
+    fig, (a, b) = plt.subplots(1, 2)
+    fp.color_scale("div", center=0, fig=fig)
+    fp.heatmap(a, np.array([[-1.0, 2.0]]), series="x", scale="div")
+    pts = fp.scatter(b, [0, 1, 2], [0, 1, 2], c=[-3.0, 0.5, 1.0], series="p", scale="div")
+    fp.save(fig, str(tmp_path / "d.svg"), recipe=False)
+    assert type(pts.norm).__name__ == "TwoSlopeNorm" and (pts.norm.vmin, pts.norm.vmax) == (-3.0, 3.0)
+    man = json.loads((tmp_path / "d.fluxplot.json").read_text())
+    (scale,) = man["colorScales"]
+    assert len(scale["mappables"]) == 2 and scale["norm"]["kind"] == "twoslope"
+    with pytest.raises(ValueError, match="center= needs a linear norm"):
+        fp.color_scale("bad", center=0, norm="log", fig=fig)
+    with pytest.raises(ValueError, match="no members yet"):
+        fp.color_scale("empty", fig=fig)
+        fp.colorbar(scale="empty", ax=a)

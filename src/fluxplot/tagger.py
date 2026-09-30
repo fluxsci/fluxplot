@@ -25,6 +25,8 @@ class Registry:
         # colour-control keys claimed so far (fields.control_key): two same-named colour-mapped
         # series never share a recipe entry
         self._color_keys: set[str] = set()
+        # shared colour scales declared with fp.color_scale (fields.SharedScale), by name
+        self._scales: dict = {}
 
     def add(self, mark: Mark) -> Mark:
         if mark.axes is None and mark.artists:

@@ -376,6 +376,7 @@ def hexmatrix(
     # identity
     series: Optional[str] = None,
     key: Optional[str] = None,
+    scale: Optional[str] = None,
     label_axes: bool = True,
     zorder: float = 2.0,
 ) -> HexMatrixResult:
@@ -486,7 +487,10 @@ def hexmatrix(
     series
         The series name — the root of every part id (default ``"hexbin"``).
     key
-        The recipe key of the colour controls (default: the owning axes / panel and series).
+        The recipe key of the colour controls (default: the series).
+    scale
+        Join a shared colour scale declared with :func:`fluxplot.color_scale` (its map, norm and
+        union limits; one key for every panel).
     label_axes
         Label the axes with the ``x`` / ``y`` column names (default ``True``).
     zorder
@@ -705,12 +709,14 @@ def hexmatrix(
     opts = {"cmap": base_cmap.name, "vmin": vmin if vmin is not None else lo,
             "vmax": vmax if vmax is not None else hi,
             "norm": _make_norm(norm, center, None, None, gamma)}
-    control_key = _options(ax, series, key, opts, resolve=_resolve_cmap)  # any Flux recipe override
+    control_key = _options(ax, series, key, opts, resolve=_resolve_cmap, scale=scale)  # any Flux recipe override
     cb_extend = opts.pop("_extend", None)
     the_cmap = base_cmap if opts["cmap"] == base_cmap.name else _resolve_cmap(opts["cmap"])
     the_norm = opts["norm"]
     if "vmin" in opts:  # _options moved the limits onto the (copied) Normalize itself
         the_norm.vmin, the_norm.vmax = opts["vmin"], opts["vmax"]
+    if scale is not None and the_norm.vmin is None:  # a shared scale's limits are resolved at save
+        the_norm.vmin, the_norm.vmax = lo, hi
     if center is not None and not (the_norm.vmin < center < the_norm.vmax):
         raise ValueError(f"{who}: center must lie between vmin and vmax "
                          f"(center={center!r}, vmin={the_norm.vmin!r}, vmax={the_norm.vmax!r})")
@@ -722,6 +728,9 @@ def hexmatrix(
                            norm=the_norm, edgecolors=edgecolor, linewidths=lw, alpha=alpha,
                            zorder=zorder)
     ax.add_collection(hexes, autolim=False)
+    if scale is not None:
+        from ..fields import join_scale
+        join_scale(ax, scale, hexes, np.asarray(value, dtype=float))
     cx, cy = lat.to_data(*lat.centre(rows, cols))
     bins = {"row": rows.astype(int), "col": cols.astype(int), "x": np.asarray(cx, dtype=float),
             "y": np.asarray(cy, dtype=float), "count": counts, "value": np.asarray(value, dtype=float)}

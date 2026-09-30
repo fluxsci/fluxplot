@@ -108,7 +108,7 @@ def _is_value_array(c, x) -> bool:
     return arr.ndim == 1 and arr.dtype.kind in "iuf" and arr.size == np.size(x)
 
 
-def scatter(ax, x, y, *, series, label=None, key=None, **kw):
+def scatter(ax, x, y, *, series, label=None, key=None, scale=None, **kw):
     """A named scatter, every point addressable.
 
     With ``c=`` an array of values the points are colour-mapped: the scale becomes a recipe colour
@@ -123,7 +123,7 @@ def scatter(ax, x, y, *, series, label=None, key=None, **kw):
     if _is_value_array(kw.get("c"), x):
         from . import fields as _fields
         from ._fieldmap import resolve_colormap
-        ctl = _fields._options(ax, series, key, kw)
+        ctl = _fields._options(ax, series, key, kw, scale=scale)
         extend = kw.pop("_extend", None)
         if isinstance(kw.get("cmap"), str):
             kw["cmap"] = resolve_colormap(kw["cmap"])
@@ -135,6 +135,8 @@ def scatter(ax, x, y, *, series, label=None, key=None, **kw):
     if data:
         data["field_artist"] = coll
         data["c"] = _data.values(coll.get_array())
+        if scale is not None:
+            _fields.join_scale(ax, scale, coll)
     sizes = coll.get_sizes()
     if len(sizes) > 1:
         data["size"] = _data.values(sizes)
@@ -951,6 +953,8 @@ def save(fig, path, *, recipe=None, validate=True, force_vectors=False,
                 warnings=[f"skipped by FLUXPLOT_ONLY={only}"], skipped=True,
             )
 
+    from .fields import resolve_scales
+    resolve_scales(fig)  # shared scales take the union of their members' values before layout
     reg = _tagger.snapshot(fig)
     with _tagger.temporary_gids(fig, reg), _render.final_layout(fig):
         return _save(fig, path, recipe=recipe, validate=validate, force_vectors=force_vectors,

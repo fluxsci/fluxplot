@@ -947,6 +947,24 @@ positional key are still honoured. `recipe={"args": ..., "cwd": ..., "output": .
 are honored; cwd/output resolve relative to the recipe directory. `FLUXPLOT_ONLY` skips
 unselected saves before layout or file I/O.
 
+#### One scale for several panels
+
+Declare the scale once and let every panel join it:
+
+```python
+fp.color_scale("corr", cmap="RdBu_r", center=0)          # norm="linear"|"log"|"sqrt"|"symlog", vmin/vmax, robust
+fp.heatmap(ax1, C1, series="ctrl", scale="corr")
+fp.heatmap(ax2, C2, series="drug", scale="corr")           # also contour/contourf, scatter(c=…), hexmatrix
+fp.colorbar(scale="corr", ax=[ax1, ax2], label="r")        # one key, borrowing space from both panels
+```
+
+The members share the map and the norm, and their limits default to the **union** of every
+member's finite values (symmetric about `center` when one is given; `robust=True` uses the
+2nd–98th percentiles), resolved at `fp.save` before layout so the figure never lays out against
+stale limits. The manifest carries one `colorScales` entry (`id: "corr"`) listing every member and
+the key, the recipe carries one control (`__fluxplot__.corr`), and an edit to it — a new map, a
+pinned `vmax` — repaints every panel at once.
+
 `force_vectors=True` overrides and restores caller rasterization flags, including axes z-order
 rasterization. It cannot vectorize a source image created with `imshow`; use a modest
 `cells=True` heatmap when individual vector cells are needed. Empty/clipped raster artists no

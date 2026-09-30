@@ -51,7 +51,105 @@ def control_key(ax, series, key=None):
     return chosen, positional
 
 
-def _options(ax, series, key, kwargs, *, resolve=None):
+# ---------------------------------------------------------------------------------------------
+# shared scales (A4): one colour scale for several panels
+# ---------------------------------------------------------------------------------------------
+class SharedScale:
+    """A colour scale declared once per figure (:func:`color_scale`) and joined by any number of
+    colour-mapped marks (``scale="name"``): they share its map and norm, its limits default to the
+    union of every member's finite values (resolved at save, before layout), and one
+    :func:`colorbar` can draw it for all of them."""
+
+    def __init__(self, name, *, cmap=None, norm="linear", vmin=None, vmax=None, center=None, robust=False):
+        from matplotlib import colors as mcolors
+        if norm not in ("linear", "log", "sqrt", "symlog") and not isinstance(norm, mcolors.Normalize):
+            raise ValueError(f"color_scale: norm must be 'linear', 'log', 'sqrt', 'symlog' or a Normalize; got {norm!r}")
+        if center is not None and norm != "linear":
+            raise ValueError("color_scale: center= needs a linear norm")
+        self.name, self.cmap, self.norm = str(name), cmap, norm
+        self.vmin, self.vmax, self.center, self.robust = vmin, vmax, center, robust
+        self.members = []   # (artist, values)
+        self.resolved = False
+
+    def make_norm(self, key):
+        from copy import copy
+        from matplotlib import colors as mcolors
+        if isinstance(self.norm, mcolors.Normalize):
+            return copy(self.norm)
+        if self.center is not None:
+            return colorscale.make_norm({"kind": "twoslope", "vcenter": self.center}, self.vmin, self.vmax, key)
+        kind = {"linear": "linear", "log": "log", "sqrt": "power", "symlog": "symlog"}[self.norm]
+        spec = {"kind": kind, "gamma": 0.5} if kind == "power" else {"kind": kind}
+        return colorscale.make_norm(spec, self.vmin, self.vmax, key)
+
+    def limits(self):
+        """The shared limits: the declaration's, else the union of every member's finite values."""
+        vals = [np.asarray(v, dtype=float).ravel() for _a, v in self.members if v is not None]
+        finite = np.concatenate([v[np.isfinite(v)] for v in vals]) if vals else np.array([])
+        if self.norm == "log":
+            finite = finite[finite > 0]
+        lo, hi = self.vmin, self.vmax
+        if finite.size:
+            if self.robust:
+                lo_p, hi_p = (2.0, 98.0) if self.robust is True else self.robust
+                auto_lo, auto_hi = (float(q) for q in np.percentile(finite, [lo_p, hi_p]))
+            else:
+                auto_lo, auto_hi = float(finite.min()), float(finite.max())
+            if self.center is not None:
+                half = max(abs(auto_lo - self.center), abs(auto_hi - self.center)) or 1.0
+                auto_lo, auto_hi = self.center - half, self.center + half
+            lo = auto_lo if lo is None else lo
+            hi = auto_hi if hi is None else hi
+        return lo, hi
+
+
+def color_scale(name, *, cmap=None, norm="linear", vmin=None, vmax=None, center=None, robust=False, fig=None):
+    """Declare a colour scale shared across panels: ``fp.color_scale("corr", cmap="RdBu_r", center=0)``.
+
+    Every colour helper joins it with ``scale="corr"`` (its recipe key becomes ``corr``, its map
+    and norm come from here, its limits default to the union of all members' values), and
+    ``fp.colorbar(scale="corr", ax=[...])`` draws one key. The manifest carries one
+    ``colorScales`` entry listing every member, so a Flux edit recolours all panels at once.
+    """
+    import matplotlib.pyplot as plt
+    fig = fig if fig is not None else plt.gcf()
+    decl = SharedScale(name, cmap=cmap, norm=norm, vmin=vmin, vmax=vmax, center=center, robust=robust)
+    tagger.registry_for(fig)._scales[decl.name] = decl
+    return decl
+
+
+def shared_scale(fig, name) -> SharedScale:
+    scales = tagger.registry_for(fig)._scales
+    if name not in scales:
+        raise ValueError(f"colour scale {name!r} is not declared on this figure; call fp.color_scale({name!r}, ...) first")
+    return scales[name]
+
+
+def join_scale(ax, name, artist, values=None):
+    """Enrol a drawn mappable in a shared scale (helpers call this after drawing)."""
+    decl = shared_scale(ax.figure, name)
+    if values is None and hasattr(artist, "get_array"):
+        values = artist.get_array()
+    decl.members.append((artist, None if values is None else np.ma.filled(np.ma.asarray(values, dtype=float), np.nan)))
+
+
+def resolve_scales(fig):
+    """Give every member of every shared scale the scale's limits — the union of their values — by
+    setting each member's own norm. Runs at the top of ``fp.save``, before layout."""
+    for decl in tagger.registry_for(fig)._scales.values():
+        lo, hi = decl.limits()
+        for artist, _values in decl.members:
+            norm = artist.norm
+            if lo is not None:
+                norm.vmin = lo
+            if hi is not None:
+                norm.vmax = hi
+            if hasattr(artist, "changed"):
+                artist.changed()
+        decl.resolved = True
+
+
+def _options(ax, series, key, kwargs, *, resolve=None, scale=None):
     """Apply the recipe's colour controls for one colour-mapped series; return its control key.
 
     ``kwargs`` are the colour keywords the helper is about to pass to matplotlib (``cmap``,
@@ -67,7 +165,19 @@ def _options(ax, series, key, kwargs, *, resolve=None):
     from ._fieldmap import resolve_colormap
     from .recipe import params
     resolve = resolve or resolve_colormap
-    key, legacy = control_key(ax, series, key)
+    if scale is not None:
+        # a shared scale: its declaration is the source of map, norm and limits; the key is its name
+        decl = shared_scale(ax.figure, scale)
+        key = decl.name
+        tagger.registry_for(ax.figure)._color_keys.add(key)
+        legacy = key
+        if decl.cmap is not None:
+            kwargs['cmap'] = decl.cmap
+        kwargs['norm'] = decl.make_norm(key)
+        kwargs.pop('vmin', None)
+        kwargs.pop('vmax', None)
+    else:
+        key, legacy = control_key(ax, series, key)
     controls = params().get('__fluxplot__') or {}
     overrides = controls.get(key) if key not in RESERVED_CONTROL_KEYS else None
     if overrides is None and legacy != key:
@@ -75,6 +185,13 @@ def _options(ax, series, key, kwargs, *, resolve=None):
     overrides = dict(overrides or {})
     if overrides:
         colorscale.apply_override(kwargs, overrides, key, resolve=resolve)
+        if scale is not None:
+            # an edited limit pins the shared scale: every member takes it instead of the union
+            norm_over = overrides.get('norm') if isinstance(overrides.get('norm'), dict) else {}
+            for option in ('vmin', 'vmax'):
+                edited = overrides.get(option, norm_over.get(option))
+                if edited is not None:
+                    setattr(decl, option, float(edited))
     # A caller's Normalize object may carry a nonlinear scale. Change its limits
     # without replacing the scale or mutating the caller-owned instance.
     if kwargs.get('norm') is not None and not isinstance(kwargs['norm'], str):
@@ -133,7 +250,7 @@ def _capture(artist, config, resolve=None):
 
 
 def heatmap(ax, data, *, series, x=None, y=None, cells=False, include_values=False,
-            key=None, value_raster=False, **kwargs):
+            key=None, value_raster=False, scale=None, **kwargs):
     """Draw a scalar matrix. ``x``/``y`` select pcolormesh (including irregular grids).
 
     ``cells=True`` gives modest meshes row/column cell IDs; above the raster
@@ -141,14 +258,15 @@ def heatmap(ax, data, *, series, x=None, y=None, cells=False, include_values=Fal
     ``key`` names the recipe color controls; defaults to the owning axes and series.
     ``value_raster=True`` writes the matrix as ``<plot>.<key>.values.json`` beside the SVG
     (row-major, ``null`` for missing) and points the colour scale at it, so a consumer can
-    repaint an image layer from its values instead of regenerating.
+    repaint an image layer from its values instead of regenerating. ``scale="name"`` joins a
+    shared scale declared with :func:`color_scale`.
     """
     arr = np.ma.masked_invalid(np.ma.asarray(data, dtype=float))
     if arr.ndim != 2 or not arr.size:
         raise ValueError('heatmap data must be a nonempty 2D scalar matrix')
     if (x is None) != (y is None):
         raise ValueError('heatmap x and y must be supplied together')
-    key = _options(ax, series, key, kwargs)
+    key = _options(ax, series, key, kwargs, scale=scale)
     extend = kwargs.pop('_extend', None)
     if isinstance(kwargs.get('cmap'), str):
         kwargs['cmap'] = resolve_colormap(kwargs['cmap'])  # 'emerald', 'crameri.batlow', 'batlow_r'
@@ -158,6 +276,8 @@ def heatmap(ax, data, *, series, x=None, y=None, cells=False, include_values=Fal
         artist = ax.pcolormesh(x, y, arr, **kwargs)
     else:
         artist = ax.imshow(arr, **kwargs)
+    if scale is not None:
+        join_scale(ax, scale, artist, arr)
     config = {'kind': 'heatmap', 'shape': list(arr.shape), 'includeValues': bool(include_values),
               'controlKey': key}
     if extend:
@@ -170,14 +290,16 @@ def heatmap(ax, data, *, series, x=None, y=None, cells=False, include_values=Fal
     return artist
 
 
-def _contour(ax, args, series, filled, include_values, key, kwargs):
-    key = _options(ax, series, key, kwargs)
+def _contour(ax, args, series, filled, include_values, key, kwargs, scale=None):
+    key = _options(ax, series, key, kwargs, scale=scale)
     extend = kwargs.pop('_extend', None)
     if extend:
         kwargs['extend'] = extend  # an edited extend replaces the script's: the bands change with it
     if isinstance(kwargs.get('cmap'), str):
         kwargs['cmap'] = resolve_colormap(kwargs['cmap'])
     artist = (ax.contourf if filled else ax.contour)(*args, **kwargs)
+    if scale is not None:
+        join_scale(ax, scale, artist, args[0] if len(args) < 3 else args[2])
     levels = values(artist.levels)
     config = {'kind': 'contourf' if filled else 'contour', 'levels': levels,
               'extend': artist.extend, 'controlKey': key}
@@ -201,37 +323,49 @@ def _contour(ax, args, series, filled, include_values, key, kwargs):
     return artist
 
 
-def contour(ax, *args, series, include_values=False, key=None, **kwargs):
+def contour(ax, *args, series, include_values=False, key=None, scale=None, **kwargs):
     """Matplotlib contour with exact levels and addressable level paths."""
-    return _contour(ax, args, series, False, include_values, key, kwargs)
+    return _contour(ax, args, series, False, include_values, key, kwargs, scale=scale)
 
 
-def contourf(ax, *args, series, include_values=False, key=None, **kwargs):
+def contourf(ax, *args, series, include_values=False, key=None, scale=None, **kwargs):
     """Matplotlib filled contours with exact boundaries and band identities."""
-    return _contour(ax, args, series, True, include_values, key, kwargs)
+    return _contour(ax, args, series, True, include_values, key, kwargs, scale=scale)
 
 
 def _field_mark(fig, artist):
     return next((m for m in tagger.registry_for(fig).marks if m.data.get('field_artist') is artist), None)
 
 
-def colorbar(mappable, *, name='color', ax=None, **kwargs):
+def colorbar(mappable=None, *, name='color', ax=None, scale=None, fig=None, **kwargs):
     """Create a named, linked color key using Figure.colorbar's usual options.
 
     The key follows its scale's recipe controls: an ``extend`` edited in Flux is applied here
-    (and recorded) unless the call names its own.
+    (and recorded) unless the call names its own. ``scale="name"`` draws the one key of a shared
+    scale (:func:`color_scale`) — pass ``ax=[...]`` to let it borrow space from several panels.
     """
+    import matplotlib.pyplot as plt
+    if scale is not None:
+        decl = shared_scale(fig if fig is not None else (ax[0] if isinstance(ax, (list, tuple)) else ax).figure
+                            if ax is not None else plt.gcf(), scale)
+        if not decl.members:
+            raise ValueError(f"colour scale {scale!r} has no members yet; draw with scale={scale!r} first")
+        resolve_scales(decl.members[0][0].axes.figure)  # the key shows the shared limits
+        mappable = decl.members[0][0]
+    if mappable is None:
+        raise ValueError('colorbar needs a mappable, or scale=')
     owner = ax if ax is not None else getattr(mappable, 'axes', None)
     if owner is None:
         raise ValueError('colorbar needs ax when the mappable has no owning axes')
-    mark = _field_mark(owner.figure, mappable)
+    owner_axes = owner[0] if isinstance(owner, (list, tuple)) else owner
+    mark = _field_mark(owner_axes.figure, mappable)
     if mark is not None and mark.data['field_config'].get('extend') and 'extend' not in kwargs:
         kwargs['extend'] = mark.data['field_config']['extend']
-    cb = owner.figure.colorbar(mappable, ax=owner, **kwargs)
+    cb = owner_axes.figure.colorbar(mappable, ax=owner, **kwargs)
     if mark is not None:
         mark.data['field_config']['extend'] = cb.extend
     cb.ax._fluxplot_colorbar_name = str(name)
-    cb.ax._fluxplot_owner_axes = owner
+    cb.ax._fluxplot_owner_axes = owner_axes
     return cb
 
 
