@@ -79,14 +79,15 @@ def _axis_capture(ax, fig, which: str) -> dict:
     return out
 
 
-def capture_axes(ax, fig) -> dict:
-    """Return ``{"x": {...}, "y": {...}, "pixelBox": {...}}`` for one Axes."""
+def capture_axes(ax, fig, twins=()) -> dict:
+    """Return ``{"x": {...}, "y": {...}, "pixelBox": {...}}`` for one Axes — plus ``"y2"`` /
+    ``"x2"`` for each twin axes (``[(axes, "y2" | "x2")]``) sharing its frame."""
     # plot-area rectangle in SVG coords (convenience; the SVG clipPath stays authoritative).
     vbw, vbh = svg_viewbox(fig)
     box = ax.get_window_extent()
     sx0, sx1 = box.x0 / fig.bbox.width * vbw, box.x1 / fig.bbox.width * vbw
     sy0, sy1 = (1 - box.y1 / fig.bbox.height) * vbh, (1 - box.y0 / fig.bbox.height) * vbh
-    return {
+    out = {
         "projection": getattr(ax, "name", "rectilinear"),
         "x": _axis_capture(ax, fig, "x"),
         "y": _axis_capture(ax, fig, "y"),
@@ -97,3 +98,7 @@ def capture_axes(ax, fig) -> dict:
             "y1": max(sy0, sy1),
         },
     }
+    for twin, which in twins:
+        if which not in out:  # the first twin of each kind; a third value axis has no slot
+            out[which] = _axis_capture(twin, fig, "y" if which == "y2" else "x")
+    return out

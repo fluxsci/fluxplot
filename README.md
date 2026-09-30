@@ -370,6 +370,16 @@ extent is exactly `length` data units, anchored in a corner (`loc`), with its la
 (`"<length> <units>"`) as `scalebar.<n>.label`; it takes the theme's ink. `examples/image_example.py`
 draws a two-channel field.
 
+**Twin axes and figure-scope parts.** An `ax.twinx()` / `twiny()` is the same panel seen through
+a second value axis, not a panel of its own: its axis is `axis.y2.*` / `axis.x2.*` (title, ticks,
+its spine), the manifest's `axes[0].y2` records its scale, domain and anchors, and every series
+drawn on it carries `axis: "y2"`. (Name a twin with `fp.panel` to keep it a separate panel.)
+Figure-scope artists are named once, unprefixed: `fig.suptitle` → `figure.title`, `supxlabel` /
+`supylabel` → `figure.xlabel` / `figure.ylabel`, `fig.legend()` → `figure.legend` with
+`.entry.k.label` / `.swatch` joined to their series across panels, `fig.text` →
+`figure.annotation.k`; the manifest's `figure` block lists them and the parts tree puts them under
+`figure`, beside the panels.
+
 `fp.errorbar` names every part of the composite: the data line (when the format draws one), the
 markers as a per-point group, the caps and the bars, all under one series; `uncertainty` records
 `xerr` / `yerr` broadcast to the N points with `errShape` (`scalar` / `symmetric` / `asymmetric`).

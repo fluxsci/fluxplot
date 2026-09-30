@@ -116,6 +116,14 @@
               "x1",
               "y1"
             ]
+          },
+          "x2": {
+            "$ref": "#/definitions/axis",
+            "description": "A twiny's value axis (shares y with the panel)."
+          },
+          "y2": {
+            "$ref": "#/definitions/axis",
+            "description": "A twinx's value axis (shares x with the panel)."
           }
         },
         "required": [
@@ -355,6 +363,53 @@
       "description": "Ids an older fluxplot gave the same parts: old id (or old id prefix, for a series root) → current id. Resolve saved overrides through it; kept for one minor version after a rename.",
       "additionalProperties": {
         "type": "string"
+      }
+    },
+    "figure": {
+      "type": "object",
+      "description": "Figure-scope parts (unprefixed ids): the suptitle, sup-labels, figure legends, fig.text annotations and the figure's own extra artists.",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "xlabel": {
+          "type": "string"
+        },
+        "ylabel": {
+          "type": "string"
+        },
+        "legends": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "text": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "extras": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     }
   },
@@ -1579,6 +1634,14 @@
             "shape",
             "channels"
           ]
+        },
+        "axis": {
+          "type": "string",
+          "enum": [
+            "x2",
+            "y2"
+          ],
+          "description": "Present when the series is drawn against a twin's value axis (axes[].y2 / .x2)."
         }
       },
       "required": [

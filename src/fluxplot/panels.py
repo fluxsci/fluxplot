@@ -1,6 +1,6 @@
 """Panel ownership and ID namespacing, shared by every save pipeline stage."""
 from __future__ import annotations
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from types import SimpleNamespace
 from . import ids
 from .autotag import is_colorbar_axes
@@ -47,6 +47,12 @@ class Panel:
     id: str | None
     label: str
     index: int
+    #: secondary axes sharing this panel's frame: ``[(axes, "y2" | "x2")]`` (twinx / twiny)
+    twins: list = field(default_factory=list)
+
+    @property
+    def all_axes(self):
+        return [self.axes] + [t for t, _ in self.twins]
 
     @property
     def prefix(self):
@@ -65,8 +71,31 @@ class ScopedAllocator:
         return self.allocator.take(candidate if self.prefix and candidate.startswith(self.prefix) else self.prefix + candidate)
 
 
+def twin_of(primary, other):
+    """``"y2"`` when ``other`` is ``primary``'s twinx (same frame, shared x), ``"x2"`` for a
+    twiny, else ``None``."""
+    pa, pb = primary.get_position().bounds, other.get_position().bounds
+    if any(abs(u - v) > 1e-9 for u, v in zip(pa, pb)):
+        return None
+    if primary.get_shared_x_axes().joined(primary, other):
+        return 'y2'
+    if primary.get_shared_y_axes().joined(primary, other):
+        return 'x2'
+    return None
+
+
 def plan(fig):
-    axes = [ax for ax in all_axes(fig) if not is_colorbar_axes(ax)]
+    candidates = [ax for ax in all_axes(fig) if not is_colorbar_axes(ax)]
+    # a twin (ax.twinx() / twiny()) is the same panel seen through a second value axis, not a
+    # panel of its own: it joins the axes it was made from (created earlier, so met first)
+    axes, twins = [], {}
+    for ax in candidates:
+        named = getattr(ax, '_fluxplot_panel_name', None) is not None  # fp.panel(twin, …): its own panel
+        pair = None if named else next(((p, w) for p in axes if (w := twin_of(p, ax)) is not None), None)
+        if pair is not None:
+            twins.setdefault(id(pair[0]), []).append((ax, pair[1]))
+        else:
+            axes.append(ax)
     axes.sort(key=lambda a: (-round(a.get_position().y1, 8), round(a.get_position().x0, 8)))
     multi = len(axes) > 1 or any(getattr(a, '_fluxplot_panel_name', None) for a in axes)
     reserved = {ids.slugify(a._fluxplot_panel_name) for a in axes if getattr(a, '_fluxplot_panel_name', None)}
@@ -77,7 +106,8 @@ def plan(fig):
             while _letters(n) in reserved:
                 n += 1
             label = _letters(n); n += 1
-        result.append(Panel(ax, 'panel.' + ids.slugify(label) if multi else None, label, index))
+        result.append(Panel(ax, 'panel.' + ids.slugify(label) if multi else None, label, index,
+                            twins=twins.get(id(ax), [])))
     return result
 
 
@@ -144,7 +174,25 @@ def namespace(man, prefix):
     return man
 
 
-def manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterized, extra_scales_by_panel=None, **kwargs):
+def manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterized, extra_scales_by_panel=None,
+             figure_guides=(), **kwargs):
+    from .manifest import build_manifest, figure_scope
+    out = _panel_manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterized,
+                          extra_scales_by_panel, **kwargs)
+    if figure_guides:
+        block, guide_entries, overlay_entries, children, first, last = figure_scope(figure_guides, reg, present, rasterized)
+        if block:
+            out['figure'] = block
+        out['guides'] = out['guides'] + guide_entries
+        out['overlays'] = out['overlays'] + overlay_entries
+        out['parts']['children'] = out['parts']['children'] + children
+        order = out['build']['order']
+        # figure titles reveal with the axes (phase 0, first); figure annotations and extras last
+        out['build']['order'] = [v for v in first if v not in order] + order + [v for v in last if v not in order]
+    return out
+
+
+def _panel_manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterized, extra_scales_by_panel=None, **kwargs):
     from .manifest import build_manifest
     documents = []
     extra_scales_by_panel = extra_scales_by_panel or [[] for _ in panels]

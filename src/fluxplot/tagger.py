@@ -205,19 +205,26 @@ def axis_tick_artists(mpl_axis, primary_side=1):
                 yield f"{prefix}gridline.{k}", "gridline", k, grid
 
 
-def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
+def autotag_scaffold(ax, alloc: "_ids.IdAllocator", secondary: str | None = None) -> list[GuideTag]:
     """Name the axes/title/legend/tick-labels so the user never hand-tags scaffold.
 
     Returns GuideTags for the manifest + for ``data-role`` injection. Setting a gid on a scaffold
     artist is harmless even if that artist does not emit a wrapping ``<g>`` — post-processing only
     annotates ids that actually appear, and the manifest records the guide regardless (P4).
+
+    ``secondary="y2"`` / ``"x2"`` tags a twin axes (``ax.twinx()`` / ``twiny()``) as part of its
+    primary's panel: only its own value axis (``axis.y2.*``) and that axis' spine are named — the
+    shared axis, the background and the titles belong to the primary.
     """
     guides: list[GuideTag] = []
 
-    axes = [("x", ax.xaxis), ("y", ax.yaxis)]
     is3d = getattr(ax, "name", None) == "3d"
-    if is3d:
-        axes.append(("z", ax.zaxis))
+    if secondary is not None:
+        axes = [(secondary, ax.yaxis if secondary == "y2" else ax.xaxis)]
+    else:
+        axes = [("x", ax.xaxis), ("y", ax.yaxis)]
+        if is3d:
+            axes.append(("z", ax.zaxis))
     for which, mpl_axis in axes:
         # the WHOLE axis as a real <g id="axis.x"> wrapper, so the manifest's axis ref
         # resolves and "hide the entire X axis" targets one element.
@@ -239,7 +246,8 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
             GuideTag(gid=title_gid, role="axis-title", axis=which, text=mpl_axis.label.get_text())
         )
 
-        for suffix, role, k, art in axis_tick_artists(mpl_axis):
+        # a twin's value axis draws its ticks on the far side (right / top): that side is its primary
+        for suffix, role, k, art in axis_tick_artists(mpl_axis, primary_side=2 if secondary else 1):
             g = alloc.take(f"axis.{which}.{suffix}")
             art.set_gid(g)
             guides.append(GuideTag(gid=g, role=role, axis=which, index=k,
@@ -251,7 +259,11 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
     # x → axis "x"): the outer "polar" circle and the "inner" circle run along theta → x;
     # the "start"/"end" wedge edges run along r → y. Invisible/absent sides are skipped;
     # the spine's own key travels as `text`, exactly like the rectangular sides do.
-    if getattr(ax, "name", None) == "polar":
+    if secondary == "y2":
+        sides = (("right", "y2"),)
+    elif secondary == "x2":
+        sides = (("top", "x2"),)
+    elif getattr(ax, "name", None) == "polar":
         sides = (("polar", "x"), ("inner", "x"), ("start", "y"), ("end", "y"))
     else:
         sides = (("bottom", "x"), ("left", "y"), ("top", "x"), ("right", "y"))
@@ -276,7 +288,7 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
     # the grounds: the axes' and the figure's background patches (and a framed legend's box) are
     # parts too — the paints a theme swaps first. The figure patch is shared by every panel; the
     # get_gid() guard tags it once.
-    if ax.patch is not None and ax.patch.get_visible():
+    if secondary is None and ax.patch is not None and ax.patch.get_visible():
         g = alloc.take("axes.background")
         ax.patch.set_gid(g)
         guides.append(GuideTag(gid=g, role="background", text="axes"))
@@ -315,14 +327,9 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
 
     # Titles: the house style writes a LEFT title (matplotlib's ax._left_title), so
     # inspecting only ax.title (center) misses it. Tag every title slot that carries
-    # text — left / center / right + the figure suptitle. The get_gid() guard stops
-    # the shared suptitle being re-tagged once per axes; alloc.take dedups the rest.
-    for t in (
-        getattr(ax, "_left_title", None),
-        ax.title,
-        getattr(ax, "_right_title", None),
-        getattr(ax.figure, "_suptitle", None),
-    ):
+    # text — left / center / right. (The figure's suptitle is figure scope: autotag_figure.)
+    titles = () if secondary else (getattr(ax, "_left_title", None), ax.title, getattr(ax, "_right_title", None))
+    for t in titles:
         if t is not None and t.get_text().strip() and not t.get_gid():
             g = alloc.take("figure.title")
             t.set_gid(g)
@@ -332,9 +339,9 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
     # value labels, callouts dropped with raw ax.text / ax.annotate) becomes an
     # addressable annotation, so nothing escapes the scene graph as an anonymous
     # text_N. Artists already tagged (titles above, fp.annotation/fp.tag overlays
-    # resolved earlier) carry a gid and are skipped.
+    # resolved earlier) carry a gid and are skipped. Figure-level text is autotag_figure's.
     k = 0
-    for t in list(ax.texts) + list(ax.figure.texts):
+    for t in list(ax.texts):
         if not t.get_text().strip() or t.get_gid():
             continue
         g = alloc.take(_ids.join("annotation", k))
@@ -353,6 +360,73 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
     # containers, not these lists, so they never appear here).
     _sweep_extra(ax, alloc, guides)
 
+    return guides
+
+
+def autotag_figure(fig, alloc: "_ids.IdAllocator") -> list[GuideTag]:
+    """Name the figure-scope artists once, unprefixed: ``fig.suptitle`` → ``figure.title``,
+    ``supxlabel`` / ``supylabel`` → ``figure.xlabel`` / ``figure.ylabel``, ``fig.legend()`` →
+    ``figure.legend`` (``figure.legend.k`` for more) with ``.entry.k.label`` / ``.swatch``,
+    ``fig.text`` → ``figure.annotation.k``, and the figure's own lines / patches / images →
+    ``figure.extra.<kind>.k``. Every tag carries ``data["scope"] == "figure"``; they never
+    belong to a panel. Runs before the panel scaffolds, so the suptitle claims ``figure.title``.
+    """
+    guides: list[GuideTag] = []
+    scope = {"scope": "figure"}
+    sup = getattr(fig, "_suptitle", None)
+    if sup is not None and sup.get_text().strip() and not sup.get_gid():
+        g = alloc.take("figure.title")
+        sup.set_gid(g)
+        guides.append(GuideTag(gid=g, role="title", text=sup.get_text(), data={**scope, "slot": "title"}))
+    for attr, slot in (("_supxlabel", "xlabel"), ("_supylabel", "ylabel")):
+        t = getattr(fig, attr, None)
+        if t is not None and t.get_text().strip() and not t.get_gid():
+            g = alloc.take("figure." + slot)
+            t.set_gid(g)
+            guides.append(GuideTag(gid=g, role="title", text=t.get_text(), data={**scope, "slot": slot}))
+    for k, legend in enumerate(getattr(fig, "legends", []) or []):
+        if not legend.get_visible() or legend.get_gid():
+            continue
+        g = alloc.take("figure.legend" if k == 0 else f"figure.legend.{k}")
+        legend.set_gid(g)
+        guides.append(GuideTag(gid=g, role="legend", index=k, data={**scope}))
+        frame = legend.legendPatch
+        if legend.get_frame_on() and frame is not None and frame.get_visible():
+            fg = alloc.take(g + ".background")
+            frame.set_gid(fg)
+            guides.append(GuideTag(gid=fg, role="background", text=g, data={**scope, "legend": g}))
+        sources = legend_sources(legend, fig.axes)
+        for e, txt in enumerate(legend.get_texts()):
+            lg = alloc.take(f"{g}.entry.{e}.label")
+            txt.set_gid(lg)
+            guides.append(GuideTag(gid=lg, role="legend-label", index=e, text=txt.get_text(),
+                                   data={**scope, "legend": g, "_source": sources.get(e)}))
+        for e, h in enumerate(getattr(legend, "legend_handles", None) or []):
+            try:
+                sg = alloc.take(f"{g}.entry.{e}.swatch")
+                h.set_gid(sg)
+                guides.append(GuideTag(gid=sg, role="legend-swatch", index=e,
+                                       data={**scope, "legend": g, "_source": sources.get(e)}))
+            except Exception as exc:
+                registry_for(fig).warnings.append(
+                    f"figure legend entry {e}: swatch {type(h).__name__} could not be tagged ({exc})")
+    k = 0
+    for t in list(fig.texts):
+        if not t.get_text().strip() or t.get_gid():
+            continue
+        g = alloc.take(f"figure.annotation.{k}")
+        t.set_gid(g)
+        guides.append(GuideTag(gid=g, role="annotation", text=t.get_text(), data={**scope}))
+        k += 1
+    for kind, artists in (("line", list(fig.lines)), ("patch", list(fig.patches)), ("image", list(fig.images))):
+        n = 0
+        for art in artists:
+            if art is fig.patch or not art.get_visible() or art.get_gid():
+                continue
+            g = alloc.take(f"figure.extra.{kind}.{n}")
+            art.set_gid(g)
+            guides.append(GuideTag(gid=g, role="extra", index=n, kind=artist_kind(art), data={**scope}))
+            n += 1
     return guides
 
 
@@ -382,14 +456,15 @@ def legend_sources(legend, axes) -> dict:
 def _sweep_extra(ax, alloc: "_ids.IdAllocator", guides: list) -> None:
     background = getattr(ax, "patch", None)
     for kind, artists in (
-        ("line", list(ax.lines) + list(ax.figure.lines)),
+        ("line", list(ax.lines)),
         ("collection", list(ax.collections)),
-        ("patch", list(ax.patches) + list(ax.figure.patches)),
+        ("patch", list(ax.patches)),
         # Images (raw ax.imshow) complete the sweep. Beyond consistency this is load-bearing
         # for auto-rasterization: it guarantees every image-emitting artist carries a gid, so
         # an <image> left with matplotlib's generated id is, by construction, one that
-        # rasterization produced — which is how raster.reattach identifies them.
-        ("image", list(ax.images) + list(ax.figure.images)),
+        # rasterization produced — which is how raster.reattach identifies them. (The figure's
+        # own lines / patches / images are autotag_figure's.)
+        ("image", list(ax.images)),
         # ax.artists holds what add_artist() placed: anchored boxes (an AnchoredSizeBar, an
         # AnchoredText), offset images, arbitrary artists; ax.tables holds table() output.
         ("artist", list(ax.artists)),

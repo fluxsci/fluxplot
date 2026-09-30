@@ -913,23 +913,29 @@ def _save(
                     rec['valueRaster'] = vr['filename']
 
     panels = _panels.plan(fig)
+    # figure-scope artists first (suptitle, fig.legend, fig.text): unprefixed, tagged once
+    figure_guides = _tagger.autotag_figure(fig, alloc)
     promo_warnings, guides_by_panel, axes_capture, scales_by_panel = [], [], [], []
     registered = {id(m) for m in reg.marks}
     for i, panel in enumerate(panels):
         ax = panel.axes
-        # Colorbar marks belong to the plot whose mappable produced their key.
+        twin_axis = {id(t): which for t, which in panel.twins}
+        # Colorbar marks belong to the plot whose mappable produced their key; a twin's marks
+        # belong to the primary's panel and say which value axis they read (axis: "y2").
         members = []
         for m in reg.marks:
             owner = getattr(m.axes, "_fluxplot_owner_axes", m.axes)
-            if owner is ax or (owner is None and i == 0):
+            if owner is ax or id(owner) in twin_axis or (owner is None and i == 0):
                 m._panel_axes = ax
                 members.append(m)
         sub = _tagger.Registry()
         for m in members:
             sub.add(m)
-        promo_warnings.extend(_autotag.promote_labeled(SimpleNamespace(axes=[ax]), sub))
+        promo_warnings.extend(_autotag.promote_labeled(SimpleNamespace(axes=panel.all_axes), sub))
         for m in sub.marks:
             m._panel_axes = ax
+            if id(m.axes) in twin_axis and m.series is not None:
+                m.data["axis"] = twin_axis[id(m.axes)]
             _data.refresh(m)
             if id(m) not in registered:
                 reg.marks.append(m)
@@ -937,13 +943,18 @@ def _save(
         scoped = _panels.ScopedAllocator(alloc, panel.prefix)
         _tagger.resolve_gids(sub, scoped)
         ax.set_gid(panel.svg_id)
-        guides_by_panel.append(_tagger.autotag_scaffold(ax, scoped) + _fields.colorbar_guides(fig, ax, scoped))
+        local = _tagger.autotag_scaffold(ax, scoped)
+        for twin, which in panel.twins:
+            twin.set_gid(panel.svg_id + "." + which)
+            local += _tagger.autotag_scaffold(twin, scoped, secondary=which)
+        local += _fields.colorbar_guides(fig, ax, scoped)
+        guides_by_panel.append(local)
         # raw colour-mapped artists (an imshow, a pcolormesh, a scatter with c=) the sweep just
         # named get an anonymous colour scale: no series, but a linked key and editable colours
-        scales_by_panel.append(_fields.anonymous_scales(ax, reg))
-        axes_capture.append({"id": "plot-area", "svgId": "plot-area", **_capture.capture_axes(ax, fig)})
-    plot_axes = [p.axes for p in panels]
-    guides = [g for local in guides_by_panel for g in local]
+        scales_by_panel.append([sc for a in panel.all_axes for sc in _fields.anonymous_scales(a, reg)])
+        axes_capture.append({"id": "plot-area", "svgId": "plot-area", **_capture.capture_axes(ax, fig, panel.twins)})
+    plot_axes = [a for p in panels for a in p.all_axes]
+    guides = [g for local in guides_by_panel for g in local] + figure_guides
     geometry_warnings = _warn_log_zero_anchors(plot_axes, plot_name)
 
     # accessibility lint (B3): findings travel with the plot; "error" refuses it outright
@@ -1002,7 +1013,8 @@ def _save(
     rasterized_gids = {it.gid for it in raster_items if it.gid and it.gid in present}
     man = _panels.manifest(
         fig, reg, kept_guides, panels, axes_capture, present, rasterized_gids,
-        extra_scales_by_panel=scales_by_panel, style=style_record,
+        extra_scales_by_panel=scales_by_panel, figure_guides=[g for g in figure_guides if g.gid in present],
+        style=style_record,
         quality={"color": lint_findings} if lint != "off" else None,
         plot_type=plot_type, svg_filename=svg_filename, spec_version=SPEC_VERSION,
         fluxplot_version=__version__, mpl_version=matplotlib.__version__,

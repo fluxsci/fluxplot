@@ -167,6 +167,9 @@ def build_manifest(
             payload = next((m.data[field] for m in marks if m.data.get(field)), None)
             if payload is not None:
                 entry[field] = payload
+        axis = next((m.data["axis"] for m in marks if m.data.get("axis")), None)
+        if axis is not None:  # drawn against a twin's value axis (axes[].y2 / .x2)
+            entry["axis"] = axis
         # the series' colour: its primary paint (data.primary_paint) and / or the scale colouring it
         colour = {}
         primary = ("line", "point", "bar", "area", "box", "violin", "errorbar", "x-hexbin", "x-heatmap", "x-contourf", "x-contour")
@@ -440,6 +443,94 @@ def build_manifest(
     return out
 
 
+def figure_scope(figure_guides, reg, present=None, rasterized=None):
+    """The manifest's figure-scope block from :func:`tagger.autotag_figure`'s tags:
+    ``(figure, guide_entries, overlay_entries, parts_children, build_first, build_last)``.
+
+    ``figure`` is ``{title?, xlabel?, ylabel?, legends: [...], annotations: [...], extras: [...]}``
+    with svg ids; a figure legend is a ``guides[]`` entry (``role: legend``, ``entries`` joined to
+    series by the artist each stands for) and its parts sit under the figure node of the tree."""
+    keep = (lambda g: True) if present is None else (lambda g: g in present)
+    rasterized = rasterized or set()
+    fig: dict = {"legends": [], "annotations": [], "extras": []}
+    guide_entries, overlay_entries, children, first, last = [], [], [], [], []
+    legends: dict = {}
+    for g in figure_guides:
+        if g.role == "title":
+            fig[g.data.get("slot", "title")] = g.gid
+            children.append(_ref(g.gid, _roles.kind_for_role("title"), "title"))
+            first.append(g.gid)
+        elif g.role == "legend":
+            legends.setdefault(g.gid, {"entries": {}, "background": None})
+        elif g.role == "background" and g.data.get("legend"):
+            legends.setdefault(g.data["legend"], {"entries": {}, "background": None})["background"] = g.gid
+        elif g.role in ("legend-label", "legend-swatch") and g.data.get("legend"):
+            ent = legends.setdefault(g.data["legend"], {"entries": {}, "background": None})["entries"].setdefault(g.index, {})
+            ent["label" if g.role == "legend-label" else "swatch"] = g.gid
+            if g.role == "legend-label":
+                ent["text"] = g.text
+            if g.data.get("_source") is not None:
+                ent["source"] = g.data["_source"]
+        elif g.role == "annotation":
+            fig["annotations"].append({"id": g.gid, "text": g.text})
+            oe = {"id": g.gid, "svgId": g.gid, "role": "annotation", "kind": "text"}
+            if g.text:
+                oe["text"] = g.text
+            overlay_entries.append(oe)
+            children.append(_ref(g.gid, "text", "annotation"))
+            last.append(g.gid)
+        elif g.role == "extra":
+            fig["extras"].append(g.gid)
+            oe = {"id": g.gid, "svgId": g.gid, "role": "extra"}
+            if g.kind:
+                oe["kind"] = g.kind
+            if g.gid in rasterized:
+                oe["rasterized"] = True
+            overlay_entries.append(oe)
+            children.append(_ref(g.gid, g.kind, "extra"))
+            last.append(g.gid)
+
+    def series_id_of(src):
+        kids = list(getattr(src, "get_children", lambda: [])()) if src is not None else []
+        for m in reg.marks:
+            if m.series is None or not m.gid:
+                continue
+            if any(a is src or any(a is c for c in kids) for a in m.artists):
+                root = _ids.series_root(m.series)
+                prefix = m.gid[: m.gid.index(root)] if root in m.gid else ""
+                return prefix + root
+        return None
+
+    for gid, leg in legends.items():
+        entries, kids = [], []
+        if leg["background"]:
+            kids.append(_ref(leg["background"], _roles.kind_for_role("background"), "background"))
+        for k in sorted(leg["entries"]):
+            ent = leg["entries"][k]
+            e = {}
+            joined = series_id_of(ent.get("source"))
+            if joined is not None:
+                e["series"] = joined
+            for key in ("text", "swatch", "label"):
+                if ent.get(key):
+                    e[key] = ent[key]
+            entries.append(e)
+            ek = []
+            if ent.get("swatch"):
+                ek.append(_ref(ent["swatch"], _roles.kind_for_role("legend-swatch"), "legend-swatch"))
+            if ent.get("label"):
+                ek.append(_ref(ent["label"], _roles.kind_for_role("legend-label"), "legend-label"))
+            node = {"id": f"{gid}.entry.{k}", "role": "legend-entry", "kind": "container", "children": ek}
+            if ent.get("text"):
+                node["label"] = ent["text"]
+            kids.append(node)
+        fig["legends"].append(gid)
+        guide_entries.append({"id": gid, "svgId": gid, "role": "legend", "entries": entries})
+        children.append({"id": gid, "role": "legend", "kind": "container", "children": kids})
+    fig = {k: v for k, v in fig.items() if v not in ([], None)}
+    return fig, guide_entries, overlay_entries, children, first, last
+
+
 def _organize_guides(guides):
     """Bucket the flat GuideTag list into per-axis parts + legend entries + the figure title."""
     axes: dict = {}
@@ -449,6 +540,8 @@ def _organize_guides(guides):
     extras: list = []  # swept untagged artists → addressable "extra" content
     backgrounds: dict = {}  # "axes" / "figure" / "legend" → the background patch's gid
     for g in guides:
+        if g.data.get("scope") == "figure":
+            continue  # figure-scope tags are organized by figure_scope()
         if g.role == "background" and g.axis is None:
             backgrounds[g.text] = g.gid
         elif g.role == "axis":
@@ -520,7 +613,7 @@ def _build_parts_tree(
         plot_children.append(_ref(backgrounds["axes"], _roles.kind_for_role("background"), "background"))
 
     # axes → real <g id="axis.x"> nodes, each with spine + grouped ticks/labels/gridlines + title
-    for which in ("x", "y", "z"):
+    for which in ("x", "y", "z", "x2", "y2"):
         ap = axes_parts.get(which)
         if not ap:
             continue
