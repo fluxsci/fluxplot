@@ -33,3 +33,4 @@ packages = ["src/fluxplot"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["slow: runs example scripts in subprocesses (~10 s); skip with -m 'not slow'"]
