@@ -3,24 +3,19 @@
   "generatedAt": "2026-09-06T00:00:00Z",
   "inputs": [],
   "outputs": {
-    "manifest": "fields.fluxplot.json",
-    "svg": "fields.svg"
+    "manifest": "presets.fluxplot.json",
+    "svg": "presets.svg"
   },
   "params": {
     "__fluxplot__": {
-      "correlation": {
+      "cloud": {
         "cmap": "viridis",
-        "vmax": 1.0,
-        "vmin": 0.0
-      },
-      "energy": {
-        "cmap": "plasma",
-        "vmax": 8.0,
-        "vmin": 0.0
+        "vmax": 18.0,
+        "vmin": 1.0
       }
     }
   },
-  "plot": "fields",
+  "plot": "presets",
   "schemaVersion": "0.3.1",
   "script": null,
   "spec": "fluxplot/recipe"

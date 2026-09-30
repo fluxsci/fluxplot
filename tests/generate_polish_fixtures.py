@@ -36,3 +36,16 @@ axes[1].set_title('Contour bands')
 fp.save(fig, str(out / 'fields'), recipe=False, _now='2026-09-06T00:00:00Z')
 fig.savefig(out / 'fields.png', dpi=150)
 plt.close(fig)
+# build presets (F1): bars grow from their baseline, annotations and brackets rise after a delay,
+# hexagons stagger in by value, the colour key fades — every hint from the closed vocabulary
+fig, axes = plt.subplots(1, 2, figsize=(5, 2.4), layout='constrained')
+fp.panel(axes[0], 'counts'); fp.panel(axes[1], 'density')
+fp.bar(axes[0], ['a', 'b', 'c'], [3, 5, 2], series='counts', label='Counts')
+fp.annotation(axes[0], name='peak', text='peak', xy=(1, 5), xytext=(1.6, 5.4))
+fp.significance_bracket(axes[0], x0=0, x1=1, y=5.6, label='*', between=('a', 'b'), p=0.03)
+axes[0].legend(loc='upper left')
+rng = np.random.default_rng(3)
+fp.hexmatrix(x=rng.normal(size=120), y=rng.normal(size=120), ax=axes[1], gridsize=5, series='cloud',
+             cmap='viridis')
+fp.save(fig, str(out / 'presets'), recipe=False, _now='2026-09-06T00:00:00Z')
+plt.close(fig)
