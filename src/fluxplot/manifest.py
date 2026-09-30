@@ -486,15 +486,14 @@ def axis_value_labels(mpl_axis, numbers) -> dict:
     return {}
 
 
-def figure_scope(figure_guides, reg, present=None, rasterized=None):
+def figure_scope(figure_guides, reg, present=None, rasterized=None):  # noqa: ARG001 (present: kept for symmetry)
     """The manifest's figure-scope block from :func:`tagger.autotag_figure`'s tags:
     ``(figure, guide_entries, overlay_entries, parts_children, build_first, build_last)``.
 
     ``figure`` is ``{background?, title?, xlabel?, ylabel?, legends: [...], annotations: [...], extras: [...]}``
     with svg ids; a figure legend is a ``guides[]`` entry (``role: legend``, ``entries`` joined to
     series by the artist each stands for) and its parts sit under the figure node of the tree."""
-    keep = (lambda g: True) if present is None else (lambda g: g in present)
-    rasterized = rasterized or set()
+    rasterized = rasterized or set()  # (the caller passes only the tags present in the SVG)
     fig: dict = {"legends": [], "annotations": [], "extras": []}
     guide_entries, overlay_entries, children, first, last = [], [], [], [], []
     legends: dict = {}

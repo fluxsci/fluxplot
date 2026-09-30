@@ -11,12 +11,10 @@ tick order, and a mixed collection's points by the frame rows they came from
 from __future__ import annotations
 
 import warnings
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from . import data as _data
-from . import tagger as _tagger
 from .descriptors import Mark
 
 CATEGORICAL_KINDS = ("boxplot", "violinplot", "stripplot", "swarmplot", "pointplot")

@@ -14,7 +14,7 @@ brightness/contrast and reruns. ``pixel_size`` puts the axes in physical units, 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 

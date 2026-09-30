@@ -192,7 +192,7 @@ def namespace(man, prefix):
 
 def manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterized, extra_scales_by_panel=None,
              figure_guides=(), **kwargs):
-    from .manifest import build_manifest, figure_scope
+    from .manifest import figure_scope
     out = _panel_manifest(fig, reg, guides_by_panel, panels, axes_capture, present, rasterized,
                           extra_scales_by_panel, **kwargs)
     if figure_guides:

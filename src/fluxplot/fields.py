@@ -523,7 +523,7 @@ def _gradient(cb, fig):
     """The exact vector form of a colour key's solids: one hard-stepped gradient along its long
     axis. Offsets are the quad boundaries (``cb._y``) in SVG user units along the axis — uniform
     in the axis' own scale, whatever the norm — and the colours are the quads' own."""
-    from matplotlib.colors import to_hex, to_rgba
+    from matplotlib.colors import to_hex
     from .capture import data_to_svg
     vertical = cb.orientation == 'vertical'
     y = np.asarray(cb._y, dtype=float)
