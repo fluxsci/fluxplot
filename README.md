@@ -800,13 +800,22 @@ fluxplot/
     manifest.py       # assemble *.fluxplot.json
     recipe.py         # assemble *.recipe.json
     roles.py          # the role vocabulary (+ x- extensions)
+    fields.py         # colour-mapped fields: heatmap / contour, colour controls, shared scales, colour keys
+    colorscale.py     # the portable colour-scale law (LUT lookup) the manifest's colorScales carry
+    colors.py, colorcheck.py, style.py  # colormap / palette collections, accessibility lint, themes
+    images.py         # fp.image (channels, LUTs, display ranges) + fp.scalebar
+    brackets.py       # fp.brackets: stats rows → stacked significance brackets
+    fits.py           # fp.regression, fp.kde
+    seaborn_adapters.py  # exact identity for seaborn's categorical plots and hue splits
     signature_fluxplots/  # preset plot types unique to Flux (fp.glowbar, fp.fluxbox, fp.hexmatrix)
-    stats/            # tests behind the plots, returning reporting rows (fp.stats.welch_hedges, …)
+    stats/            # tests behind the plots, returning reporting rows (two-group, paired, k-group, post hoc)
     schemas/          # JSON Schemas for the manifest and recipe (validated on every save)
+    definitions/      # the shipped colormap / palette / token tables
   examples/growth_plot.py     # the worked example above
   examples/glowbar_example.py # the glowbar signature plot, unpaired + paired
   examples/fluxbox_example.py # the fluxbox signature plot, unpaired + paired
   examples/hexmatrix_example.py # the hexmatrix: joint, log-log, spatial, gradient, lattice map
+  examples/image_example.py   # a two-channel micrograph with a scale bar and per-channel keys
   tests/                      # determinism, the marker-DOM probe, ids, capture, schema
   NOTES_matplotlib_svg.md     # the verified matplotlib SVG mechanics this rides on
 ```

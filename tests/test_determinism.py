@@ -52,3 +52,24 @@ def test_colour_scaled_plots_are_byte_stable(tmp_path):
         outputs.append((open(res.svg, "rb").read(), open(res.manifest, "rb").read()))
         plt.close(fig)
     assert outputs[0] == outputs[1]
+
+
+def test_images_are_byte_stable(tmp_path):
+    """An fp.image (per-channel LUTs, a scale bar, two colour keys) is as deterministic as a line plot."""
+    import numpy as np
+
+    def build():
+        rng = np.random.default_rng(5)
+        fig, ax = plt.subplots(figsize=(4, 3))
+        im = fp.image(ax, rng.gamma(2.0, 30.0, (2, 24, 32)), series="cells", channels=["a", "b"], pixel_size=0.5)
+        fp.scalebar(ax, 4.0)
+        fp.colorbar(im.mappables["a"], ax=ax, name="a")
+        return fig
+
+    outputs = []
+    for _ in range(2):
+        fig = build()
+        res = fp.save(fig, str(tmp_path / "i.svg"), recipe=False)
+        outputs.append((open(res.svg, "rb").read(), open(res.manifest, "rb").read()))
+        plt.close(fig)
+    assert outputs[0] == outputs[1]
