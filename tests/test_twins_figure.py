@@ -90,6 +90,14 @@ def test_figure_scope_artists(tmp_path):
     assert man["build"]["order"].index("figure.title") < man["build"]["order"].index("panel.a.ctl.line")
     overlays = {o["id"]: o for o in man["overlays"]}
     assert overlays["figure.annotation.0"]["text"] == "A"
+    # a figure legend entry standing for a bar container (members only, no group id) joins too
+    fig, (a, b) = plt.subplots(1, 2)
+    fp.bar(a, [0, 1], [1, 2], series="bars", label="Bars")
+    fp.scatter(b, [0, 1], [1, 2], series="dots", label="Dots")
+    fig.legend(loc="lower center", ncol=2)
+    res, man, svg = _save(fig, tmp_path, "fb.svg")
+    (legend,) = [g for g in man["guides"] if g["id"] == "figure.legend"]
+    assert {e["text"]: e["series"] for e in legend["entries"]} == {"Bars": "panel.a.bars", "Dots": "panel.b.dots"}
     # a single-panel figure: the axes title keeps figure.title unless a suptitle claims it first
     fig, ax = plt.subplots()
     fp.line(ax, [0, 1], [0, 1], series="s")

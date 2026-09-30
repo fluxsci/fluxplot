@@ -541,11 +541,12 @@ def figure_scope(figure_guides, reg, present=None, rasterized=None):  # noqa: AR
     def series_id_of(src):
         kids = list(getattr(src, "get_children", lambda: [])()) if src is not None else []
         for m in reg.marks:
-            if m.series is None or not m.gid:
+            gid = m.gid or (m.member_gids[0] if m.member_gids else None)  # bars have members only
+            if m.series is None or not gid:
                 continue
             if any(a is src or any(a is c for c in kids) for a in m.artists):
                 root = _ids.series_root(m.series)
-                prefix = m.gid[: m.gid.index(root)] if root in m.gid else ""
+                prefix = gid[: gid.index(root)] if root in gid else ""
                 return prefix + root
         return None
 
