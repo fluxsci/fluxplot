@@ -2,9 +2,10 @@
 
 ``fp.save`` can determine the producing script, interpreter, package versions, source hash and
 Git state without asking the user to repeat facts the runtime already knows. Discovery is
-**deterministic and conservative**: identity comes only from ``__main__.__file__`` or the call
-stack, never from notebook history or heuristics, and anything ambiguous yields ``None`` (the
-recipe then says so via ``scriptDiscovery: "unavailable"`` rather than guessing).
+**deterministic and conservative**: identity comes only from ``__main__.__file__`` (or, when a
+runner such as ``pytest`` is the entry point, the caller's own file), never from notebook history
+or heuristics, and anything ambiguous yields ``None`` (the recipe then says so via
+``scriptDiscovery: "unavailable"`` rather than guessing).
 
 All of this is host-specific, run-varying material — it belongs in the recipe (the provenance
 surface), never in the deterministic SVG/manifest.
@@ -50,16 +51,22 @@ def discover_script() -> str | None:
 
     1. ``__main__.__file__`` if it names an existing regular ``.py`` file that is not part of
        an installed package (``python -m pytest`` must not claim pytest produced the plot).
-    2. Otherwise the first caller frame whose file is an existing ``.py`` outside FluxPlot's
-       own code.
-    3. Otherwise ``None`` — interactive sessions, notebooks, ``python -c`` and frozen apps
-       are honestly not rerunnable scripts.
+    2. When the interpreter was started through an installed entry point — ``python -m pkg``
+       (``__main__.__file__`` inside site-packages) or a console script such as ``pytest``
+       (``__main__.__file__`` that is not a ``.py`` file) — the first caller frame whose file is
+       an existing ``.py`` outside FluxPlot's own code: the user's script, run by a runner.
+    3. Otherwise ``None`` — interactive sessions, notebooks (``__main__`` has no ``__file__``
+       at all under ipykernel), ``python -c`` and frozen apps are honestly not rerunnable
+       scripts. In particular a notebook cell calling ``mylib.plot()`` must never record
+       ``mylib.py`` as the recipe: rerunning it would not reproduce the figure.
     """
     import __main__
 
     main_file = getattr(__main__, "__file__", None)
     if _is_real_script(main_file) and not _in_installed_packages(main_file):
         return os.path.abspath(main_file)
+    if not isinstance(main_file, str) or not main_file or main_file.startswith("<"):
+        return None  # no entry-point file: interactive / notebook / -c
 
     pkg_dir = os.path.dirname(os.path.abspath(__file__))
     frame = sys._getframe()
@@ -67,7 +74,8 @@ def discover_script() -> str | None:
         fn = frame.f_code.co_filename
         if fn and not fn.startswith("<"):
             abs_fn = os.path.abspath(fn)
-            if not abs_fn.startswith(pkg_dir + os.sep) and _is_real_script(abs_fn):
+            if not abs_fn.startswith(pkg_dir + os.sep) and _is_real_script(abs_fn) \
+                    and not _in_installed_packages(abs_fn):
                 return abs_fn
         frame = frame.f_back
     return None

@@ -142,17 +142,26 @@ def _inject_points(m: Mark, id_map, warnings) -> None:
         # addressable as a whole; no warning (see raster.py).
         _set(group, data_role="point")
         return
-    uses = list(group.iter(f"{{{SVG}}}use"))
     n = len(m.member_gids)
-    if len(uses) != n:
-        warnings.append(
-            f"points '{m.gid}': {len(uses)} <use> vs {n} data points — skipping per-point ids"
-        )
-        _set(group, data_role="point")
-        return
+    members = list(group.iter(f"{{{SVG}}}use"))
+    if len(members) != n:
+        # matplotlib's SVG backend shares one marker <path> through N <use> only when every
+        # marker has the same transform. Per-point sizes (a bubble chart, ``s=`` an array) make
+        # it fall back to drawing each marker as a direct <path> child of the collection group
+        # (never wrapped, never in <defs>); those are the same N points in the same order.
+        paths = [el for el in group if el.tag == f"{{{SVG}}}path"]
+        if len(paths) == n:
+            members = paths
+        else:
+            warnings.append(
+                f"points '{m.gid}': {len(members)} <use> / {len(paths)} <path> vs {n} data "
+                "points — skipping per-point ids"
+            )
+            _set(group, data_role="point")
+            return
     xs = list(m.x) if m.x is not None else [None] * n
     ys = list(m.y) if m.y is not None else [None] * n
-    for k, use_el in enumerate(uses):
+    for k, use_el in enumerate(members):
         use_el.set("id", m.member_gids[k])
         _set(
             use_el,

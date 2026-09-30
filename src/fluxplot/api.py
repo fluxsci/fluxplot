@@ -317,7 +317,33 @@ def tag_seaborn(ax, *, series=None, plot=None):
     bar_context = plot in ("barplot", "countplot") or bool(ax.containers)
 
     def _is_segment(ln):
-        return bar_context  # these adapters own the loose uncertainty lines
+        """A loose uncertainty line seaborn drew for a bar: axis-aligned two-point runs only.
+
+        seaborn draws an error bar as ``[x, x] × [lo, hi]`` and, with ``capsize``, joins the
+        two caps to it through NaN breaks (``cap, NaN, bar, NaN, cap``). Every finite run of such
+        a line has exactly two points sharing an x (vertical bars) or a y (horizontal bars).
+        Anything else — a KDE curve over a histogram, a fit line, a lineplot mean — is a data
+        curve, whatever else sits on the axes.
+        """
+        if not bar_context:
+            return False
+        x, y = (np.asarray(v, dtype=float) for v in ln.get_data(orig=False))
+        finite = np.isfinite(x) & np.isfinite(y)
+        if not finite.any():
+            return False
+        runs, start = [], None
+        for i, ok in enumerate(list(finite) + [False]):
+            if ok and start is None:
+                start = i
+            elif not ok and start is not None:
+                runs.append((start, i))
+                start = None
+        for a, b in runs:
+            if b - a != 2:
+                return False
+            if not (abs(x[a] - x[a + 1]) <= 1e-12 or abs(y[a] - y[a + 1]) <= 1e-12):
+                return False
+        return True
 
 
     # data curves (one per hue level) → line
@@ -388,12 +414,21 @@ def tag_seaborn(ax, *, series=None, plot=None):
 # ---------------------------------------------------------------------------
 # first-class overlays
 # ---------------------------------------------------------------------------
-def significance_bracket(ax, *, x0, x1, y, label, between=None, p=None, name=None, height=None, **kw):
-    """A p-value bracket (spec §5: deliberately first-class — ubiquitous in science)."""
+def significance_bracket(ax, *, x0, x1, y, label, between=None, p=None, name=None, height=None,
+                         color=None, text_kw=None, **kw):
+    """A p-value bracket (spec §5: deliberately first-class — ubiquitous in science).
+
+    ``color`` paints both the bracket line and its label (default: the theme's text colour,
+    so a bracket reads on dark grounds too); ``text_kw`` are extra ``Text`` properties for the
+    label (``fontsize``, ``fontweight``, …). ``height`` is the tip height in data units
+    (default: 3 % of the y range, or a 6 % step on a log axis).
+    """
     reg = _tagger.registry_for(ax.figure)
     idx = reg.next_overlay_index("significance-bracket")
     if name is None:
         name = str(idx)
+    if ax.get_yscale() == "log" and y <= 0:
+        raise ValueError(f"significance_bracket: y must be positive on a log axis (got y={y!r})")
     if height is None:
         if ax.get_yscale() == "log":
             ytop = y * 1.06
@@ -402,8 +437,12 @@ def significance_bracket(ax, *, x0, x1, y, label, between=None, p=None, name=Non
             ytop = y + (hi - lo) * 0.03
     else:
         ytop = y + height
-    (br,) = ax.plot([x0, x0, x1, x1], [y, ytop, ytop, y], color=kw.pop("color", "black"), linewidth=kw.pop("linewidth", 1.0), **kw)
-    txt = ax.text((x0 + x1) / 2.0, ytop, label, ha="center", va="bottom")
+    if color is None:
+        color = matplotlib.rcParams["text.color"]
+    (br,) = ax.plot([x0, x0, x1, x1], [y, ytop, ytop, y], color=color,
+                    linewidth=kw.pop("linewidth", 1.0), **kw)
+    txt = ax.text((x0 + x1) / 2.0, ytop, label, ha="center", va="bottom", color=color,
+                  **(text_kw or {}))
     data = {"label": label, "index": idx, "label_artist": txt}
     if between is not None:
         data["between"] = list(between)
