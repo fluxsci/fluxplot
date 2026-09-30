@@ -38,11 +38,13 @@ def _set(el, **attrs) -> None:
 
 
 def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=(), check_ids=True,
-                extra_scales=()):
+                extra_scales=(), style_tokens=None, theme_vars=False):
     """Return ``(processed_svg_bytes, warnings, present)``.
 
     ``extra_scales`` are the anonymous colour scales of raw colour-mapped artists
     (``fields.anonymous_scales``): their groups get ``data-color-scale`` / ``data-paint`` too.
+    ``style_tokens`` (``style.current_tokens()``) drive the semantic ink tags on scaffold
+    elements; ``theme_vars`` additionally rewrites those paints to ``var(--fx-<token>, <hex>)``.
     """
     parser = etree.XMLParser(remove_blank_text=True)
     root = etree.fromstring(svg_bytes, parser)
@@ -126,6 +128,11 @@ def postprocess(svg_bytes: bytes, reg, guides, plot_type: str, raster_items=(), 
     # them (a <use> has no measurable path length). Scoped to axis/colorbar tick
     # groups; point <use> elements (which animate via opacity/transform) are untouched.
     _deref_ticks(root)
+
+    # 6b. semantic ink: which theme token painted each scaffold / overlay element (B1). After
+    # the tick dereference, so every tick is a real path carrying its own merged paint.
+    if style_tokens:
+        _tag_inks(reg, guides, id_map, style_tokens, theme_vars)
 
     # The set of ids that actually survived into the SVG (computed AFTER injection
     # so per-point <use> ids are included). matplotlib culls boundary ticks/
@@ -408,6 +415,115 @@ def _inject_field(mark, id_map, warnings):
         members.append(gid)
         id_map[gid] = path
     mark.data['field_members'] = members
+
+
+# ---------------------------------------------------------------------------------------------
+# semantic ink (B1): a scaffold element painted with a theme token says which one
+# ---------------------------------------------------------------------------------------------
+#: scaffold and overlay roles whose paint comes from the theme, and the token each prefers when
+#: several tokens share one hex (ink and label are both #100f0f in the light theme)
+INK_ROLES = {
+    "axis-title": "label", "tick-label": "ink", "title": "ink", "subtitle": "ink", "legend-label": "ink",
+    "annotation": "ink", "tick": "tick", "spine": "axis", "gridline": "grid", "axis": "axis",
+    "colorbar-label": "label", "colorbar-tick-label": "ink", "colorbar-tick": "tick", "colorbar-outline": "axis",
+    "colorbar-gridline": "grid", "significance-bracket": "ink", "reference-line": None, "label": "ink",
+}
+_BACKGROUND_TOKEN = {"axes": "plot", "figure": "paper", "legend": "plot"}
+_DRAWABLE = {f"{{{SVG}}}{t}" for t in ("path", "text", "rect", "line", "polygon", "polyline", "circle", "ellipse", "use")}
+
+
+def _paint(el, prop):
+    """An element's own fill / stroke as lowercase hex, ``"none"``, or ``None`` when unset (a
+    <text> or <path> without a fill declaration is painted black: the SVG default)."""
+    value = _parse_style(el.get("style")).get(prop) or el.get(prop)
+    if value is None:
+        return "#000000" if (prop == "fill" and el.tag in (f"{{{SVG}}}text", f"{{{SVG}}}path", f"{{{SVG}}}rect")) else None
+    value = value.strip().lower()
+    if value == "none":
+        return "none"
+    if value.startswith("url("):
+        return None
+    try:
+        from matplotlib.colors import to_hex
+        return to_hex(value).lower()
+    except ValueError:
+        return None
+
+
+def _drawables(el):
+    """The painted descendants of ``el``: real drawables, never a <defs> template or a <use>."""
+    skip = {f"{{{SVG}}}defs", f"{{{SVG}}}clipPath"}
+    stack = [el]
+    while stack:
+        node = stack.pop()
+        if node is not el and node.tag in skip:
+            continue
+        if node is not el and node.tag in _DRAWABLE and node.tag != f"{{{SVG}}}use":
+            yield node
+        stack.extend(reversed(list(node)))
+
+
+def _uniform_paint(el, prop):
+    """The one paint every drawable under ``el`` uses for ``prop``, or ``None``."""
+    seen = set()
+    for d in _drawables(el):
+        seen.add(_paint(d, prop))
+        if len(seen) > 1:
+            return None
+    seen.discard(None)
+    value = seen.pop() if len(seen) == 1 else None
+    return None if value == "none" else value
+
+
+def _token_for(hex_, preferred, by_hex):
+    candidates = by_hex.get(hex_)
+    if not candidates:
+        return None
+    return preferred if preferred in candidates else candidates[0]
+
+
+def _var_paint(el, prop, token, hex_):
+    """Rewrite one paint declaration to ``var(--fx-<token>, <hex>)`` (theme_vars=True)."""
+    for d in _drawables(el):
+        if _paint(d, prop) != hex_:
+            continue
+        style = _parse_style(d.get("style"))
+        style[prop] = f"var(--fx-{token}, {hex_})"
+        d.set("style", "; ".join(f"{k}: {v}" for k, v in style.items()))
+        d.attrib.pop(prop, None)
+
+
+def _tag_inks(reg, guides, id_map, tokens, theme_vars) -> None:
+    by_hex: dict = {}
+    for token, hex_ in tokens.items():  # insertion order = preference order (ink first)
+        by_hex.setdefault(hex_.lower(), []).append(token)
+    targets = []  # (element, preferred token, explicit inks)
+    for g in guides:
+        el = id_map.get(g.gid)
+        if el is None:
+            continue
+        if g.role == "background":
+            targets.append((el, _BACKGROUND_TOKEN.get(g.text, "plot"), None))
+        elif g.role in INK_ROLES:
+            targets.append((el, INK_ROLES[g.role], None))
+    for m in reg.marks:
+        if m.series is None and m.role in INK_ROLES and m.gid in id_map:
+            targets.append((id_map[m.gid], INK_ROLES[m.role], m.data.get("ink")))
+            label_gid = m.data.get("label_gid")
+            if label_gid in id_map:
+                targets.append((id_map[label_gid], "ink", m.data.get("ink_label")))
+    for el, preferred, explicit in targets:
+        for prop in ("fill", "stroke"):
+            hex_ = _uniform_paint(el, prop)
+            if hex_ is None:
+                continue
+            token = (explicit or {}).get(prop) if explicit else None
+            token = token or _token_for(hex_, preferred, by_hex)
+            if token is None:
+                continue
+            el.set(f"data-ink-{prop}", token)
+            if theme_vars:
+                _var_paint(el, prop, token, hex_)
 
 
 _NUM = __import__('re').compile(r'[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?')

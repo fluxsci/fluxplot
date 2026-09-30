@@ -11,6 +11,10 @@ from .descriptors import Mark, GuideTag
 from .data import values
 
 
+#: ``__fluxplot__`` entries that are not colour scales: the theme, the palette, per-series colours.
+RESERVED_CONTROL_KEYS = frozenset({"theme", "palette", "series"})
+
+
 def control_key(ax, series, key=None):
     """``(key, legacy_key)`` naming a colour-mapped series' entry in ``recipe.params.__fluxplot__``.
 
@@ -35,7 +39,7 @@ def control_key(ax, series, key=None):
     claimed = tagger.registry_for(ax.figure)._color_keys
     if key is not None:
         chosen = str(key)
-    elif root not in claimed:
+    elif root not in claimed and root not in RESERVED_CONTROL_KEYS:
         chosen = root
     else:
         chosen = positional
@@ -65,7 +69,7 @@ def _options(ax, series, key, kwargs, *, resolve=None):
     resolve = resolve or resolve_colormap
     key, legacy = control_key(ax, series, key)
     controls = params().get('__fluxplot__') or {}
-    overrides = controls.get(key)
+    overrides = controls.get(key) if key not in RESERVED_CONTROL_KEYS else None
     if overrides is None and legacy != key:
         overrides = controls.get(legacy)
     overrides = dict(overrides or {})

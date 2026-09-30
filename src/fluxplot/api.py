@@ -510,13 +510,17 @@ def significance_bracket(ax, *, x0, x1, y, label, between=None, p=None, name=Non
             ytop = y + (hi - lo) * 0.03
     else:
         ytop = y + height
-    if color is None:
+    themed = color is None
+    if themed:
         color = matplotlib.rcParams["text.color"]
     (br,) = ax.plot([x0, x0, x1, x1], [y, ytop, ytop, y], color=color,
                     linewidth=kw.pop("linewidth", 1.0), **kw)
     txt = ax.text((x0 + x1) / 2.0, ytop, label, ha="center", va="bottom", color=color,
                   **(text_kw or {}))
     data = {"label": label, "index": idx, "label_artist": txt}
+    if themed:  # drawn in the theme's ink: say so outright (B1), no colour comparison needed
+        data["ink"] = {"stroke": "ink"}
+        data["ink_label"] = {"fill": "ink"}
     if between is not None:
         data["between"] = list(between)
     if p is not None:
@@ -658,6 +662,7 @@ def _save(
     force_vectors=False,
     raster_threshold=None,
     raster_dpi=None,
+    theme_vars=False,
     _now=None,
     _registry=None,
 ) -> SaveResult:
@@ -693,6 +698,16 @@ def _save(
     safety default, because that is matplotlib's silent factory setting rather than a
     considered choice. Under ``force_vectors`` the heavy layers are still reported, as a
     warning naming them and their node cost.
+
+    **Themes.** The manifest records ``style = {"theme", "tokens"}`` — the scaffold colours in
+    force at save (ink, label, tick, axis, grid, plot, paper) and the ``fx.use_*`` theme they
+    came from — and every scaffold element painted with one of them carries ``data-ink-fill`` /
+    ``data-ink-stroke`` naming the token, so a consumer can restyle the furniture to its own
+    theme without touching a data colour. ``theme_vars=True`` additionally rewrites those paints
+    to ``var(--fx-<token>, <hex>)``, which a CSS-aware host can drive directly (off by default:
+    the fallback form is honoured by browsers and rsvg, still to be checked in Illustrator /
+    Inkscape). A rerun with ``FLUX_PARAMS={"__fluxplot__": {"theme": "dark"}}`` makes every
+    ``fx.use_*`` call apply that theme instead.
 
     **Targeted reruns** (``FLUXPLOT_ONLY``): a figure-level script that saves
     several plots can be re-run for ONE of them — set ``FLUXPLOT_ONLY`` to a
@@ -776,9 +791,11 @@ def _save(
     # 5. inject data-* + canonicalize
     plot_type = _infer_plot_type(reg)
     extra_scales = [sc for local in scales_by_panel for sc in local]
+    from . import style as _style
+    style_record = _style.theme_record()
     out_svg, post_warnings, present = _postprocess.postprocess(
         svg_bytes, reg, guides, plot_type, raster_items=raster_items, check_ids=validate,
-        extra_scales=extra_scales,
+        extra_scales=extra_scales, style_tokens=style_record["tokens"], theme_vars=theme_vars,
     )
     rendered_heavy = [it for it in heavy if it.gid in present]
     if rendered_heavy:
@@ -796,7 +813,7 @@ def _save(
     rasterized_gids = {it.gid for it in raster_items if it.gid and it.gid in present}
     man = _panels.manifest(
         fig, reg, kept_guides, panels, axes_capture, present, rasterized_gids,
-        extra_scales_by_panel=scales_by_panel,
+        extra_scales_by_panel=scales_by_panel, style=style_record,
         plot_type=plot_type, svg_filename=svg_filename, spec_version=SPEC_VERSION,
         fluxplot_version=__version__, mpl_version=matplotlib.__version__,
         svg_sha256=hashlib.sha256(out_svg).hexdigest(),
@@ -811,6 +828,8 @@ def _save(
     from .colorscale import controls_state
     controls = {m.data['field']['controlKey']: controls_state(m.data['field'])
                 for m in reg.marks if m.data.get('field')}
+    if style_record["theme"] is not None:  # the theme is a recipe control too (__fluxplot__.theme)
+        controls["theme"] = style_record["theme"]
     if controls:
         rec['params'] = {**rec['params'], '__fluxplot__': controls}
     if validate:
@@ -845,7 +864,7 @@ def _save(
 
 
 def save(fig, path, *, recipe=None, validate=True, force_vectors=False,
-         raster_threshold=None, raster_dpi=None, _now=None) -> SaveResult:
+         raster_threshold=None, raster_dpi=None, theme_vars=False, _now=None) -> SaveResult:
     from .scene3d import Scene3D
     if isinstance(fig, Scene3D):
         from .scene3d_manifest import save_scene3d
@@ -866,7 +885,7 @@ def save(fig, path, *, recipe=None, validate=True, force_vectors=False,
     reg = _tagger.snapshot(fig)
     with _tagger.temporary_gids(fig, reg), _render.final_layout(fig):
         return _save(fig, path, recipe=recipe, validate=validate, force_vectors=force_vectors,
-                     raster_threshold=raster_threshold, raster_dpi=raster_dpi,
+                     raster_threshold=raster_threshold, raster_dpi=raster_dpi, theme_vars=theme_vars,
                      _now=_now, _registry=reg)
 
 

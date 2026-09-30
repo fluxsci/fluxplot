@@ -242,6 +242,64 @@
         "$ref": "#/definitions/colorScale"
       },
       "description": "Portable colour scales, one per colour-control key; see definitions/colorScale."
+    },
+    "style": {
+      "type": "object",
+      "required": [
+        "theme",
+        "tokens"
+      ],
+      "description": "The theme in force at save: its name (null once the rcParams were changed by hand) and the scaffold colours by token (ink, label, tick, axis, grid, plot, paper), which data-ink-fill / data-ink-stroke on scaffold elements refer to.",
+      "properties": {
+        "theme": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tokens": {
+          "type": "object",
+          "required": [
+            "ink",
+            "label",
+            "tick",
+            "axis",
+            "grid",
+            "plot",
+            "paper"
+          ],
+          "properties": {
+            "ink": {
+              "type": "string",
+              "pattern": "^#[0-9a-f]{6}([0-9a-f]{2})?$"
+            },
+            "label": {
+              "type": "string",
+              "pattern": "^#[0-9a-f]{6}([0-9a-f]{2})?$"
+            },
+            "tick": {
+              "type": "string",
+              "pattern": "^#[0-9a-f]{6}([0-9a-f]{2})?$"
+            },
+            "axis": {
+              "type": "string",
+              "pattern": "^#[0-9a-f]{6}([0-9a-f]{2})?$"
+            },
+            "grid": {
+              "type": "string",
+              "pattern": "^#[0-9a-f]{6}([0-9a-f]{2})?$"
+            },
+            "plot": {
+              "type": "string",
+              "pattern": "^#[0-9a-f]{6}([0-9a-f]{2})?$"
+            },
+            "paper": {
+              "type": "string",
+              "pattern": "^#[0-9a-f]{6}([0-9a-f]{2})?$"
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {

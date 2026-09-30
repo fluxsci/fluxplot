@@ -847,6 +847,22 @@ Every `fx.use_*` theme installs the house sequential map (`cmasher.rainforest`, 
 as matplotlib's default `image.cmap`, so a heatmap without `cmap=` is in the house style;
 `fx.DEFAULT_DIVERGING` names the diverging default.
 
+### Themes a consumer can follow
+
+The manifest records the theme in force at save — `style = {"theme": "light" | "dark" | …, "tokens":
+{"ink", "label", "tick", "axis", "grid", "plot", "paper"}}`, the scaffold colours by role as
+lowercase hex (`theme` is `null` once an rcParam was changed by hand) — and every scaffold element
+painted with one of them carries `data-ink-fill` / `data-ink-stroke` naming the token: tick labels
+and titles `ink`, axis titles `label`, ticks `tick`, spines `axis`, gridlines `grid`, the axes and
+figure backgrounds (`axes.background`, `figure.background`, now parts of their own) `plot` and
+`paper`. Overlays a helper drew in the theme's ink (the significance bracket) say so outright.
+Data colours are never tagged, so Flux can restyle a light plot's furniture onto a dark deck and
+leave the science alone. `fp.save(..., theme_vars=True)` additionally rewrites those paints to
+`var(--fx-<token>, <hex>)` for a CSS-aware host (off by default until checked in Illustrator and
+Inkscape; browsers and rsvg honour the fallback). A rerun with
+`FLUX_PARAMS={"__fluxplot__": {"theme": "dark"}}` makes every `fx.use_*` call apply that theme,
+and the recipe records the theme in force under `__fluxplot__.theme`.
+
 ### Colour controls in the recipe
 
 Every colour scale is a recipe control: `fp.save` writes its complete state under

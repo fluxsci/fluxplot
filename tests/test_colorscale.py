@@ -119,7 +119,8 @@ def test_control_key_does_not_depend_on_axes_order(tmp_path):
     _res, man_b, rec_b = _save(fig, tmp_path, "b")
     assert man_a["series"][0]["field"]["controlKey"] == "m"
     assert next(s for s in man_b["series"] if s["name"] == "m")["field"]["controlKey"] == "m"
-    assert set(rec_a["params"]["__fluxplot__"]) == set(rec_b["params"]["__fluxplot__"]) == {"m"}
+    scales = lambda rec: set(rec["params"]["__fluxplot__"]) - {"theme"}  # noqa: E731  (the theme rides beside)
+    assert scales(rec_a) == scales(rec_b) == {"m"}
 
 
 def test_same_series_name_twice_gets_distinct_keys(tmp_path):
@@ -129,7 +130,7 @@ def test_same_series_name_twice_gets_distinct_keys(tmp_path):
     _res, man, rec = _save(fig, tmp_path)
     keys = [s["field"]["controlKey"] for s in man["series"]]
     assert keys == ["m", "axes.2.m"]
-    assert set(rec["params"]["__fluxplot__"]) == {"m", "axes.2.m"}
+    assert set(rec["params"]["__fluxplot__"]) - {"theme"} == {"m", "axes.2.m"}
     fig, (a, b) = plt.subplots(1, 2)
     fp.panel(b, "right")
     fp.heatmap(a, M, series="m")

@@ -50,6 +50,7 @@ def build_manifest(
     svg_sha256: str | None = None,
     rasterized: set | None = None,
     extra_scales=(),
+    style: dict | None = None,
 ) -> dict:
     vbw, vbh = svg_viewbox(fig)
     # gids rendered as a single embedded <image> instead of vector primitives (raster.py).
@@ -221,7 +222,7 @@ def build_manifest(
         series_kinds[entry["id"]] = kinds
 
     # organize the scaffold guides per axis (+ legend entries + titles + swept text/artists)
-    axes_parts, legend_entries, figure_titles, scaffold_annotations, extras = _organize_guides(guides)
+    axes_parts, legend_entries, figure_titles, scaffold_annotations, extras, backgrounds = _organize_guides(guides)
 
     # guides → manifest guides (axis refs + legend with per-entry svg ids)
     guide_entries = []
@@ -345,7 +346,7 @@ def build_manifest(
 
     parts = _build_parts_tree(
         series_entries, axes_parts, legend_entries, figure_titles, overlay_entries,
-        legend_present, extra_entries, series_kinds,
+        legend_present, extra_entries, series_kinds, backgrounds,
     )
     for guide in guide_entries:
         if guide['role'] == 'colorbar':
@@ -384,6 +385,8 @@ def build_manifest(
     }
     if scales:
         out["colorScales"] = list(scales.values())
+    if style is not None:
+        out["style"] = style
     if svg_sha256 is not None:
         # checksum of the FINAL postprocessed SVG bytes: deterministic (the SVG is
         # byte-stable) and acyclic (the SVG does not contain the manifest). Consumers use it
@@ -399,8 +402,11 @@ def _organize_guides(guides):
     figure_titles: list = []  # left/center/right + suptitle can coexist (no last-wins)
     annotations: list = []  # swept free text → addressable annotation overlays
     extras: list = []  # swept untagged artists → addressable "extra" content
+    backgrounds: dict = {}  # "axes" / "figure" / "legend" → the background patch's gid
     for g in guides:
-        if g.role == "axis":
+        if g.role == "background" and g.axis is None:
+            backgrounds[g.text] = g.gid
+        elif g.role == "axis":
             axes.setdefault(g.axis, {})["gid"] = g.gid
         elif g.role == "axis-title":
             axes.setdefault(g.axis, {})["title"] = g.gid
@@ -423,7 +429,7 @@ def _organize_guides(guides):
             annotations.append({"id": g.gid, "text": g.text})
         elif g.role == "extra":
             extras.append({"id": g.gid, "kind": g.kind})
-    return axes, legend_entries, figure_titles, annotations, extras
+    return axes, legend_entries, figure_titles, annotations, extras, backgrounds
 
 
 def _group(gid: str, group_role: str, members: list) -> dict:
@@ -454,10 +460,13 @@ def _ref(gid: str, kind=None, role=None) -> dict:
 
 def _build_parts_tree(
     series_entries, axes_parts, legend_entries, figure_titles, overlay_entries, legend_present,
-    extra_entries=(), series_kinds=None,
+    extra_entries=(), series_kinds=None, backgrounds=None,
 ) -> dict:
     series_kinds = series_kinds or {}
+    backgrounds = backgrounds or {}
     plot_children = []
+    if backgrounds.get("axes"):  # the ground comes first, as it is drawn
+        plot_children.append(_ref(backgrounds["axes"], _roles.kind_for_role("background"), "background"))
 
     # axes → real <g id="axis.x"> nodes, each with spine + grouped ticks/labels/gridlines + title
     for which in ("x", "y", "z"):
@@ -524,11 +533,16 @@ def _build_parts_tree(
     if extra_entries:
         plot_children.append(_group("extras", "extra", [e["svgId"] for e in extra_entries]))
 
-    figure_children = [
+    figure_children = []
+    if backgrounds.get("figure"):
+        figure_children.append(_ref(backgrounds["figure"], _roles.kind_for_role("background"), "background"))
+    figure_children.append(
         {"id": "plot-area", "role": "plot-area", "kind": "container", "children": plot_children}
-    ]
+    )
     if legend_present:
         leg_kids = []
+        if backgrounds.get("legend"):
+            leg_kids.append(_ref(backgrounds["legend"], _roles.kind_for_role("background"), "background"))
         for k in sorted(legend_entries):
             ent = legend_entries[k]
             ek = []

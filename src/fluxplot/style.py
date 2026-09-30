@@ -61,6 +61,11 @@ __all__ = [
     "use_light",
     "use_lighttable",
     "use_paper",
+    "ACTIVE",
+    "THEMES",
+    "TOKEN_RCPARAMS",
+    "current_tokens",
+    "theme_record",
 ]
 
 # ---------------------------------------------------------------------------
@@ -285,17 +290,82 @@ def _exploratory_rc(ink, muted, grid, paper, serif):
     }
 
 
+# ---------------------------------------------------------------------------
+# The theme record. Every use_* leaves ACTIVE = {"name", "tokens"} behind: the scaffold colours
+# it set, by their role — what fp.save writes as manifest.style and what postprocess tags each
+# scaffold element with (data-ink-fill / data-ink-stroke), so a consumer can restyle a plot's
+# furniture to its own theme (a dark deck) without touching a single data colour.
+# ---------------------------------------------------------------------------
+#: rcParam → token name, in the order ambiguities are resolved (ink first).
+TOKEN_RCPARAMS = (
+    ("ink", "text.color"),
+    ("label", "axes.labelcolor"),
+    ("tick", "xtick.color"),
+    ("axis", "axes.edgecolor"),
+    ("grid", "grid.color"),
+    ("plot", "axes.facecolor"),
+    ("paper", "figure.facecolor"),
+)
+THEMES = ("light", "lighttable", "paper", "dark")
+
+#: The theme in force: ``{"name": "light", "tokens": {"ink": "#100f0f", …}}`` after a use_*.
+ACTIVE: dict | None = None
+
+
+def current_tokens() -> dict:
+    """The scaffold colours matplotlib will draw with right now, by token, as lowercase hex."""
+    from matplotlib.colors import to_hex
+    return {token: to_hex(mpl.rcParams[key]).lower() for token, key in TOKEN_RCPARAMS}
+
+
+def theme_record() -> dict:
+    """``manifest.style``: the tokens as they are at save, and the theme's name when the
+    rcParams still match what that theme set (``None`` once they were changed by hand)."""
+    tokens = current_tokens()
+    name = ACTIVE["name"] if ACTIVE is not None and ACTIVE["tokens"] == tokens else None
+    return {"theme": name, "tokens": tokens}
+
+
+def _record(name: str) -> None:
+    global ACTIVE
+    ACTIVE = {"name": name, "tokens": current_tokens()}
+
+
+def _theme_override() -> str | None:
+    """``recipe.params().__fluxplot__.theme`` — the theme Flux asked a rerun to use instead."""
+    from .recipe import params
+    theme = (params().get("__fluxplot__") or {}).get("theme")
+    if theme is None:
+        return None
+    if theme not in THEMES:
+        raise ValueError(f"__fluxplot__.theme must be one of {', '.join(THEMES)}; got {theme!r}")
+    return theme
+
+
+def _redirected(this: str, serif: bool, grid: bool) -> bool:
+    """Apply the recipe's theme override instead of ``this`` theme; True when it did."""
+    wanted = _theme_override()
+    if wanted is None or wanted == this:
+        return False
+    globals()["use_" + wanted](serif=serif, grid=grid, _override=False)
+    return True
+
+
 def use_light(
     ink: str = FLEXOKI["black"],
     muted: str = FLEXOKI["base700"],
     grid: bool = False,
     paper: str = "#FFFFFF",  # default needs to be pure white to comply with journals...
     serif: bool = False,
+    _override: bool = True,
 ) -> None:
     """Apply the paper-background theme (the default look). Call before creating figures."""
+    if _override and _redirected("light", serif, grid):
+        return
     mpl.rcParams.update(_base_rc(ink, muted, grid, paper, serif))
     mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_LIGHT)
     mpl.rcParams["image.cmap"] = SEQUENTIAL.name
+    _record("light")
 
 
 def use_lighttable(
@@ -304,11 +374,15 @@ def use_lighttable(
     grid: bool = False,
     paper: str = "#FFFFFF",  # default needs to be pure white to comply with journals...
     serif: bool = False,
+    _override: bool = True,
 ) -> None:
-    """Apply the paper-background theme (the default look). Call before creating figures."""
+    """Apply the exploratory theme: the light look at screen sizes (12 pt type)."""
+    if _override and _redirected("lighttable", serif, grid):
+        return
     mpl.rcParams.update(_exploratory_rc(ink, muted, grid, paper, serif))
     mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_LIGHT)
     mpl.rcParams["image.cmap"] = SEQUENTIAL.name
+    _record("lighttable")
 
 
 def use_paper(
@@ -317,15 +391,21 @@ def use_paper(
     grid: bool = True,
     paper: str = FLEXOKI["paper"],
     serif: bool = False,
+    _override: bool = True,
 ) -> None:
-    """Apply the paper-background theme (the default look). Call before creating figures."""
+    """Apply the warm Flexoki-paper theme (a gridded, cream ground)."""
+    if _override and _redirected("paper", serif, grid):
+        return
     mpl.rcParams.update(_base_rc(ink, muted, grid, paper, serif))
     mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_LIGHT)
     mpl.rcParams["image.cmap"] = SEQUENTIAL.name
+    _record("paper")
 
 
-def use_dark(serif: bool = False, grid: bool = False, bg: str = "#1C1B1A") -> None:
+def use_dark(serif: bool = False, grid: bool = False, bg: str = "#1C1B1A", _override: bool = True) -> None:
     """Apply the dark theme — for cosmic / nocturnal plots (star maps, attractors)."""
+    if _override and _redirected("dark", serif, grid):
+        return
     ink, muted = FLEXOKI["base200"], FLEXOKI["base500"]
     rc = _base_rc(ink, muted, grid, bg, serif)
     rc.update(
@@ -339,6 +419,7 @@ def use_dark(serif: bool = False, grid: bool = False, bg: str = "#1C1B1A") -> No
     mpl.rcParams.update(rc)
     mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=CYCLE_DARK)
     mpl.rcParams["image.cmap"] = SEQUENTIAL.name
+    _record("dark")
 
 
 # ---------------------------------------------------------------------------

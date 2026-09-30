@@ -261,11 +261,29 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
         sp.set_gid(g)
         guides.append(GuideTag(gid=g, role="spine", axis=which, text=side))
 
+    # the grounds: the axes' and the figure's background patches (and a framed legend's box) are
+    # parts too — the paints a theme swaps first. The figure patch is shared by every panel; the
+    # get_gid() guard tags it once.
+    if ax.patch is not None and ax.patch.get_visible():
+        g = alloc.take("axes.background")
+        ax.patch.set_gid(g)
+        guides.append(GuideTag(gid=g, role="background", text="axes"))
+    fig_patch = getattr(ax.figure, "patch", None)
+    if fig_patch is not None and fig_patch.get_visible() and not fig_patch.get_gid():
+        g = alloc.take("figure.background")
+        fig_patch.set_gid(g)
+        guides.append(GuideTag(gid=g, role="background", text="figure"))
+
     legend = ax.get_legend()
     if legend is not None:
         g = alloc.take("legend")
         legend.set_gid(g)
         guides.append(GuideTag(gid=g, role="legend"))
+        frame = legend.legendPatch
+        if legend.get_frame_on() and frame is not None and frame.get_visible():
+            fg = alloc.take("legend.background")
+            frame.set_gid(fg)
+            guides.append(GuideTag(gid=fg, role="background", text="legend"))
         # per-entry swatch + label (entry k ↔ the k-th labeled series, in order)
         for k, txt in enumerate(legend.get_texts()):
             lg = alloc.take(_ids.join("legend", "entry", k, "label"))
