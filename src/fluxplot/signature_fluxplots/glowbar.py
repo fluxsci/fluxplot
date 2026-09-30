@@ -60,7 +60,6 @@ from .. import ids as _ids
 from .. import tagger as _tagger
 from ..descriptors import Mark
 from . import _colour
-from ._colour import darken as _darken
 from ._colour import even_shades, interleaved_order
 from ._colour import perceptual as _perceptual  # noqa: F401  (re-exported for tests / callers)
 

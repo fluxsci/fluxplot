@@ -38,7 +38,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from copy import copy
 
 import numpy as np
 from matplotlib import colors as mcolors

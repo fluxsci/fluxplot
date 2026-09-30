@@ -61,7 +61,6 @@ from ..descriptors import Mark
 from ._colour import median_ink as _median_ink
 from .glowbar import (
     _SIDES,
-    CONNECT_GREY,
     _cut_colour,
     _draw_units,
     _finish,

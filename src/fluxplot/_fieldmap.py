@@ -56,7 +56,6 @@ def categorical_colors(names,palette=None,categories=None):
 
 def continuous_mapping(finite,cmap=None,color_range=None,percentile=None):
     """Return the shared matplotlib colormap and Normalize, including all-missing fallback."""
-    import matplotlib as mpl
     if finite.size==0 and color_range is None: lo,hi=0.,1.
     else: lo,hi=_resolve_range(finite,color_range,percentile)
     if not np.isfinite([lo,hi]).all() or lo>hi: raise ValueError('color_range must be finite and nondecreasing')

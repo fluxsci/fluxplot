@@ -185,7 +185,7 @@ def _face_labels(values, faces):
     return out
 
 
-from ._fieldmap import _normalise_missing, _resolve_range, categorical_colors, category_name, continuous_mapping
+from ._fieldmap import _normalise_missing, categorical_colors, category_name, continuous_mapping
 
 
 def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palette=None,
@@ -247,7 +247,7 @@ def surface(ax, values, *, series, surfaces, kind="auto", categories=None, palet
     Returns the list of matplotlib collections drawn (in draw order).
     """
     from matplotlib.collections import PolyCollection
-    from matplotlib.colors import Normalize, to_hex, to_rgba
+    from matplotlib.colors import to_rgba
 
     from . import tagger as _tagger
     from .descriptors import Mark

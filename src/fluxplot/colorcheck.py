@@ -17,7 +17,7 @@ findings in ``SaveResult.warnings`` and in the manifest's ``quality.color``.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Iterable, List, Optional
+from typing import List, Optional
 
 import numpy as np
 
