@@ -336,7 +336,8 @@ Two styles, both pure matplotlib underneath — you can mix them freely with raw
 fp.line(ax, x, y, *, series, marker=None, label=None, **mpl_kwargs)
 fp.scatter(ax, x, y, *, series, label=None, key=None, **mpl_kwargs)   # c=values → a colour scale
 fp.bar(ax, x, height, *, series, **mpl_kwargs)
-fp.errorbar(ax, x, y, *, series, yerr=None, **mpl_kwargs)
+fp.errorbar(ax, x, y, *, series, yerr=None, xerr=None, **mpl_kwargs)    # <s>.line, <s>.point.k, <s>.cap, <s>.errorbar
+fp.legend(ax, handles=None, labels=None, **mpl_kwargs)               # keeps entry → artist for the manifest
 fp.area(ax, x, y1, y2=0, *, series, **mpl_kwargs)                    # manifest band = {x, y1, y2}
 fp.image(ax, data, *, series, pixel_size=None, units="µm", channels=None, luts=None, display_range=None, ...)
 fp.scalebar(ax, length, units="µm", *, loc="lower right", label=None, color=None, thickness=2.0, pad=0.4)
@@ -368,6 +369,14 @@ LUTs, display ranges, pixel size, units, extent and composite. `fp.scalebar` is 
 extent is exactly `length` data units, anchored in a corner (`loc`), with its label
 (`"<length> <units>"`) as `scalebar.<n>.label`; it takes the theme's ink. `examples/image_example.py`
 draws a two-channel field.
+
+`fp.errorbar` names every part of the composite: the data line (when the format draws one), the
+markers as a per-point group, the caps and the bars, all under one series; `uncertainty` records
+`xerr` / `yerr` broadcast to the N points with `errShape` (`scalar` / `symmetric` / `asymmetric`).
+Legend entries join their series by the **artist** each entry stands for (`fp.legend` keeps the
+mapping for hand-picked handles; `ax.legend()`'s own order is recovered at save), so two series
+labelled alike still resolve, and no entry ever claims a series by text alone when the artists say
+otherwise.
 
 `fp.band` is the uncertainty band of a line: registered under the **same series** (so `ctl.band`
 sits beside `ctl.line`), in the line's colour at `alpha=0.25`, with `band = {x, lo, hi, what}` in

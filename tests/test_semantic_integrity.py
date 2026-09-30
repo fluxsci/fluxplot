@@ -175,17 +175,21 @@ def test_errorbar_members_grouped(tmp_path):
     man, ids = _assert_integrity(res)
 
     s = next(e for e in man["series"] if e["id"] == "viability")
-    members = s["svg"].get("errorbars")
+    # the bars are svg.errorbars, the caps svg.caps (C9): every sibling is first-class
+    members = s["svg"].get("errorbars", []) + s["svg"].get("caps", [])
     assert members and len(members) >= 2, "expected the composite's sibling gids"
-    assert s["svg"]["errorbar"] in members, "the primary ref is one of the members"
+    assert s["svg"]["errorbar"] in s["svg"]["errorbars"], "the primary ref is one of the members"
+    assert s["svg"]["caps"] == ["viability.cap", "viability.cap.1"]
     assert all(m in ids for m in members)
 
     parts = _parts_by_key(man)
     grp = parts.get("viability.errorbars")
     assert grp is not None, "per-series errorbars group node missing from the parts tree"
     assert grp["role"] == "group" and grp["groupRole"] == "errorbar"
-    assert grp["members"] == members
+    assert grp["members"] == s["svg"]["errorbars"]
     assert grp.get("kind") == "line"
+    caps = parts.get("viability.caps")
+    assert caps is not None and caps["members"] == s["svg"]["caps"]
     # the old lone {"ref": errorbar} sibling must not duplicate the group's coverage
     assert s["svg"]["errorbar"] not in parts or parts[s["svg"]["errorbar"]] is grp or \
         "ref" not in parts.get(s["svg"]["errorbar"], {}), "duplicate errorbar ref in tree"

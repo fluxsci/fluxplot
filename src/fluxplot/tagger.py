@@ -296,16 +296,19 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
             fg = alloc.take("legend.background")
             frame.set_gid(fg)
             guides.append(GuideTag(gid=fg, role="background", text="legend"))
-        # per-entry swatch + label (entry k ↔ the k-th labeled series, in order)
+        # per-entry swatch + label, each knowing the artist it stands for (legend_sources): the
+        # manifest joins entry ↔ series on that artist, not on the label text
+        sources = legend_sources(legend, [ax])
         for k, txt in enumerate(legend.get_texts()):
             lg = alloc.take(_ids.join("legend", "entry", k, "label"))
             txt.set_gid(lg)
-            guides.append(GuideTag(gid=lg, role="legend-label", index=k, text=txt.get_text()))
+            guides.append(GuideTag(gid=lg, role="legend-label", index=k, text=txt.get_text(),
+                                   data={"_source": sources.get(k)}))
         for k, h in enumerate(getattr(legend, "legend_handles", None) or []):
             try:
                 sg = alloc.take(_ids.join("legend", "entry", k, "swatch"))
                 h.set_gid(sg)
-                guides.append(GuideTag(gid=sg, role="legend-swatch", index=k))
+                guides.append(GuideTag(gid=sg, role="legend-swatch", index=k, data={"_source": sources.get(k)}))
             except Exception as exc:  # a handle that is no Artist: said, not swallowed
                 registry_for(ax.figure).warnings.append(
                     f"legend entry {k}: swatch {type(h).__name__} could not be tagged ({exc})")
@@ -351,6 +354,29 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator") -> list[GuideTag]:
     _sweep_extra(ax, alloc, guides)
 
     return guides
+
+
+def legend_sources(legend, axes) -> dict:
+    """``{entry index: source artist}`` for a legend: the artists its entries stand for.
+
+    ``fp.legend(ax, handles, labels)`` records the handles it was given. A legend made with
+    ``ax.legend()`` lists the axes' labelled artists in matplotlib's own order, so when the
+    legend's texts still equal those labels one for one, that order is the mapping. Anything else
+    (hand-picked handles through raw ``ax.legend(...)``, texts edited afterwards) yields nothing
+    rather than a guess.
+    """
+    texts = [t.get_text() for t in legend.get_texts()]
+    explicit = getattr(legend, "_fluxplot_handles", None)
+    if explicit is not None:
+        return {k: h for k, h in enumerate(explicit) if k < len(texts)}
+    handles, labels = [], []
+    for ax in axes:
+        h, lbl = ax.get_legend_handles_labels()
+        handles += h
+        labels += lbl
+    if handles and labels == texts:
+        return dict(enumerate(handles))
+    return {}
 
 
 def _sweep_extra(ax, alloc: "_ids.IdAllocator", guides: list) -> None:

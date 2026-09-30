@@ -1464,8 +1464,21 @@
                 "array",
                 "null"
               ]
+            },
+            "errShape": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "scalar",
+                "symmetric",
+                "asymmetric",
+                null
+              ]
             }
-          }
+          },
+          "description": "An errorbar's errors broadcast to the N points: xerr / yerr are N values, or [lower, upper] (each N) when errShape is asymmetric."
         },
         "distribution": {
           "$ref": "#/definitions/distribution"

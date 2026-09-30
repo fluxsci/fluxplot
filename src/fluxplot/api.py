@@ -164,17 +164,82 @@ def barh(ax, y, width, *, series, label=None, **kw):
     return container
 
 
-def errorbar(ax, x, y, *, series, yerr=None, label=None, **kw):
+def _err_payload(err, n):
+    """An errorbar's ``xerr`` / ``yerr`` broadcast to the N points, and its shape: ``scalar``
+    (one value for all), ``symmetric`` (one per point) or ``asymmetric`` (``[lower, upper]``)."""
+    if err is None:
+        return None, None
+    arr = np.asarray(err, dtype=float)
+    if arr.ndim == 0:
+        return [float(arr)] * n, "scalar"
+    if arr.ndim == 1:
+        return _data.values(np.broadcast_to(arr, (n,))), "symmetric"
+    if arr.ndim == 2 and arr.shape[0] == 2:
+        return [_data.values(np.broadcast_to(arr[0], (n,))), _data.values(np.broadcast_to(arr[1], (n,)))], "asymmetric"
+    raise ValueError(f"errorbar: an error array must be a scalar, N values or a (2, N) array; got shape {arr.shape}")
+
+
+def errorbar(ax, x, y, *, series, yerr=None, xerr=None, label=None, **kw):
+    """Points with error bars, each part addressable: the data line (``<series>.line``, when the
+    format draws one), the markers (``<series>.point.k``, when a marker is set), the caps
+    (``<series>.cap``, …) and the bars (``<series>.errorbar``, …). ``uncertainty`` records
+    ``xerr`` / ``yerr`` broadcast to the N points with ``errShape`` (scalar / symmetric /
+    asymmetric)."""
+    from matplotlib.lines import Line2D
     reg = _tagger.registry_for(ax.figure)
     _series_color(series, kw, auto=False)
-    container = ax.errorbar(x, y, yerr=yerr, label=label, **kw)
+    container = ax.errorbar(x, y, yerr=yerr, xerr=xerr, label=label, **kw)
     data_line, caps, barlinecols = container
-    # Tag the WHOLE container: the central marker/data line + the cap lines + the
-    # error bars. Previously only barlinecols was kept, so the central line and the
-    # caps escaped the scene graph entirely.
-    artists = ([data_line] if data_line is not None else []) + list(caps) + list(barlinecols)
-    reg.add(Mark(role="errorbar", series=series, kind="errorbar", x=_data.converted(ax, x, y)[0], y=_data.converted(ax, x, y)[1], live_data=data_line is not None, label=label, artists=artists, data={"uncertainty": {"xerr": _list(kw.get("xerr")), "yerr": _list(yerr)}}))
+    xs, ys = _data.converted(ax, x, y)
+    n = len(xs)
+    yv, shape = _err_payload(yerr, n)
+    xv, xshape = _err_payload(xerr, n)
+    uncertainty = {"xerr": xv, "yerr": yv, "errShape": shape or xshape}
+    # the bars carry the series' data (compat: svg.errorbar keeps pointing at them)
+    reg.add(Mark(role="errorbar", series=series, kind="errorbar", x=xs, y=ys, label=label,
+                 artists=list(barlinecols), data={"uncertainty": uncertainty}))
+    if caps:
+        reg.add(Mark(role="cap", series=series, kind="errorbar", artists=list(caps)))
+    if data_line is not None:
+        has_line = str(data_line.get_linestyle()).lower() not in ("none", "", " ")
+        has_marker = str(data_line.get_marker()).lower() not in ("none", "", " ")
+        if has_marker:
+            # markers on their own Line2D (as fp.line does) so each is a <use> with a point id;
+            # the data line keeps its stroke and loses the marker
+            pts = Line2D([], [])
+            pts.update_from(data_line)
+            pts.set_zorder(data_line.get_zorder())
+            pts.set_data(data_line.get_xdata(orig=False), data_line.get_ydata(orig=False))
+            pts.set_linestyle("none")
+            pts.set_label("_nolegend_")
+            ax.add_line(pts)
+            reg.add(Mark(role="point", series=series, kind="errorbar", live_data=True, x=None, y=None,
+                         artists=[pts], indexed=True))
+            if has_line:
+                data_line.set_marker("none")
+        if has_line:
+            reg.add(Mark(role="line", series=series, kind="errorbar", live_data=True, x=None, y=None,
+                         artists=[data_line]))
+        elif has_marker:
+            data_line.set_visible(False)  # the copy draws the markers; nothing is drawn twice
     return container
+
+
+def legend(ax, handles=None, labels=None, **kw):
+    """``ax.legend`` with the entry → artist mapping kept, so the manifest can say which series
+    each legend entry names even when the handles were chosen by hand
+    (``fp.legend(ax, [ln], ["Control"])``). Without ``handles`` the axes' own labelled artists
+    are used, in matplotlib's order, and the mapping is recovered from them at save."""
+    if handles is None and labels is None:
+        leg = ax.legend(**kw)
+    elif handles is None:
+        leg = ax.legend(labels, **kw)
+    elif labels is None:
+        leg = ax.legend(handles=handles, **kw)
+    else:
+        leg = ax.legend(handles, labels, **kw)
+    leg._fluxplot_handles = list(handles) if handles is not None else None
+    return leg
 
 
 def _broadcast(v, n):

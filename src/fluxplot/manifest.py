@@ -257,6 +257,16 @@ def build_manifest(
             for prt in (s.get("surface") or {}).get("parts", []):
                 if prt.get("part") and prt.get("ref"):
                     by_part.setdefault(prt["part"], []).append((s["id"], prt["ref"]))
+        # the authoritative join: the artist the entry stands for (tagger.legend_sources) is one
+        # of a series' artists (or one of a container's children)
+        def series_of_artist(src):
+            children = list(getattr(src, "get_children", lambda: [])()) if src is not None else []
+            for series, marks in by_series.items():
+                for m in marks:
+                    if any(a is src or any(a is c for c in children) for a in m.artists):
+                        return _ids.series_root(series)
+            return None
+
         entries = []
         for k in sorted(legend_entries):
             ent = legend_entries[k]
@@ -267,6 +277,10 @@ def build_manifest(
             part_matches = by_part.get(ent.get("text"), [])
             if len(part_matches) == 1:
                 e["series"], e["part"] = part_matches[0]
+            joined = series_of_artist(ent.get("source"))
+            if joined is not None and any(s["id"] == joined for s in series_entries):
+                e["series"] = joined
+                e.pop("part", None) if by_part.get(ent.get("text")) is None else None
             if ent.get("text"):
                 e["text"] = ent["text"]
             if ent.get("swatch"):
@@ -451,9 +465,13 @@ def _organize_guides(guides):
             axes.setdefault(g.axis, {}).setdefault("spines", []).append(g.gid)
         elif g.role == "legend-swatch":
             legend_entries.setdefault(g.index, {})["swatch"] = g.gid
+            if g.data.get("_source") is not None:
+                legend_entries[g.index]["source"] = g.data["_source"]
         elif g.role == "legend-label":
             legend_entries.setdefault(g.index, {})["label"] = g.gid
             legend_entries[g.index]["text"] = g.text
+            if g.data.get("_source") is not None:
+                legend_entries[g.index]["source"] = g.data["_source"]
         elif g.role == "title":
             figure_titles.append(g.gid)
         elif g.role == "annotation":

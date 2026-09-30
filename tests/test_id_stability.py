@@ -78,7 +78,7 @@ def test_legend_entry_without_matching_series_omits_linkage(tmp_path):
     assert limit.get("swatch") or limit.get("label")
 
 
-def test_duplicate_labels_link_no_series(tmp_path):
+def test_duplicate_labels_link_by_artist_not_text(tmp_path):
     fig, ax = plt.subplots()
     fp.line(ax, [0, 1], [0, 1], series="run-1", label="Same")
     fp.line(ax, [0, 1], [1, 0], series="run-2", label="Same")
@@ -87,4 +87,15 @@ def test_duplicate_labels_link_no_series(tmp_path):
     plt.close(fig)
     man = json.load(open(res.manifest))
     legend = next(g for g in man["guides"] if g["role"] == "legend")
-    assert all("series" not in e for e in legend["entries"])  # ambiguous → no positional guess
+    # the text is ambiguous, but each entry stands for one artist (C10): that join is exact
+    assert [e["series"] for e in legend["entries"]] == ["run-1", "run-2"]
+    # a legend whose handles were hand-picked through raw ax.legend() with other texts claims nothing
+    fig, ax = plt.subplots()
+    a = fp.line(ax, [0, 1], [0, 1], series="run-1", label="Same")
+    b = fp.line(ax, [0, 1], [1, 0], series="run-2", label="Same")
+    ax.legend([b], ["Other"])
+    res = fp.save(fig, str(tmp_path / "e.svg"))
+    plt.close(fig)
+    man = json.load(open(res.manifest))
+    legend = next(g for g in man["guides"] if g["role"] == "legend")
+    assert all("series" not in e for e in legend["entries"])
