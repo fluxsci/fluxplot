@@ -114,6 +114,10 @@ KIND_BY_ROLE = {
     "background": "shape",
     "highlight-region": "shape",
     "legend-swatch": "shape",
+    # members of colour-mapped fields: a heatmap cell, a contour band / level path, a hexagon
+    "cell": "shape",
+    "contour-level": "shape",
+    "x-hex": "shape",
 }
 
 

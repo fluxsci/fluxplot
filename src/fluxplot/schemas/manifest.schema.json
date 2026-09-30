@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://flux.dev/schemas/fluxplot-manifest-0.3.0.json",
+  "$id": "https://flux.dev/schemas/fluxplot-manifest-0.3.1.json",
   "title": "FluxPlot manifest",
   "type": "object",
   "required": [
@@ -244,6 +244,10 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "memberRole": {
+                  "type": "string",
+                  "description": "Role of every id in members (cell, contour-level, x-hex, point)."
                 }
               }
             }
@@ -277,7 +281,49 @@
           }
         },
         "presets": {
-          "type": "object"
+          "type": "object",
+          "description": "Per-role build-animation hints, keyed by role (a consumer may override everything).",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "animation"
+            ],
+            "properties": {
+              "animation": {
+                "enum": [
+                  "draw-on",
+                  "fade-in",
+                  "stagger-in",
+                  "grow-from-baseline",
+                  "fade-rise",
+                  "write-on",
+                  "pop-in"
+                ]
+              },
+              "durationMs": {
+                "type": "number",
+                "minimum": 0
+              },
+              "delayMs": {
+                "type": "number",
+                "minimum": 0
+              },
+              "staggerMs": {
+                "type": "number",
+                "minimum": 0
+              },
+              "staggerBy": {
+                "enum": [
+                  "x",
+                  "y",
+                  "index",
+                  "value",
+                  "count",
+                  "category"
+                ]
+              }
+            }
+          }
         }
       }
     },

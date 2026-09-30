@@ -7,4 +7,7 @@ __version__ = "0.1.0"
 #         real axis.x/axis.y group wrappers, and group nodes (members[]) in the parts tree.
 # 0.3.0 — lossless observations/null gaps, panel ownership, explicit transform
 #         capabilities, component inventories and scalar-field/colorbar metadata.
-SPEC_VERSION = "0.3.0"
+# 0.3.1 — additive: every parts-tree leaf carries its role, groups their memberRole, series and
+#         legend entries a label; build presets use a closed animation vocabulary with stagger
+#         hints; colour-control keys name the series (legacy positional keys still honoured).
+SPEC_VERSION = "0.3.1"

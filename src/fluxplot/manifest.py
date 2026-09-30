@@ -88,10 +88,15 @@ def build_manifest(
         for m in marks:
             actual = [g for g in m.member_gids or ([m.gid] if m.gid else []) if _keep(g)]
             if m.data.get('field_members') and _keep(m.gid):
-                components.append({'role': m.role, 'svgId': m.gid,
+                # a field's members are cells / contour bands / hexagons: say which, so a
+                # consumer never has to guess a leaf's role from its id
+                member_role = m.data.get('field_member_role') or (
+                    'cell' if m.data.get('cells') else 'contour-level')
+                components.append({'role': m.role, 'svgId': m.gid, 'memberRole': member_role,
                                    'members': [g for g in m.data['field_members'] if _keep(g)]})
             elif m.role == "point" and _keep(m.gid):
-                components.append({"role": "point", "svgId": m.gid, "members": actual})
+                components.append({"role": "point", "svgId": m.gid, "memberRole": "point",
+                                   "members": actual})
             else:
                 components.extend({"role": m.role, "svgId": g} for g in actual)
             if not actual and not _keep(m.gid):
@@ -310,11 +315,12 @@ def build_manifest(
                 members = [p['svgId'] for p in guide.get('parts', []) if p['role'] == role]
                 if members:
                     children.append(_group(guide['id'] + '.' + suffix, group_role, members))
-            children.extend(_ref(p['svgId'], p.get('kind')) for p in guide.get('parts', [])
+            children.extend(_ref(p['svgId'], p.get('kind'), p['role']) for p in guide.get('parts', [])
                             if p['role'] not in grouped)
             parts['children'].append({'id': guide['id'], 'role': 'colorbar', 'kind': 'container',
                                       'children': children})
-    build = _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles, extra_entries)
+    build = _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles, extra_entries,
+                         guide_roles={g.role for g in guides})
 
     out = {
         "spec": "fluxplot/manifest",
@@ -380,18 +386,23 @@ def _group(gid: str, group_role: str, members: list) -> dict:
     """A manifest-only node grouping sibling leaves so a consumer can act on all at once.
 
     The node mirrors its members' data-kind (a group of tick labels edits like text, a
-    group of gridlines like a line) so consumers can pick property sets without the DOM.
+    group of gridlines like a line) so consumers can pick property sets without the DOM, and
+    names the members' role (``memberRole``) so each member leaf is classified without
+    parsing its id.
     """
-    node = {"id": gid, "role": "group", "groupRole": group_role, "members": list(members)}
+    node = {"id": gid, "role": "group", "groupRole": group_role, "memberRole": group_role,
+            "members": list(members)}
     k = _roles.kind_for_role(group_role)
     if k is not None:
         node["kind"] = k
     return node
 
 
-def _ref(gid: str, kind=None) -> dict:
-    """A leaf reference into the SVG, carrying the data-kind hint when known."""
+def _ref(gid: str, kind=None, role=None) -> dict:
+    """A leaf reference into the SVG, carrying its role and the data-kind hint when known."""
     node = {"ref": gid}
+    if role is not None:
+        node["role"] = role
     if kind is not None:
         node["kind"] = kind
     return node
@@ -411,7 +422,7 @@ def _build_parts_tree(
             continue
         kids = []
         for sp in ap.get("spines", []):
-            kids.append(_ref(sp, _roles.kind_for_role("spine")))
+            kids.append(_ref(sp, _roles.kind_for_role("spine"), "spine"))
         if ap.get("ticks"):
             kids.append(_group(f"axis.{which}.ticks", "tick", ap["ticks"]))
         if ap.get("ticklabels"):
@@ -419,7 +430,7 @@ def _build_parts_tree(
         if ap.get("gridlines"):
             kids.append(_group(f"axis.{which}.gridlines", "gridline", ap["gridlines"]))
         if ap.get("title"):
-            kids.append(_ref(ap["title"], _roles.kind_for_role("axis-title")))
+            kids.append(_ref(ap["title"], _roles.kind_for_role("axis-title"), "axis-title"))
         plot_children.append(
             {
                 "id": ap.get("gid", f"axis.{which}"),
@@ -444,17 +455,26 @@ def _build_parts_tree(
             kind = kinds.get(role, _roles.kind_for_role(role))
             if role == "point" or any(c.get("members") for c in components):
                 for c in components:
-                    kids.append(_group(c["svgId"], role, c["members"]) if c.get("members")
-                                else _ref(c["svgId"], kind))
+                    if c.get("members"):
+                        node = _group(c["svgId"], role, c["members"])
+                        node["memberRole"] = c.get("memberRole", role)
+                        mk = _roles.kind_for_role(node["memberRole"])
+                        if mk is not None:
+                            node["kind"] = mk
+                        kids.append(node)
+                    else:
+                        kids.append(_ref(c["svgId"], kind, role))
             elif role == "bar" or role in COMPOSITE_ROLES or len(components) > 1:
                 plural = "bars" if role == "bar" else COMPOSITE_ROLES.get(role, role + "-parts")
                 kids.append(_group(s["id"] + "." + plural, role, [c["svgId"] for c in components]))
             else:
-                kids.append(_ref(components[0]["svgId"], kind))
-        plot_children.append({"id": s["id"], "role": "series", "kind": "container", "children": kids})
+                kids.append(_ref(components[0]["svgId"], kind, role))
+        node = {"id": s["id"], "role": "series", "kind": "container", "children": kids,
+                "label": s.get("label") or s["name"]}
+        plot_children.append(node)
 
     for o in overlay_entries:
-        plot_children.append(_ref(o["svgId"], o.get("kind")))
+        plot_children.append(_ref(o["svgId"], o.get("kind"), o.get("role")))
 
     # untagged user-drawn artists → one "extras" group so a consumer can act on all at once
     if extra_entries:
@@ -469,21 +489,23 @@ def _build_parts_tree(
             ent = legend_entries[k]
             ek = []
             if ent.get("swatch"):
-                ek.append(_ref(ent["swatch"], _roles.kind_for_role("legend-swatch")))
+                ek.append(_ref(ent["swatch"], _roles.kind_for_role("legend-swatch"), "legend-swatch"))
             if ent.get("label"):
-                ek.append(_ref(ent["label"], _roles.kind_for_role("legend-label")))
-            leg_kids.append(
-                {"id": f"legend.entry.{k}", "role": "legend-entry", "kind": "container", "children": ek}
-            )
+                ek.append(_ref(ent["label"], _roles.kind_for_role("legend-label"), "legend-label"))
+            entry = {"id": f"legend.entry.{k}", "role": "legend-entry", "kind": "container", "children": ek}
+            if ent.get("text"):
+                entry["label"] = ent["text"]
+            leg_kids.append(entry)
         figure_children.append(
             {"id": "legend", "role": "legend", "kind": "container", "children": leg_kids}
         )
     for t in figure_titles:
-        figure_children.append(_ref(t, _roles.kind_for_role("title")))
+        figure_children.append(_ref(t, _roles.kind_for_role("title"), "title"))
     return {"id": "figure", "role": "figure", "kind": "container", "children": figure_children}
 
 
-def _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles=(), extra_entries=()) -> dict:
+def _build_order(series_entries, guide_entries, overlay_entries, reg, figure_titles=(), extra_entries=(),
+                 guide_roles=()) -> dict:
     order = []
     for g in guide_entries:
         if g["role"] == "axis":
@@ -504,7 +526,11 @@ def _build_order(series_entries, guide_entries, overlay_entries, reg, figure_tit
     for e in extra_entries:
         order.append(e["svgId"])
 
-    roles_present = {m.role for m in reg.marks} | {"axis", "gridline"}
+    # every role a consumer may animate: the marks' roles, their members' roles (hexes, cells,
+    # contour bands) and the scaffold/guide roles that are present (legend, colorbar, title, …)
+    roles_present = {m.role for m in reg.marks} | {"axis", "gridline"} | set(guide_roles)
+    for s in series_entries:
+        roles_present.update(c["memberRole"] for c in s["components"] if c.get("memberRole"))
     if extra_entries:
         roles_present.add("extra")
     return {"order": list(dict.fromkeys(order)), "presets": _presets.presets_for(sorted(roles_present))}
