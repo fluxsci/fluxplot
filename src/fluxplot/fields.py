@@ -149,6 +149,58 @@ def resolve_scales(fig):
         decl.resolved = True
 
 
+# ---------------------------------------------------------------------------------------------
+# value × confidence (B6): a second, alpha channel on a colour-mapped mark
+# ---------------------------------------------------------------------------------------------
+ALPHA_NORMS = ("linear", "log")
+
+
+def alpha_channel(values, *, alpha_range=(0.25, 1.0), alpha_norm="linear", source="values"):
+    """Per-element alpha from a confidence-like variable: ``(alphas, record)``.
+
+    ``values`` map linearly (or by log10) from their finite min → ``alpha_range[0]`` to their
+    max → ``alpha_range[1]``; a missing value takes the low alpha. ``record`` is what the
+    manifest's ``colorScales[].alpha`` carries: ``{source, range, norm: {kind, vmin, vmax}}``, so
+    a consumer can recompute every element's opacity from its ``data-alpha-value``.
+    """
+    if alpha_norm not in ALPHA_NORMS:
+        raise ValueError(f"alpha_norm must be one of {ALPHA_NORMS}, got {alpha_norm!r}")
+    a0, a1 = (float(v) for v in alpha_range)
+    if not (0.0 <= a0 <= 1.0 and 0.0 <= a1 <= 1.0):
+        raise ValueError(f"alpha_range must lie within [0, 1], got {alpha_range!r}")
+    v = np.ma.filled(np.ma.asarray(values, dtype=float), np.nan).ravel()
+    finite = np.isfinite(v)
+    if alpha_norm == "log":
+        finite &= v > 0
+    if not finite.any():
+        return np.full(v.size, a1), {"source": source, "range": [a0, a1], "norm": {"kind": alpha_norm, "vmin": None, "vmax": None}}
+    lo, hi = float(v[finite].min()), float(v[finite].max())
+    if hi > lo:
+        if alpha_norm == "log":
+            t = (np.log10(np.where(finite, v, lo)) - np.log10(lo)) / (np.log10(hi) - np.log10(lo))
+        else:
+            t = (np.where(finite, v, lo) - lo) / (hi - lo)
+    else:
+        t = np.ones(v.size)
+    t = np.clip(np.where(finite, t, 0.0), 0.0, 1.0)
+    alphas = a0 + t * (a1 - a0)
+    return alphas, {"source": str(source), "range": [a0, a1], "norm": {"kind": alpha_norm, "vmin": lo, "vmax": hi}}
+
+
+def apply_alpha(artist, mark_data, values, *, alpha_range, alpha_norm, source, shape=None):
+    """Set an artist's per-element alpha from ``values`` and record the channel on the mark."""
+    alphas, record = alpha_channel(values, alpha_range=alpha_range, alpha_norm=alpha_norm, source=source)
+    artist.set_alpha(alphas.reshape(shape) if shape is not None else alphas)
+    mark_data["alpha_channel"] = record
+    mark_data["alpha_values"] = values_list(values)
+    return alphas
+
+
+def values_list(values):
+    v = np.ma.filled(np.ma.asarray(values, dtype=float), np.nan).ravel()
+    return [None if not np.isfinite(x) else float(x) for x in v]
+
+
 def _options(ax, series, key, kwargs, *, resolve=None, scale=None):
     """Apply the recipe's colour controls for one colour-mapped series; return its control key.
 
@@ -250,7 +302,8 @@ def _capture(artist, config, resolve=None):
 
 
 def heatmap(ax, data, *, series, x=None, y=None, cells=False, include_values=False,
-            key=None, value_raster=False, scale=None, **kwargs):
+            key=None, value_raster=False, scale=None, alpha_by=None, alpha_range=(0.25, 1.0),
+            alpha_norm="linear", **kwargs):
     """Draw a scalar matrix. ``x``/``y`` select pcolormesh (including irregular grids).
 
     ``cells=True`` gives modest meshes row/column cell IDs; above the raster
@@ -259,7 +312,10 @@ def heatmap(ax, data, *, series, x=None, y=None, cells=False, include_values=Fal
     ``value_raster=True`` writes the matrix as ``<plot>.<key>.values.json`` beside the SVG
     (row-major, ``null`` for missing) and points the colour scale at it, so a consumer can
     repaint an image layer from its values instead of regenerating. ``scale="name"`` joins a
-    shared scale declared with :func:`color_scale`.
+    shared scale declared with :func:`color_scale`. ``alpha_by`` (a matrix of the same shape —
+    p-values, counts, confidence) washes cells out: their alpha runs over ``alpha_range`` with
+    the value (``alpha_norm="log"`` for p-values); the manifest records the channel as
+    ``colorScales[].alpha`` and every cell carries ``data-alpha-value``.
     """
     arr = np.ma.masked_invalid(np.ma.asarray(data, dtype=float))
     if arr.ndim != 2 or not arr.size:
@@ -285,6 +341,12 @@ def heatmap(ax, data, *, series, x=None, y=None, cells=False, include_values=Fal
     data = {'field_config': config, 'field_artist': artist, 'cells': bool(cells)}
     if value_raster:
         data['value_raster'] = {}  # filename and payload are fixed at save time
+    if alpha_by is not None:
+        a = np.ma.filled(np.ma.asarray(alpha_by, dtype=float), np.nan)
+        if a.shape != arr.shape:
+            raise ValueError(f'heatmap: alpha_by must have the matrix shape {arr.shape}, got {a.shape}')
+        apply_alpha(artist, data, a, alpha_range=alpha_range, alpha_norm=alpha_norm, source='alpha_by',
+                    shape=None if hasattr(artist, 'get_coordinates') else arr.shape)
     mark = Mark(role='x-heatmap', series=series, kind='heatmap', artists=[artist], data=data)
     tagger.registry_for(ax.figure).add(mark)
     return artist
@@ -403,6 +465,8 @@ def capture_mark(mark):
         recolor = 'raster'  # the values travel beside the SVG: a canvas can repaint them
     mark.data['color_scale'] = colorscale.scale_record(
         field['controlKey'], artist, label=field.get('label'), extend=field['extend'], recolor=recolor)
+    if mark.data.get('alpha_channel'):  # value × confidence: the second channel of the scale
+        mark.data['color_scale']['alpha'] = dict(mark.data['alpha_channel'])
     mark.data['color_paint'] = paint_of(artist)
     if raster:
         arr = np.ma.masked_invalid(np.ma.asarray(artist.get_array(), dtype=float))

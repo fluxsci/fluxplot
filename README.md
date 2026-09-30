@@ -1026,6 +1026,22 @@ qualitative palette's group ink is the light neutral, and a hexmatrix's single-c
 `tests/test_dark_ground.py` pins WCAG contrast ≥ 1.5 for every mark and ≥ 3 for bracket and
 identity lines under the light, paper and dark themes.
 
+### Value × confidence
+
+A colour-mapped mark can carry a second, opacity channel: `alpha_by=` on `fp.hexmatrix`
+(`"count"`, a column, a per-point or per-hexagon array, or a matrix in matrix mode), `fp.heatmap`
+(a matrix of the same shape — p-values, n) and `fp.scatter` (one value per point), with
+`alpha_range=(0.25, 1.0)` and `alpha_norm="linear"|"log"`. Each element's alpha runs over the
+range with its value (a missing value takes the low end), set as per-element alpha so matplotlib
+renders it; the manifest records the channel as `colorScales[].alpha = {source, range, norm}` and
+every element carries `data-alpha-value`, so a consumer can recompute `fill-opacity` live. A
+hexmatrix mean map where few observations fall, or a correlation matrix with non-significant cells
+washed out (`alpha_by=p_values, alpha_norm="log"`), is one keyword.
+
+`fp.hexmatrix` also keeps its hexagons individually addressable up to `vector_limit=5000` (a
+per-mark raster threshold; `None` falls back to the save's generic 800), and on axes that share x
+or y it leaves the box aspect unlocked with a warning instead of distorting the siblings.
+
 ### Accessibility lint
 
 `fp.colorcheck` asks what a plot's colours do for the reader: `simulate(colors, "deuteranomaly")`

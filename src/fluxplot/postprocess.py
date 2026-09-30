@@ -196,6 +196,7 @@ def _inject_points(m: Mark, id_map, warnings) -> None:
     xs = list(m.x) if m.x is not None else [None] * n
     ys = list(m.y) if m.y is not None else [None] * n
     cs = m.data.get("c")  # the colour-mapped value of each point (fp.scatter c=)
+    alphas = m.data.get("alpha_values")  # the confidence-like value behind each point's opacity
     for k, use_el in enumerate(members):
         use_el.set("id", m.member_gids[k])
         i = m.member_indices[k]
@@ -210,6 +211,8 @@ def _inject_points(m: Mark, id_map, warnings) -> None:
         )
         if cs is not None and i < len(cs):
             _set_value(use_el, cs[i])
+        if alphas is not None and i < len(alphas) and alphas[i] is not None:
+            use_el.set("data-alpha-value", _fmt(alphas[i]))
 
 
 def _inject_indexed(m: Mark, id_map, role: str) -> None:
@@ -425,6 +428,7 @@ def _inject_field(mark, id_map, warnings):
         return
     members = []
     bins = (mark.data.get('hexmatrix') or {}).get('bins')
+    alpha_values = mark.data.get('alpha_values')
     for i, (path, name) in enumerate(zip(paths, names)):
         gid = base + '.' + name
         path.set('id', gid)
@@ -438,6 +442,8 @@ def _inject_field(mark, id_map, warnings):
                 _set(path, data_x0=x0, data_x1=x1, data_y0=y0, data_y1=y1)
         if cell_values is not None:
             _set_value(path, cell_values[i])
+        if alpha_values is not None and i < len(alpha_values) and alpha_values[i] is not None:
+            path.set('data-alpha-value', _fmt(alpha_values[i]))
         if levels is not None:
             path.set('data-level-low', _level_text(levels[i][0]))
             path.set('data-level-high', _level_text(levels[i][1]))

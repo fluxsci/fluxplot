@@ -108,7 +108,8 @@ def _is_value_array(c, x) -> bool:
     return arr.ndim == 1 and arr.dtype.kind in "iuf" and arr.size == np.size(x)
 
 
-def scatter(ax, x, y, *, series, label=None, key=None, scale=None, **kw):
+def scatter(ax, x, y, *, series, label=None, key=None, scale=None, alpha_by=None, alpha_range=(0.25, 1.0),
+            alpha_norm="linear", **kw):
     """A named scatter, every point addressable.
 
     With ``c=`` an array of values the points are colour-mapped: the scale becomes a recipe colour
@@ -140,6 +141,12 @@ def scatter(ax, x, y, *, series, label=None, key=None, scale=None, **kw):
     sizes = coll.get_sizes()
     if len(sizes) > 1:
         data["size"] = _data.values(sizes)
+    if alpha_by is not None:
+        from .fields import apply_alpha
+        a = np.ma.filled(np.ma.asarray(alpha_by, dtype=float), np.nan).ravel()
+        if a.size != len(coll.get_offsets()):
+            raise ValueError(f"scatter: alpha_by needs one value per point ({len(coll.get_offsets())}), got {a.size}")
+        apply_alpha(coll, data, a, alpha_range=alpha_range, alpha_norm=alpha_norm, source="alpha_by")
     reg.add(Mark(role="point", series=series, kind="scatter", live_data=True, x=None, y=None, label=label,
                  artists=[coll], indexed=True, data=data))
     return coll
@@ -1014,7 +1021,9 @@ def _save(
     # nodes, while axes/ticks/labels/legend stay vector (see raster.py). Planned AFTER the
     # scaffold sweep so untagged-but-heavy artists are named first, and applied around the
     # render only — the user's figure is handed back exactly as they built it.
-    heavy = _raster.plan(fig, threshold)
+    per_artist = {id(a): int(m.data['raster_threshold']) for m in reg.marks
+                  if m.data.get('raster_threshold') is not None for a in m.artists}
+    heavy = _raster.plan(fig, threshold, per_artist=per_artist)
     raster_items = [] if keep_vectors else heavy
     raster_warnings = []
     # 4. render deterministically (hashsalt derived from the plot name)

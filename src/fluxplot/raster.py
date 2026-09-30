@@ -145,12 +145,15 @@ def _zorder(artist) -> float:
         return 0.0
 
 
-def plan(fig, threshold: int = DEFAULT_THRESHOLD) -> list:
+def plan(fig, threshold: int = DEFAULT_THRESHOLD, per_artist=None) -> list:
     """Artists heavy enough to rasterize, in the order matplotlib will emit their images.
 
     Only *visible* artists count: an invisible one draws nothing, so it emits no image and
-    would throw off the document-order match in :func:`reattach`.
+    would throw off the document-order match in :func:`reattach`. ``per_artist`` maps
+    ``id(artist)`` to a threshold of its own (``Mark.data["raster_threshold"]``): a hexmatrix
+    keeps thousands of hexagons addressable where a generic collection would be rasterized.
     """
+    per_artist = per_artist or {}
     items = []
     for artist in _draw_order(fig):
         try:
@@ -172,7 +175,8 @@ def plan(fig, threshold: int = DEFAULT_THRESHOLD) -> list:
         ax = getattr(artist, 'axes', None)
         cutoff = ax.get_rasterization_zorder() if ax is not None else None
         inherited = ax is not None and (ax.get_rasterized() or (cutoff is not None and _zorder(artist) < cutoff))
-        if n > threshold or bool(artist.get_rasterized()) or inherited:
+        limit = per_artist.get(id(artist), threshold)
+        if n > limit or bool(artist.get_rasterized()) or inherited:
             items.append(
                 RasterItem(
                     artist=artist,

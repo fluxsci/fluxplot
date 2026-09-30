@@ -2192,6 +2192,55 @@
             "normKinds",
             "center"
           ]
+        },
+        "alpha": {
+          "type": "object",
+          "description": "A second, opacity channel (alpha_by): each element's fill-opacity runs over range with its data-alpha-value under norm.",
+          "required": [
+            "source",
+            "range",
+            "norm"
+          ],
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "range": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "norm": {
+              "type": "object",
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "linear",
+                    "log"
+                  ]
+                },
+                "vmin": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "vmax": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
         }
       },
       "required": [

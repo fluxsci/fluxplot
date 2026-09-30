@@ -47,6 +47,7 @@ Example
 from __future__ import annotations
 
 import colorsys
+import warnings
 from dataclasses import dataclass, field
 from numbers import Real
 from typing import Any, Callable, Optional, Sequence, Union
@@ -377,6 +378,10 @@ def hexmatrix(
     series: Optional[str] = None,
     key: Optional[str] = None,
     scale: Optional[str] = None,
+    alpha_by=None,
+    alpha_range=(0.25, 1.0),
+    alpha_norm: str = "linear",
+    vector_limit: Optional[int] = 5000,
     label_axes: bool = True,
     zorder: float = 2.0,
 ) -> HexMatrixResult:
@@ -491,6 +496,15 @@ def hexmatrix(
     scale
         Join a shared colour scale declared with :func:`fluxplot.color_scale` (its map, norm and
         union limits; one key for every panel).
+    alpha_by, alpha_range, alpha_norm
+        Value × confidence: wash out hexagons by a second variable. ``"count"`` (observations
+        per hexagon), a column of ``data`` or a per-point array (its mean per hexagon), a
+        per-hexagon array (one value per drawn hexagon), or a matrix of the ``matrix`` shape.
+        Alpha runs over ``alpha_range`` with the value (``alpha_norm="log"`` for p-values); the
+        manifest records ``colorScales[].alpha`` and every hexagon carries ``data-alpha-value``.
+    vector_limit
+        Hexagons stay individually addressable up to this many (default 5000; ``None`` for the
+        save's generic threshold), where a generic collection would be rasterized at 800.
     label_axes
         Label the axes with the ``x`` / ``y`` column names (default ``True``).
     zorder
@@ -558,6 +572,14 @@ def hexmatrix(
         keep = np.isfinite(vals)
         rows, cols, value = rows[keep], cols[keep], vals[keep]
         counts = None
+        alpha_src = None
+        if alpha_by is not None:
+            if isinstance(alpha_by, str):
+                raise ValueError(f"{who}: alpha_by must be a matrix of shape {M.shape} in matrix mode")
+            A = np.ma.filled(np.ma.asarray(alpha_by, dtype=float), np.nan)
+            if A.shape != M.shape:
+                raise ValueError(f"{who}: alpha_by must have the matrix shape {M.shape}, got {A.shape}")
+            alpha_src = A.ravel()[keep]
         u, v = lat.centre(rr.ravel(), cc.ravel())
         if origin == "upper":
             lat.sy, lat.y0 = -1.0, float(v.max())  # v → -(Y - y0): row 0 at the top
@@ -623,6 +645,7 @@ def hexmatrix(
         if aspect == "auto":
             # unit plane = the axes box: u ∈ [0, 1] across the x limits, v ∈ [0, ρ] up the y limits,
             # with one circumradius of padding all round so no hexagon is clipped
+            shared = len(ax.get_shared_x_axes().get_siblings(ax)) > 1 or len(ax.get_shared_y_axes().get_siblings(ax)) > 1
             rho = ax.get_box_aspect()
             if rho is None:
                 pos = ax.get_position()
@@ -639,7 +662,14 @@ def hexmatrix(
             sx, sy = (X1 - X0) / (1 - 2 * R), (Y1 - Y0) / (rho - 2 * R)
             lat = _Lattice(R=R, orientation=orientation, x0=X0 - R * sx, sx=sx,
                            y0=Y0 - R * sy, sy=sy, xscale=xscale, yscale=yscale)
-            ax.set_box_aspect(rho)
+            if shared:
+                # locking the box aspect of an axes that shares x or y would distort its siblings;
+                # the hexagons are regular now, but a later layout pass may squash them
+                warnings.warn(f"{who}: aspect='auto' on axes sharing x or y leaves the box aspect unlocked; "
+                              "hexagons may be distorted by a later layout pass (pass aspect='equal' or a number)",
+                              stacklevel=2)
+            else:
+                ax.set_box_aspect(rho)
             info.update(boxAspect=rho)
         else:
             a = 1.0 if aspect == "equal" else aspect
@@ -656,6 +686,25 @@ def hexmatrix(
         u, v = lat.to_unit(xs, ys)
         rows, cols, counts, weighted, value, inv = _bin_points(lat, u, v, cs, ws, reduce)
         per_point = counts[inv]  # observations sharing each point's hexagon
+        # the alpha variable per hexagon: the count, or the mean of a per-point variable
+        alpha_src = None
+        if alpha_by is not None:
+            if isinstance(alpha_by, str) and alpha_by == "count":
+                alpha_src = counts.copy()
+            else:
+                av, _ = _column(who, data, alpha_by, "alpha_by") if isinstance(alpha_by, str) else (list(alpha_by), None)
+                av = np.asarray(_floats(who, av, "alpha_by"), dtype=float)
+                if av.size == n and n != len(rows):  # one value per point: the mean per hexagon
+                    av = av[ok]
+                    ok = np.isfinite(av)
+                    sums = np.bincount(inv[ok], weights=av[ok], minlength=len(counts))
+                    nn = np.bincount(inv[ok], minlength=len(counts))
+                    alpha_src = np.where(nn > 0, sums / np.maximum(nn, 1), np.nan)
+                elif av.size == len(rows):
+                    alpha_src = av  # one value per hexagon, in bin order (rows then cols)
+                else:
+                    raise ValueError(f"{who}: alpha_by must be 'count', a column / array with one value per point "
+                                     f"({n}) or one per hexagon ({len(rows)}); got {av.size}")
         if mincnt == 0:
             er, ec = _lattice_cells(lat, lat.R, (X1 - X0) / lat.sx + lat.R,
                                     lat.R, (Y1 - Y0) / lat.sy + lat.R)
@@ -669,9 +718,12 @@ def hexmatrix(
                 weighted = np.r_[weighted, np.zeros(len(er))]
                 if value is not None:
                     value = np.r_[value, np.full(len(er), np.nan)]
+                if alpha_src is not None:
+                    alpha_src = np.r_[alpha_src, np.full(len(er), np.nan)]
                 order = np.lexsort((cols, rows))
                 rows, cols, counts, weighted = rows[order], cols[order], counts[order], weighted[order]
                 value = value[order] if value is not None else None
+                alpha_src = alpha_src[order] if alpha_src is not None else None
         if value is None:
             total = float(weighted.sum()) or 1.0
             value = {"count": weighted, "probability": weighted / total, "percent": 100 * weighted / total,
@@ -683,6 +735,7 @@ def hexmatrix(
             drawn &= counts >= int(sparse)
             sparse_pts = per_point < int(sparse)
         rows, cols, counts, value = rows[drawn], cols[drawn], counts[drawn], np.asarray(value)[drawn]
+        alpha_src = alpha_src[drawn] if alpha_src is not None else None
         info.update(mode="points", n=n_used, dropped=dropped, stat=None if cs is not None else stat,
                     reduce=None if cs is None else _reducer(reduce)[1],
                     weighted=ws is not None, mincnt=int(mincnt),
@@ -731,6 +784,11 @@ def hexmatrix(
     if scale is not None:
         from ..fields import join_scale
         join_scale(ax, scale, hexes, np.asarray(value, dtype=float))
+    alpha_data: dict = {}
+    if alpha_src is not None:
+        from ..fields import apply_alpha
+        source = alpha_by if isinstance(alpha_by, str) else "alpha_by"
+        apply_alpha(hexes, alpha_data, alpha_src, alpha_range=alpha_range, alpha_norm=alpha_norm, source=source)
     cx, cy = lat.to_data(*lat.centre(rows, cols))
     bins = {"row": rows.astype(int), "col": cols.astype(int), "x": np.asarray(cx, dtype=float),
             "y": np.asarray(cy, dtype=float), "count": counts, "value": np.asarray(value, dtype=float)}
@@ -743,6 +801,9 @@ def hexmatrix(
               "data_x0": _plain(b[0]), "data_x1": _plain(b[1]), "data_y0": _plain(b[2]), "data_y1": _plain(b[3])}
              for r, c, px, py, k, val, b in zip(rows, cols, cx, cy,
                                                  counts if counts is not None else [None] * len(rows), value, boxes)]
+    if alpha_src is not None:
+        for a, av in zip(attrs, alpha_src):
+            a["data_alpha_value"] = None if not np.isfinite(av) else _plain(float(av))
     payload = {"orientation": orientation, "hexRadius": float(lat.R),
                "aspect": aspect if isinstance(aspect, str) else float(aspect),
                "scale": {"x": xscale if not matrix_mode else "linear",
@@ -760,10 +821,12 @@ def hexmatrix(
     field_config = {"kind": "hexbin", "controlKey": control_key, "shape": [int(len(rows))]}
     if cb_extend:
         field_config["extend"] = cb_extend
-    reg.add(Mark(role="x-hexbin", series=series, name="hexes", kind="hexmatrix", artists=[hexes],
-                 data={"field_config": field_config, "field_artist": hexes, "field_resolve": _resolve_cmap,
-                       "field_names": names, "field_member_prefix": "hex",
-                       "field_member_role": "x-hex", "field_attrs": attrs, "hexmatrix": payload}))
+    mark_data = {"field_config": field_config, "field_artist": hexes, "field_resolve": _resolve_cmap,
+                 "field_names": names, "field_member_prefix": "hex",
+                 "field_member_role": "x-hex", "field_attrs": attrs, "hexmatrix": payload, **alpha_data}
+    if vector_limit is not None:
+        mark_data["raster_threshold"] = int(vector_limit)  # hexagons stay addressable up to this many
+    reg.add(Mark(role="x-hexbin", series=series, name="hexes", kind="hexmatrix", artists=[hexes], data=mark_data))
     artists = {"hexes": hexes, "lattice": lat}
 
     # ---- points ---------------------------------------------------------------------------------------
