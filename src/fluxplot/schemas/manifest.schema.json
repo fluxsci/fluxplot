@@ -1421,8 +1421,27 @@
             },
             "what": {
               "type": "string"
+            },
+            "y1": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "y2": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
             }
-          }
+          },
+          "description": "An area's inputs: fp.band records {x, lo, hi, what}, fp.area {x, y1, y2}; a promoted fill_between only its polygon paths."
         },
         "uncertainty": {
           "type": "object",

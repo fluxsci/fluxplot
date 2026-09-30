@@ -64,7 +64,8 @@ def refresh(mark):
     from matplotlib.text import Text
     if isinstance(art, Text):
         mark.data['text'] = art.get_text()
-    if mark.role == 'area' and hasattr(art, 'get_paths'):
+    if mark.role == 'area' and hasattr(art, 'get_paths') and 'x' not in (mark.data.get('band') or {}):
+        # a promoted fill_between: only its polygon is known (fp.area / fp.band record their inputs)
         mark.data['band'] = {'paths': [[values(v) for v in p.vertices] for p in art.get_paths()]}
     if mark.series is not None:
         mark.data['color'] = primary_paint(mark)

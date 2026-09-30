@@ -177,11 +177,47 @@ def errorbar(ax, x, y, *, series, yerr=None, label=None, **kw):
     return container
 
 
+def _broadcast(v, n):
+    arr = np.asarray(v, dtype=float)
+    return _data.values(np.broadcast_to(arr, (n,)) if arr.ndim == 0 else arr)
+
+
 def area(ax, x, y1, y2=0, *, series, label=None, **kw):
+    """A filled region between ``y1`` and ``y2`` (default the baseline 0) — ``fill_between`` with
+    its inputs recorded: the manifest's ``band`` carries ``{x, y1, y2}`` (a scalar ``y2`` is
+    broadcast), not the polygon's vertices."""
     reg = _tagger.registry_for(ax.figure)
     _series_color(series, kw, auto=False)
     poly = ax.fill_between(x, y1, y2, label=label, **kw)
-    reg.add(Mark(role="area", series=series, kind="area", x=None, y=None, label=label, artists=[poly]))
+    xs = _data.values(x)
+    payload = {"x": xs, "y1": _broadcast(y1, len(xs)), "y2": _broadcast(y2, len(xs))}
+    reg.add(Mark(role="area", series=series, kind="area", x=None, y=None, label=label, artists=[poly],
+                 data={"band": payload}))
+    return poly
+
+
+def band(ax, x, lo, hi, *, series, what="95% CI", label=None, **fill_kw):
+    """An uncertainty band around a series' line: ``fill_between(x, lo, hi)`` registered under the
+    **same series** as the line, so ``ctl.band`` sits beside ``ctl.line``.
+
+    ``what`` says what the band is (``"95% CI"``, ``"SEM"``, ``"IQR"``, …) and is recorded with
+    the inputs in the manifest: ``band = {x, lo, hi, what}``. The band takes the series' line
+    colour when one is drawn already (else the call's, else the cycle's), at ``alpha=0.25`` with
+    no edge unless the call says otherwise.
+    """
+    reg = _tagger.registry_for(ax.figure)
+    fill_kw.setdefault("alpha", 0.25)
+    fill_kw.setdefault("linewidth", 0)
+    _series_color(series, fill_kw, auto=False)
+    if not any(k in fill_kw for k in ("color", "facecolor", "fc", "c")):
+        line = next((m for m in reg.marks if m.series == series and m.role == "line" and m.artists), None)
+        if line is not None and hasattr(line.artists[0], "get_color"):
+            fill_kw["color"] = line.artists[0].get_color()
+    poly = ax.fill_between(x, lo, hi, label=label, **fill_kw)
+    xs = _data.values(x)
+    payload = {"x": xs, "lo": _broadcast(lo, len(xs)), "hi": _broadcast(hi, len(xs)), "what": str(what)}
+    reg.add(Mark(role="area", series=series, name="band", kind="area", x=None, y=None, label=label,
+                 artists=[poly], data={"band": payload}))
     return poly
 
 

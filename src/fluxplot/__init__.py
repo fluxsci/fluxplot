@@ -17,6 +17,7 @@ from . import (
 from .api import (  # noqa: E402,F401
     annotation,
     area,
+    band,
     bar,
     barh,
     box,
@@ -86,6 +87,7 @@ __all__ = [
     "barh",
     "errorbar",
     "area",
+    "band",
     "box",
     "violin",
     "hist",

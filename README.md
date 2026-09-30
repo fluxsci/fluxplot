@@ -322,11 +322,17 @@ fp.line(ax, x, y, *, series, marker=None, label=None, **mpl_kwargs)
 fp.scatter(ax, x, y, *, series, label=None, key=None, **mpl_kwargs)   # c=values → a colour scale
 fp.bar(ax, x, height, *, series, **mpl_kwargs)
 fp.errorbar(ax, x, y, *, series, yerr=None, **mpl_kwargs)
-fp.area(ax, x, y1, y2=0, *, series, **mpl_kwargs)
+fp.area(ax, x, y1, y2=0, *, series, **mpl_kwargs)                    # manifest band = {x, y1, y2}
+fp.band(ax, x, lo, hi, *, series, what="95% CI", **mpl_kwargs)        # <series>.band beside <series>.line
 fp.box(ax, values, *, series, label=None, include_values=False, **mpl_kwargs)     # one box per call
 fp.violin(ax, values, *, series, label=None, include_values=False, **mpl_kwargs)  # one violin per call
 fp.hist(ax, values, *, series, bins=None, label=None, include_values=False, **mpl_kwargs)
 ```
+
+`fp.band` is the uncertainty band of a line: registered under the **same series** (so `ctl.band`
+sits beside `ctl.line`), in the line's colour at `alpha=0.25`, with `band = {x, lo, hi, what}` in
+the manifest saying what it is (`"95% CI"`, `"SEM"`, …) — a consumer can re-fit or re-label it
+from the inputs rather than from polygon vertices. `fp.area` records `{x, y1, y2}` likewise.
 
 `fp.box`/`fp.violin`/`fp.hist` wrap matplotlib's documented return structures, so every statistic
 is individually addressable and grouped per series (`control.whiskers`, `control.medians`, …).
