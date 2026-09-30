@@ -64,6 +64,8 @@ SQRT3 = float(np.sqrt(3.0))
 #: prefix of the single-colour ramps built from ``color=`` — recorded as the colormap's name so a
 #: Flux regeneration (which replays the recorded name) rebuilds exactly the same map
 MONO_PREFIX = "hexmatrix.mono:"
+#: the same ramp turned for a dark ground: deep (near the ground) → the colour → pale
+MONO_DARK_PREFIX = "hexmatrix.mono-dark:"
 _STATS = ("count", "density", "probability", "percent")
 _NORMS = ("linear", "log", "sqrt")
 
@@ -150,20 +152,33 @@ class _Lattice:
 # ---------------------------------------------------------------------------
 # colour
 # ---------------------------------------------------------------------------
-def _mono_cmap(color):
-    """A single-hue ramp, pale → ``color`` → deep (seaborn's jointplot ramp): lightness 95 % → 12 %
-    at the colour's own hue and saturation."""
+def _mono_cmap(color, dark=False):
+    """A single-hue ramp at the colour's own hue and saturation: pale → ``color`` → deep (seaborn's
+    jointplot ramp, lightness 95 % → 12 %) on a light ground; on a dark ground (``dark=True``) the
+    ramp is turned — deep (near the ground) → pale — so the fullest hexagons are the ones that
+    stand out."""
     from matplotlib.colors import LinearSegmentedColormap, to_rgb
     h, _l, s = colorsys.rgb_to_hls(*to_rgb(color))
-    ramp = [colorsys.hls_to_rgb(h, lum, s) for lum in np.linspace(0.95, 0.12, 12)]
-    return LinearSegmentedColormap.from_list(MONO_PREFIX + _hex(color), ramp)
+    lums = np.linspace(0.22, 0.95, 12) if dark else np.linspace(0.95, 0.12, 12)
+    ramp = [colorsys.hls_to_rgb(h, lum, s) for lum in lums]
+    return LinearSegmentedColormap.from_list((MONO_DARK_PREFIX if dark else MONO_PREFIX) + _hex(color), ramp)
 
 
 def _resolve_cmap(spec):
     from .._fieldmap import resolve_colormap
+    if isinstance(spec, str) and spec.startswith(MONO_DARK_PREFIX):
+        return _mono_cmap(spec[len(MONO_DARK_PREFIX):], dark=True)
     if isinstance(spec, str) and spec.startswith(MONO_PREFIX):
         return _mono_cmap(spec[len(MONO_PREFIX):])
     return resolve_colormap(spec)
+
+
+def _ground_is_dark(ax) -> bool:
+    from ._colour import is_dark
+    for c in (ax.get_facecolor(), ax.figure.get_facecolor()):
+        if c[3] > 0:
+            return is_dark(c)
+    return False
 
 
 def _auto_limits(vals, norm, robust, center):
@@ -680,7 +695,8 @@ def hexmatrix(
                 _plain_log_ticks(axis, *lims)
 
     # ---- the colour scale ------------------------------------------------------------------------------
-    base_cmap = _mono_cmap(color) if color is not None else _resolve_cmap(cmap)
+    dark_ground = _ground_is_dark(ax)
+    base_cmap = _mono_cmap(color, dark=dark_ground) if color is not None else _resolve_cmap(cmap)
     norm_kind = norm if isinstance(norm, str) else None
     lo, hi = _auto_limits(np.asarray(value, dtype=float), norm_kind, robust, center)
     if hasattr(norm, "autoscale_None"):
@@ -754,7 +770,7 @@ def hexmatrix(
     if identity_line:
         lo_d, hi_d = max(xlim[0], ylim[0]), min(xlim[1], ylim[1])
         if lo_d < hi_d:
-            props = {"color": "0.35", "lw": 0.8, "ls": (0, (4, 3)), "zorder": zorder + 1}
+            props = {"color": "0.7" if dark_ground else "0.35", "lw": 0.8, "ls": (0, (4, 3)), "zorder": zorder + 1}
             if isinstance(identity_line, dict):
                 props.update(identity_line)
             (line,) = ax.plot([lo_d, hi_d], [lo_d, hi_d], **props)

@@ -886,6 +886,17 @@ default). Two more recipe controls follow: `__fluxplot__.palette = "tol.bright"`
 `__fluxplot__.series = {"<series id>": {"color": "#…"}}` recolours a series on a rerun — the
 helpers and the signature plots check it before drawing.
 
+### Signature plots on dark grounds
+
+The glowbar, fluxbox and hexmatrix judge every ink against the ground they are drawn on. On a
+dark theme the point rims lighten instead of darkening, the shades stay at least 20 lightness
+units above the ground, the mean and median inks lift off their marks instead of deepening
+(`_colour.median_ink`, shared by both plots), connectors take the theme's grid neutral, a
+qualitative palette's group ink is the light neutral, and a hexmatrix's single-colour ramp turns
+(deep near the ground → pale at the top, named `hexmatrix.mono-dark:#…` so a rerun rebuilds it).
+`tests/test_dark_ground.py` pins WCAG contrast ≥ 1.5 for every mark and ≥ 3 for bracket and
+identity lines under the light, paper and dark themes.
+
 ### Accessibility lint
 
 `fp.colorcheck` asks what a plot's colours do for the reader: `simulate(colors, "deuteranomaly")`

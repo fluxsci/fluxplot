@@ -69,7 +69,27 @@ __all__ = ["glowbar", "GlowbarResult", "even_shades", "interleaved_order"]
 #: Per-category ColorBrewer maps used when ``palette`` is not given (cycled for more categories).
 DEFAULT_MAPS = ("YlGnBu", "YlOrRd", "RdPu", "BuGn", "Purples", "YlOrBr")
 #: Flexoki base-300: a quiet neutral for connectors, so paired lines never compete with the points.
+#: The default connector colour is the active theme's grid token when a theme is on (a neutral
+#: tuned to that ground); this grey is the fallback.
 CONNECT_GREY = "#B7B5AC"
+
+
+def _connect_colour(connect_color, ground=None):
+    """The connectors' colour: the caller's, else the theme's grid neutral when it still reads
+    against the ground (WCAG ≥ 1.5 — the light theme's grid is too faint on white), else the
+    historic Flexoki base-300."""
+    if connect_color is not None:
+        return connect_color
+    from .. import style as _style
+    if _style.ACTIVE is not None:
+        grid = _style.ACTIVE["tokens"]["grid"]
+        if ground is None:
+            return grid
+        from ..colorcheck import contrast
+        from matplotlib.colors import to_hex
+        if contrast(grid, to_hex(ground)) >= 1.5:
+            return grid
+    return CONNECT_GREY
 
 
 # ---------------------------------------------------------------------------
@@ -308,7 +328,7 @@ class _Frame:
 
 def _frame(who, data, x, y, units, order, unit_order, *, jitter, palette, group_color,
            group_color_position, point_colors, shade_range, interleave_shades, series, unit_series,
-           connect, point_fill_alpha) -> _Frame:
+           connect, point_fill_alpha, ground=None) -> _Frame:
     from matplotlib.colors import to_rgba
 
     xs, _ = _column(who, data, x, "x")
@@ -376,13 +396,14 @@ def _frame(who, data, x, y, units, order, unit_order, *, jitter, palette, group_
         if override is None and _categories.is_pinned(c):
             override = _categories.get(c)
         group_colors[c] = to_rgba(override) if override is not None else \
-            _colour.representative(src, group_color_position)
+            _colour.representative(src, group_color_position, ground=ground)
 
     point_color = {}  # (category, lane key) → colour
+    bounds = _colour.shade_bounds(*shade_range, ground=ground)  # lifted off a dark ground
     for c in cats:
         lanes = lanes_of[c]
         if colour_mode == "shades":
-            shades = _colour.shades(sources[c], len(lanes), *shade_range)
+            shades = _colour.shades(sources[c], len(lanes), *bounds)
             # interleaving spreads an ORDERED run of shades; a qualitative palette is already distinct
             spread = interleave_shades and (sources[c].ordered or sources[c].kind == "continuous")
             ranks = interleaved_order(len(lanes)) if spread else range(len(lanes))
@@ -411,13 +432,15 @@ def _frame(who, data, x, y, units, order, unit_order, *, jitter, palette, group_
 
 
 def _draw_units(fr: _Frame, ax, reg, *, connect, connect_line_width, connect_color, connect_alpha,
-                show_points, point_size, point_edge, point_edge_width, point_fill_alpha, zorder):
+                show_points, point_size, point_edge, point_edge_width, point_fill_alpha, zorder,
+                ground=None):
     """The connectors (just under ``zorder``) and the individual points (at it) → ``(lines, points)``."""
     from matplotlib.colors import to_rgba
 
     xs, ys, us = fr.xs, fr.ys, fr.us
     lines, points = [], []
-    edge = (lambda col: _darken(col, 0.3)) if point_edge == "rim" else (lambda col: point_edge)
+    connect_color = _connect_colour(connect_color, ground)
+    edge = (lambda col: _colour.rim(col, ground)) if point_edge == "rim" else (lambda col: point_edge)
 
     if connect:
         for u in fr.unit_list:
@@ -525,7 +548,7 @@ def glowbar(
     # paired / repeated measures
     connect_identical_points_across_x_values: bool = False,
     connect_line_width: float = 0.6,
-    connect_color=CONNECT_GREY,
+    connect_color=None,
     connect_alpha: float = 0.8,
     # identity (the sidecar names)
     series=None,
@@ -574,8 +597,9 @@ def glowbar(
         The glow is ``glow_steps`` nested segments of opacity ``glow_alpha``; their overlap builds the
         gradient (peak opacity ≈ ``1 - (1 - glow_alpha) ** glow_steps``).
     mean_line_width, mean_color, mean_halo_width
-        Stroke of the mean line (points), its colour (default: a deep shade of the group colour) and
-        the width of the background-coloured halo that lifts it off the glow (``0`` disables it).
+        Stroke of the mean line (points), its colour (default: the group colour deepened — or, on a
+        dark ground, lifted — just far enough to stand off the glow) and the width of the
+        background-coloured halo that lifts it off the glow (``0`` disables it).
     median_notch_depth, median_notch_height
         How far each V-cut reaches into the bar, and its height, in points. The notch is drawn above
         the mean line, so it stays visible when the median meets the mean.
@@ -626,7 +650,8 @@ def glowbar(
     shade_range, interleave_shades
         Lightness of the palest and darkest shade (0 = black, 100 = white), spaced in equal
         perceptual steps; and whether shades are dealt across lanes so neighbours always contrast
-        (default ``True``) or run pale → dark in lane order.
+        (default ``True``) or run pale → dark in lane order. On a dark ground the dark bound is
+        lifted to stay at least 20 lightness units above the ground.
 
     connect_identical_points_across_x_values
         Join each unit's points across the x categories with a line (needs ``units``) — for paired
@@ -634,7 +659,8 @@ def glowbar(
         of bridging the gap; several rows of one unit in one category are joined through their mean.
     connect_line_width, connect_color, connect_alpha
         Connector stroke (points), colour (a colour, or ``"unit"`` for each unit's own point colour)
-        and opacity. The default is a quiet neutral grey so the lines never compete with the points.
+        and opacity. The default is a quiet neutral — the active theme's grid colour, else Flexoki
+        base-300 — so the lines never compete with the points.
 
     series, unit_series
         Override the series names — the roots of every part id — per category / per unit, as a
@@ -660,11 +686,13 @@ def glowbar(
         ax = plt.gca()
     if bar_side not in _SIDES:
         raise ValueError(f"glowbar: bar_side must be 'outer', 'left' or 'right'; got {bar_side!r}")
+    cut = _cut_colour(ax, cut_color)  # the ground every ink is judged against
     fr = _frame("glowbar", data, x, y, units, order, unit_order, jitter=jitter, palette=palette,
                 group_color=group_color, group_color_position=group_color_position,
                 point_colors=point_colors, shade_range=shade_range,
                 interleave_shades=interleave_shades, series=series, unit_series=unit_series,
-                connect=connect_identical_points_across_x_values, point_fill_alpha=point_fill_alpha)
+                connect=connect_identical_points_across_x_values, point_fill_alpha=point_fill_alpha,
+                ground=cut)
     reg = _tagger.registry_for(ax.figure)
     artists = {"glow": [], "caps": [], "mean": [], "median": [], "points": [], "lines": []}
     artists["lines"], artists["points"] = _draw_units(
@@ -672,8 +700,7 @@ def glowbar(
         connect_line_width=connect_line_width, connect_color=connect_color,
         connect_alpha=connect_alpha, show_points=show_individual_points, point_size=point_size,
         point_edge=point_edge, point_edge_width=point_edge_width,
-        point_fill_alpha=point_fill_alpha, zorder=zorder)
-    cut = _cut_colour(ax, cut_color)
+        point_fill_alpha=point_fill_alpha, zorder=zorder, ground=cut)
 
     # ---- the glowing bar -------------------------------------------------------------------------------
     notch, notch_ms = _notch_marker(bar_width, median_notch_depth, median_notch_height)
@@ -711,8 +738,11 @@ def glowbar(
             # marker '_' spans exactly ms points: the mean line is as wide as the bar
             effects = ([pe.Stroke(linewidth=mean_halo_width, foreground=cut), pe.Normal()]
                        if mean_halo_width else None)
+            # the mean's default ink stands 30 lightness units off the glow's peak over the ground:
+            # deepened on a light ground, lifted on a dark one (the fluxbox's median rule)
+            peak = 1.0 - (1.0 - glow_alpha) ** glow_steps
             (mean_ln,) = ax.plot([bx], [st["mean"]], marker="_", ms=bar_width, mew=mean_line_width,
-                                 color=mean_color if mean_color is not None else _darken(col, 0.35),
+                                 color=mean_color if mean_color is not None else _colour.median_ink(col, peak, cut, 30.0),
                                  zorder=zorder + 1.5, path_effects=effects)
             reg.add(Mark(role="mean", series=s, kind="glowbar", artists=[mean_ln], data=payload))
             artists["mean"].append(mean_ln)

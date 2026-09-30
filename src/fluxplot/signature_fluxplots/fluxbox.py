@@ -58,7 +58,7 @@ import numpy as np
 
 from .. import tagger as _tagger
 from ..descriptors import Mark
-from ._colour import perceptual as _perceptual
+from ._colour import median_ink as _median_ink
 from .glowbar import (
     _SIDES,
     CONNECT_GREY,
@@ -122,19 +122,6 @@ def _box_stats(vals, rule):
 
 def _manifest_value(v):
     return [_plain(e) for e in v] if isinstance(v, list) else _plain(v)
-
-
-def _median_ink(col, box_alpha, ground, contrast):
-    """The group colour, deepened — or, on a ground darker than it, lifted — only as far as it takes
-    to stand ``contrast`` lightness units (0–100) off the box as rendered over ``ground``."""
-    from matplotlib.colors import to_rgba
-    rgb, bg = np.array(to_rgba(col)[:3]), np.array(to_rgba(ground)[:3])
-    box = _perceptual(box_alpha * rgb + (1 - box_alpha) * bg)[0]
-    k = np.linspace(0.0, 1.0, 101)[:, None]
-    toward = 0.0 if _perceptual(rgb)[0] <= box else 1.0  # the box is paler than its ink on a light ground
-    inks = rgb + (toward - rgb) * k  # the ink → black (or → white), in 1 % steps
-    far = np.abs(_perceptual(inks)[:, 0] - box) >= contrast
-    return (*inks[int(np.argmax(far)) if far.any() else -1], 1.0)
 
 
 @dataclass
@@ -211,7 +198,7 @@ def fluxbox(
     # paired / repeated measures
     connect_identical_points_across_x_values: bool = False,
     connect_line_width: float = 0.6,
-    connect_color=CONNECT_GREY,
+    connect_color=None,
     connect_alpha: float = 0.8,
     # identity (the sidecar names)
     series=None,
@@ -318,7 +305,8 @@ def fluxbox(
         of bridging the gap; several rows of one unit in one category are joined through their mean.
     connect_line_width, connect_color, connect_alpha
         Connector stroke (points), colour (a colour, or ``"unit"`` for each unit's own point colour)
-        and opacity. The default is a quiet neutral grey so the lines never compete with the points.
+        and opacity. The default is a quiet neutral — the active theme's grid colour, else Flexoki
+        base-300 — so the lines never compete with the points.
 
     series, unit_series
         Override the series names — the roots of every part id — per category / per unit, as a
@@ -346,11 +334,13 @@ def fluxbox(
     if not 0.0 <= box_alpha <= 1.0:
         raise ValueError(f"fluxbox: box_alpha must be in [0, 1]; got {box_alpha!r}")
     rule = _whisker_rule(whis)
+    cut = _cut_colour(ax, cut_color)  # the ground every ink is judged against
     fr = _frame("fluxbox", data, x, y, units, order, unit_order, jitter=jitter, palette=palette,
                 group_color=group_color, group_color_position=group_color_position,
                 point_colors=point_colors, shade_range=shade_range,
                 interleave_shades=interleave_shades, series=series, unit_series=unit_series,
-                connect=connect_identical_points_across_x_values, point_fill_alpha=point_fill_alpha)
+                connect=connect_identical_points_across_x_values, point_fill_alpha=point_fill_alpha,
+                ground=cut)
     reg = _tagger.registry_for(ax.figure)
     artists = {"box": [], "whiskers": [], "caps": [], "median": [], "mean": [], "fliers": [],
                "points": [], "lines": []}
@@ -359,8 +349,7 @@ def fluxbox(
         connect_line_width=connect_line_width, connect_color=connect_color,
         connect_alpha=connect_alpha, show_points=show_individual_points, point_size=point_size,
         point_edge=point_edge, point_edge_width=point_edge_width,
-        point_fill_alpha=point_fill_alpha, zorder=zorder)
-    cut = _cut_colour(ax, cut_color)
+        point_fill_alpha=point_fill_alpha, zorder=zorder, ground=cut)
     fliers_on = not show_individual_points if show_fliers == "auto" else show_fliers
 
     # ---- the box ---------------------------------------------------------------------------------------

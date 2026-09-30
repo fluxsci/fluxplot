@@ -305,11 +305,65 @@ def shades(src: ColourSource, n, pale=88.0, dark=22.0):
     return [usable[i % len(usable)] for i in range(n)]
 
 
-#: neutral group colour for multi-hue sources (Flexoki base-600): no single hue stands for them
+#: neutral group colour for multi-hue sources on a light ground (Flexoki base-600): no single
+#: hue stands for them
 NEUTRAL = (0x6F / 255, 0x6E / 255, 0x69 / 255, 1.0)
+#: its counterpart on a dark ground (Flexoki base-300)
+NEUTRAL_DARK = (0xB7 / 255, 0xB5 / 255, 0xAC / 255, 1.0)
 
 
-def representative(src: ColourSource, position=None):
+# ---------------------------------------------------------------------------
+# the ground: every ink is judged against what it is drawn on
+# ---------------------------------------------------------------------------
+def ground_lightness(ground) -> float:
+    """Perceptual lightness (0–100) of a ground colour."""
+    return float(perceptual(np.array(_rgba(ground)[:3]))[0])
+
+
+def is_dark(ground) -> bool:
+    """A dark ground (lightness below 50): inks lift toward white instead of deepening."""
+    return ground_lightness(ground) < 50.0
+
+
+def neutral_for(ground=None):
+    """The neutral ink for a multi-hue source: base-600 on a light ground, base-300 on a dark one."""
+    return NEUTRAL_DARK if ground is not None and is_dark(ground) else NEUTRAL
+
+
+def rim(col, ground=None, k=0.3):
+    """A point's outline: a deeper shade of its own colour on a light ground, a lighter one on a
+    dark ground — so the palest and the deepest points both stay crisp against the ground."""
+    from matplotlib.colors import to_rgba
+    r, g, b, a = to_rgba(col)
+    if ground is not None and is_dark(ground):
+        return (r + (1 - r) * k, g + (1 - g) * k, b + (1 - b) * k, a)
+    return darken(col, k)
+
+
+def shade_bounds(pale: float, dark: float, ground=None) -> tuple:
+    """The lightness window for a group's shades on ``ground``: as given on a light ground; on a
+    dark ground the dark bound is lifted to at least 20 lightness units above the ground, so the
+    deepest shade still stands off it (the "lift instead of deepen" rule)."""
+    if ground is None or not is_dark(ground):
+        return pale, dark
+    return pale, max(dark, min(pale - 10.0, ground_lightness(ground) + 20.0))
+
+
+def median_ink(col, alpha, ground, contrast):
+    """The group colour, deepened — or, on a ground darker than it, lifted — only as far as it takes
+    to stand ``contrast`` lightness units (0–100) off the group's mark as rendered over ``ground``
+    at opacity ``alpha`` (the fluxbox's box wash, the glowbar's glow peak)."""
+    from matplotlib.colors import to_rgba
+    rgb, bg = np.array(to_rgba(col)[:3]), np.array(to_rgba(ground)[:3])
+    box = perceptual(alpha * rgb + (1 - alpha) * bg)[0]
+    k = np.linspace(0.0, 1.0, 101)[:, None]
+    toward = 0.0 if perceptual(rgb)[0] <= box else 1.0  # the mark is paler than its ink on a light ground
+    inks = rgb + (toward - rgb) * k  # the ink → black (or → white), in 1 % steps
+    far = np.abs(perceptual(inks)[:, 0] - box) >= contrast
+    return (*inks[int(np.argmax(far)) if far.any() else -1], 1.0)
+
+
+def representative(src: ColourSource, position=None, ground=None):
     """One solid colour that stands for the whole source (glow, caps, the mean's base shade).
 
     * a single colour given as the spec → that colour;
@@ -318,25 +372,26 @@ def representative(src: ColourSource, position=None):
     * any other source → its most chromatic colour of mid lightness, provided its hues agree
       (one hue family, e.g. cmasher ``emerald``); a source whose hues spread around the wheel
       (diverging, rainbow) has no honest single hue, and a qualitative palette is a set of
-      different categories — both get a neutral ink.
+      different categories — both get a neutral ink, chosen against ``ground``.
     """
+    neutral = neutral_for(ground)
     if src.fixed is not None:
         return src.fixed
     if src.ordered and (position is not None or src.brewer):
         return tuple(src.ramp()(0.75 if position is None else position))
     if src.kind == "discrete" and not src.ordered:
-        return NEUTRAL  # a qualitative palette: every colour is a different category, none is 'the' hue
+        return neutral  # a qualitative palette: every colour is a different category, none is 'the' hue
     cands = list(src.cmap(np.linspace(0, 1, 256))) if src.kind == "continuous" else list(src.colours)
     u = perceptual(np.array([c[:3] for c in cands]))
     chroma = np.hypot(u[:, 1], u[:, 2])
     mid = (u[:, 0] >= _REP_LIGHTNESS[0]) & (u[:, 0] <= _REP_LIGHTNESS[1]) & (chroma > 5)
     if not mid.any():
-        return NEUTRAL
+        return neutral
     hue = np.arctan2(u[mid, 2], u[mid, 1])
     w = chroma[mid]
     resultant = np.hypot((w * np.cos(hue)).sum(), (w * np.sin(hue)).sum()) / w.sum()
     if resultant < 0.6:  # hues spread around the wheel
-        return NEUTRAL
+        return neutral
     pool = np.flatnonzero(mid)
     return tuple(cands[int(pool[np.argmax(chroma[pool])])])
 
