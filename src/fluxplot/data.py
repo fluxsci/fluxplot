@@ -139,4 +139,8 @@ def point_indices(mark):
             indices = indices[every]
         else:
             return []  # display-distance subsampling has no stable source-index contract
+    subset = mark.data.get('point_subset')
+    if subset is not None:  # this mark owns a subset of the collection's points (a hue level)
+        wanted = set(int(i) for i in subset)
+        indices = [i for i in indices if int(i) in wanted]
     return [int(i) for i in indices if mark.x[i] is not None and mark.y[i] is not None]

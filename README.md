@@ -671,6 +671,21 @@ sns.lineplot(data=fmri, x="timepoint", y="signal", hue="region", ax=ax)
 fp.tag_seaborn(ax, plot="lineplot")             # → {"parietal": ["line","area"], "frontal": [...]}
 ```
 
+The categorical kinds are covered too — `plot="boxplot"`, `"violinplot"`, `"stripplot"`,
+`"swarmplot"`, `"pointplot"` — named from seaborn's fixed drawing order, never from colour or
+geometry. Pass the frame the seaborn call took (`data=`, `x=`, `y=`, `hue=`) and the hue levels
+come out in seaborn's own `categorical_order`; a strip / swarm / `scatterplot(hue=)` whose hue
+levels are mixed inside one collection is split by the frame rows each level owns (the collection
+stays one artist; each level lists its own points), and `barplot(x=g, hue=g)` — which seaborn
+draws without a legend — is named from `hue=`. Without `hue` every category is a series (`a.box`,
+`a.whisker`, `a.points`); with it every hue level is a series and each category a named part
+(`p.a` for the box, `p.a-whisker`, `p.a.point.k`). A call that tags nothing warns.
+
+```python
+sns.swarmplot(data=df, x="group", y="value", hue="sex", ax=ax)
+fp.tag_seaborn(ax, plot="swarmplot", data=df, x="group", y="value", hue="sex")   # {"F": ["point", …], "M": […]}
+```
+
 **Recipes for artists without a first-class helper** — `fp.tag` covers all of them; these are the
 patterns that come up constantly in practice (copy them verbatim). Unknown roles like `x-heatmap`
 degrade gracefully: they still get stable ids, a `data-role`, and a manifest entry.

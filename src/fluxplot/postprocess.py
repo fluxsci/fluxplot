@@ -159,11 +159,13 @@ def _rename(id_map, old, new, role) -> None:
 
 
 def _inject_points(m: Mark, id_map, warnings) -> None:
-    group = id_map.get(m.gid)
+    shared = m.data.get("point_group")  # a hue series sharing another series' collection
+    group = id_map.get(shared or m.gid)
     if group is None:
         return
-    # the group's kind mirrors its members (edit the group ⇒ restyle every point)
-    _set(group, data_series=m.series, data_kind=kind_for_role("point"))
+    # the group's kind mirrors its members (edit the group ⇒ restyle every point); a shared
+    # group names no single series
+    _set(group, data_series=None if shared or m.data.get("point_subset") else m.series, data_kind=kind_for_role("point"))
     if group.get("data-rasterized") == "1":
         # A rasterized point cloud IS one <image> — there are no per-point <use> nodes to
         # split, and that is the intended outcome, not a shortfall. The series stays
@@ -171,22 +173,26 @@ def _inject_points(m: Mark, id_map, warnings) -> None:
         _set(group, data_role="point")
         return
     n = len(m.member_gids)
+    positions = m.data.get("point_positions")
+    expected = m.data.get("point_drawn", n) if positions is not None else n
     members = list(group.iter(f"{{{SVG}}}use"))
-    if len(members) != n:
+    if len(members) != expected:
         # matplotlib's SVG backend shares one marker <path> through N <use> only when every
         # marker has the same transform. Per-point sizes (a bubble chart, ``s=`` an array) make
         # it fall back to drawing each marker as a direct <path> child of the collection group
         # (never wrapped, never in <defs>); those are the same N points in the same order.
         paths = [el for el in group if el.tag == f"{{{SVG}}}path"]
-        if len(paths) == n:
+        if len(paths) == expected:
             members = paths
         else:
             warnings.append(
-                f"points '{m.gid}': {len(members)} <use> / {len(paths)} <path> vs {n} data "
+                f"points '{m.gid}': {len(members)} <use> / {len(paths)} <path> vs {expected} data "
                 "points — skipping per-point ids"
             )
             _set(group, data_role="point")
             return
+    if positions is not None:  # this mark's members are a subset of the collection's points
+        members = [members[k] for k in positions]
     xs = list(m.x) if m.x is not None else [None] * n
     ys = list(m.y) if m.y is not None else [None] * n
     cs = m.data.get("c")  # the colour-mapped value of each point (fp.scatter c=)

@@ -423,15 +423,17 @@ def tag_points(points, *, series, x=None, y=None):
     return points
 
 
-def tag_seaborn(ax, *, series=None, plot=None):
+def tag_seaborn(ax, *, series=None, plot=None, data=None, x=None, y=None, hue=None, order=None, hue_order=None):
     """Auto-tag the artists a seaborn axes-level plot drew on ``ax`` — one call, done.
 
     Call it right after the seaborn call (and before raw-matplotlib additions you tag
-    yourself). Series names come from ``series=[...]`` if given, else the legend's labels
-    for a known ``plot=`` adapter, else the y-axis label. Multi-hue plots require
-    ``plot='lineplot'`` (or ``histplot``, ``barplot``, ``kdeplot``, etc.) because
-    legend order alone does not identify Seaborn's drawing order. An explicit
-    ``series=[...]`` always means artist draw order. Per series it names:
+    yourself). Series names come from ``series=[...]`` if given, else from the frame
+    (``data=``, ``x=``, ``y=``, ``hue=`` — the same arguments the seaborn call took, so the hue
+    levels come out in seaborn's own order), else the legend's labels for a known ``plot=``
+    adapter, else the y-axis label. Multi-hue plots require ``plot='lineplot'`` (or
+    ``histplot``, ``barplot``, ``kdeplot``, etc.) because legend order alone does not identify
+    Seaborn's drawing order. An explicit ``series=[...]`` always means artist draw order. Per
+    series it names:
 
     - data-carrying lines           → role ``line``      (``lineplot`` means, ``kdeplot``, ``regplot`` fits)
     - fill-between bands            → role ``area``      (confidence / error bands)
@@ -439,24 +441,29 @@ def tag_seaborn(ax, *, series=None, plot=None):
     - bar containers                → role ``bar``       (``barplot`` / ``countplot`` / ``histplot``)
     - capped/horizontal bar errors  → role ``errorbar``  (joined by categorical position)
 
+    The categorical kinds (``plot="boxplot"``, ``"violinplot"``, ``"stripplot"``, ``"swarmplot"``,
+    ``"pointplot"``) are named from seaborn's fixed drawing order: without ``hue`` every category is
+    a series (``a.box``, ``a.whisker``, ``a.points``, …); with ``hue`` every hue level is a series
+    and each category a named part of it (``p.a`` for the box, ``p.a-whisker``, ``p.a.point.k``).
+    A strip / swarm / scatter with hue levels mixed inside one collection is split by the frame
+    rows each level owns (``data=`` is needed for that), the collection staying one artist.
+    ``barplot(x=g, hue=g)`` is named from ``hue=`` even though seaborn draws no legend for it.
+
     Seaborn's empty legend-proxy lines are removed (they draw nothing; the legend keeps its
     own handles). Artists already tagged are skipped, so this composes with the ``fp.*``
     helpers and :func:`tag`. Anything it cannot *confidently* pair with a series name is
-    left alone — ``save()``'s orphan sweep still makes it addressable as ``extra.*``.
+    left alone — ``save()``'s orphan sweep still makes it addressable as ``extra.*`` — and a
+    call that tags nothing warns.
 
     Returns ``{series_name: [roles tagged]}`` so you can see exactly what got named.
-
-    Known limits (by construction, not laziness): ``scatterplot(hue=...)`` draws ALL hue
-    groups as ONE collection, so per-hue identity is not recoverable from the artists —
-    the points become a single per-point-addressable group named after the y-label.
-    Composite per-category plots (``boxplot``, ``violinplot``) should be tagged
-    explicitly with :func:`tag` (see the box plot example in ``examples/``).
     """
     from matplotlib.collections import PathCollection, PolyCollection
     from matplotlib.container import BarContainer
+    from . import seaborn_adapters as _sb
 
     reg = _tagger.registry_for(ax.figure)
     already = {id(a) for m in reg.marks for a in m.artists}
+    frame = _sb.Frame(data, x, y, hue, order, hue_order) if data is not None and (x is not None or y is not None) else None
 
     legend = ax.get_legend()
     legend_texts = {t.get_text() for t in legend.get_texts()} if legend is not None else set()
@@ -469,10 +476,20 @@ def tag_seaborn(ax, *, series=None, plot=None):
         if lbl.startswith("_") or lbl in legend_texts:
             ln.remove()
 
+    legend_names = [t.get_text() for t in legend.get_texts()] if legend is not None else []
+    hues = None  # the hue levels, in seaborn's order, when the call says there is a hue
+    if frame is not None and frame.hues is not None:
+        hues = frame.hues
+    elif hue_order is not None:
+        hues = list(hue_order)
+    elif hue is not None and legend_names:
+        hues = legend_names
     if series is not None:
         names = [str(s) for s in series]
-    elif legend is not None and legend.get_texts():
-        names = [t.get_text() for t in legend.get_texts()]
+    elif hues is not None:
+        names = [str(h) for h in hues]
+    elif legend_names:
+        names = legend_names
     else:
         # a FacetGrid facet has no legend of its own: its title names the facet
         names = [ax.get_ylabel() or ax.get_title() or "panel"]
@@ -480,7 +497,7 @@ def tag_seaborn(ax, *, series=None, plot=None):
     # Seaborn deliberately reverses hue iteration for distribution plots.
     # A legend does not encode this provenance. Require the plot kind for a
     # multi-hue adapter instead of inferring identity from color or geometry.
-    if plot not in (None, "lineplot", "scatterplot", "barplot", "countplot", "histplot", "kdeplot", "regplot", "heatmap"):
+    if plot not in (None, "lineplot", "scatterplot", "barplot", "countplot", "histplot", "kdeplot", "regplot", "heatmap") + _sb.CATEGORICAL_KINDS:
         raise ValueError("unsupported seaborn plot kind")
     tagged: dict = {}
     if plot in ("heatmap", "histplot", "kdeplot"):
@@ -542,6 +559,25 @@ def tag_seaborn(ax, *, series=None, plot=None):
             colour = _categories.get(name)
         if colour is not None:
             setter(artist, colour)
+
+    if plot in _sb.CATEGORICAL_KINDS:
+        if frame is not None:
+            categories, orient = frame.categories, frame.orient
+        else:
+            orient = "v" if ax.xaxis.get_ticklabels() and any(t.get_text() for t in ax.xaxis.get_ticklabels()) else "h"
+            categories = list(order) if order is not None else _sb.tick_categories(ax, orient)
+        hue_levels = hues if (hue is not None or hue_order is not None or (frame is not None and frame.hues)) else (
+            legend_names if legend_names and series is None else None)
+        _sb.tag_categorical(ax, plot, frame=frame, categories=categories, hues=hue_levels, reg=reg, already=already,
+                            tagged=tagged, pin=_pin)
+        if not tagged:
+            warnings.warn(f"tag_seaborn: nothing tagged for plot={plot!r}; artists remain addressable as extras", stacklevel=2)
+        return tagged
+
+    if plot == "scatterplot" and frame is not None and frame.hues is not None:
+        colls = [c for c in ax.collections if id(c) not in already and isinstance(c, PathCollection) and not isinstance(c, PolyCollection)]
+        if len(colls) == 1 and _sb.split_scatter(reg, colls[0], frame, tagged):
+            return tagged
 
     # data curves (one per hue level) → line
     curves = [ln for ln in ax.lines if id(ln) not in already and len(ln.get_xdata()) and not _is_segment(ln)]
@@ -608,6 +644,9 @@ def tag_seaborn(ax, *, series=None, plot=None):
             reg.add(Mark(role="errorbar", series=name, kind="errorbar", artists=[ln]))
             _record(name, "errorbar")
 
+    if not tagged:
+        warnings.warn("tag_seaborn: nothing tagged; pass plot= (and data=, x=, y=, hue= for hue splits) — "
+                      "the artists remain addressable as extras", stacklevel=2)
     return tagged
 
 

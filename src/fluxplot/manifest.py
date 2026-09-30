@@ -97,12 +97,15 @@ def build_manifest(
                     'cell' if m.data.get('cells') else 'contour-level')
                 components.append({'role': m.role, 'svgId': m.gid, 'memberRole': member_role,
                                    'members': [g for g in m.data['field_members'] if _keep(g)]})
-            elif m.role == "point" and _keep(m.gid):
-                components.append({"role": "point", "svgId": m.gid, "memberRole": "point",
-                                   "members": actual})
+            elif m.role == "point" and (_keep(m.gid) or (m.data.get("point_group") and _keep(m.data["point_group"]))):
+                comp = {"role": "point", "svgId": m.data.get("point_group") or m.gid, "memberRole": "point",
+                        "members": actual}
+                if m.data.get("point_group"):  # the SVG group is shared with another series
+                    comp["groupId"] = m.gid
+                components.append(comp)
             else:
                 components.extend({"role": m.role, "svgId": g} for g in actual)
-            if not actual and not _keep(m.gid):
+            if not actual and not _keep(m.gid) and not (m.data.get("point_group") and _keep(m.data["point_group"])):
                 continue
             kind = kind or m.kind
             label = label or m.label
@@ -118,6 +121,8 @@ def build_manifest(
             elif m.role == "point":
                 if _keep(m.gid):
                     svg.setdefault("points", m.gid)
+                elif m.data.get("point_group") and _keep(m.data["point_group"]):
+                    svg.setdefault("points", m.data["point_group"])
                 points = (points or []) + [
                     {
                         "index": m.member_indices[k],
@@ -151,9 +156,11 @@ def build_manifest(
             continue
         datasets = [(m.x, m.y) for m in marks if m.x is not None and _keep(m.gid)]
         if (datasets and any(pair != datasets[0] for pair in datasets[1:])) or sum(m.role == 'point' for m in marks) > 1:
-            # Several components may share one semantic series while depicting
-            # different observations. Keep part identity without one false data table.
-            data, points = {}, None
+            # Several components may share one semantic series while depicting different
+            # observations (a hue level's points across categories). Keep part identity without
+            # one false data table; each point still carries its own x / y, and its index counts
+            # within its own group (the svgId's prefix says which).
+            data = {}
         entry = {
             "id": _ids.series_root(series),
             "name": str(series),
@@ -653,7 +660,7 @@ def _build_parts_tree(
             if role == "point" or any(c.get("members") for c in components):
                 for c in components:
                     if c.get("members"):
-                        node = _group(c["svgId"], role, c["members"])
+                        node = _group(c.get("groupId", c["svgId"]), role, c["members"])
                         node["memberRole"] = c.get("memberRole", role)
                         mk = _roles.kind_for_role(node["memberRole"])
                         if mk is not None:

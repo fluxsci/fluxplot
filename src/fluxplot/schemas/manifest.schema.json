@@ -1351,6 +1351,10 @@
               },
               "memberRole": {
                 "type": "string"
+              },
+              "groupId": {
+                "type": "string",
+                "description": "Manifest-only id of this series' member group when svgId is a collection shared with other series (seaborn hue splits)."
               }
             },
             "required": [

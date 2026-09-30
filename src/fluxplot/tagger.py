@@ -111,6 +111,10 @@ def fig_of(artist):
 # ---------------------------------------------------------------------------
 def resolve_gids(reg: Registry, alloc: "_ids.IdAllocator") -> None:
     """Assign deterministic gids to every Mark's artist(s), in insertion order."""
+    for m in reg.marks:  # a shared collection's group is claimed afresh on every resolve
+        for a in m.artists:
+            if hasattr(a, "_fluxplot_shared_points"):
+                a._fluxplot_shared_points = None
     for m in reg.marks:
         # reset resolved fields so re-saving the same figure is idempotent
         m.gid = None
@@ -132,12 +136,31 @@ def _resolve_series_mark(m: Mark, alloc: "_ids.IdAllocator") -> None:
             art.set_gid(gid)
             m.member_gids.append(gid)
     elif m.role == "point":
-        m.gid = alloc.take(_ids.series_id(series, "points"))
-        m.artists[0].set_gid(m.gid)
-        m.split_use = True
+        # a named point mark (one per category under a hue series) nests under the name:
+        # <series>.<name>.points / .point.k
+        base = _ids.series_id(series, _ids.slugify(m.name)) if m.name is not None else _ids.series_root(series)
+        m.gid = alloc.take(base + ".points")
         from .data import point_indices
+        art = m.artists[0]
+        subset = m.data.get("point_subset")
+        if subset is not None and art.get_gid() and getattr(art, "_fluxplot_shared_points", None) is not None:
+            # a second series drawn by the SAME collection (seaborn's scatterplot(hue=)): the
+            # group belongs to the first; this mark owns only its members
+            m.data["point_group"] = art._fluxplot_shared_points
+        else:
+            art.set_gid(m.gid)
+            if subset is not None:
+                art._fluxplot_shared_points = m.gid
+            m.data.pop("point_group", None)
+        m.split_use = True
         m.member_indices = point_indices(m)
-        m.member_gids = [alloc.take(_ids.series_id(series, "point", k)) for k in m.member_indices]
+        if subset is not None:
+            # the position of each member among the collection's drawn (finite) points
+            finite = [i for i in range(min(len(m.x or []), len(m.y or []))) if m.x[i] is not None and m.y[i] is not None]
+            pos = {i: k for k, i in enumerate(finite)}
+            m.data["point_positions"] = [pos[i] for i in m.member_indices]
+            m.data["point_drawn"] = len(finite)
+        m.member_gids = [alloc.take(base + f".point.{k}") for k in m.member_indices]
     elif m.role == "bar":
         for k, art in enumerate(m.artists):
             cid = alloc.take(_ids.series_id(series, "bar", k))
