@@ -10,4 +10,10 @@ __version__ = "0.1.0"
 # 0.3.1 — additive: every parts-tree leaf carries its role, groups their memberRole, series and
 #         legend entries a label; build presets use a closed animation vocabulary with stagger
 #         hints; colour-control keys name the series (legacy positional keys still honoured).
-SPEC_VERSION = "0.3.1"
+# 0.3.2 — additive, with two id renames carried by manifest.idAliases for this minor version:
+#         spines are axis.<x|y>.spine.<side>, and series slugs transliterate / hash-suffix names
+#         that used to collide. New: colorScales (LUT law, alpha channel), shared scales, style
+#         tokens and themes, series colours, quality.color lint, twin axes (y2 / x2), figure-scope
+#         parts, images, bands, brackets with stats, tick schemes, member keys and valueMorph,
+#         categorical / date data labels, insets, secondary axes, regression / kde / step / stem.
+SPEC_VERSION = "0.3.2"

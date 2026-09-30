@@ -1136,7 +1136,7 @@
     "role": "figure"
   },
   "plotType": "hexmatrix",
-  "schemaVersion": "0.3.1",
+  "schemaVersion": "0.3.2",
   "series": [
     {
       "bar": {
@@ -1198,6 +1198,11 @@
           0.0,
           1.0,
           2.0
+        ],
+        "xLabels": [
+          "a",
+          "b",
+          "c"
         ],
         "y": [
           3.0,
