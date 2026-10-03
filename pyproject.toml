@@ -9,7 +9,7 @@ description = "matplotlib, but every meaningful thing has a name — semantic SV
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 authors = [{ name = "Kort Driessen" }]
 keywords = ["matplotlib", "svg", "semantic", "scientific-visualization", "flux"]
 dependencies = [
@@ -42,7 +42,7 @@ packages = ["src/fluxplot"]
 
 [tool.hatch.build.targets.sdist]
 # The package, its tests and the example scripts the tests run; nothing else from the repo.
-include = ["src/fluxplot", "tests", "examples/*.py", "README.md", "LICENSE"]
+include = ["src/fluxplot", "tests", "examples/*.py", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

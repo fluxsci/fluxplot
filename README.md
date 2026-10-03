@@ -1163,3 +1163,7 @@ Scenes display interactively in trusted notebooks with a PNG fallback. Flux can 
 another angle, restyle parts and remap fields without rerunning Python. See the
 [3D guide](docs/SCENE3D.md) for shape states, same-topology morphs, supported mesh inputs,
 optional decimation and a self-contained neuron demo.
+
+## License
+
+MIT (see `LICENSE`). The bundled colour data comes from Flexoki, matplotlib, ColorBrewer, Crameri's Scientific colour maps, Paul Tol and cmasher under their own permissive licenses; see `THIRD_PARTY_NOTICES.md`.
