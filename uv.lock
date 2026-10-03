@@ -685,8 +685,6 @@ source = { editable = "." }
 dependencies = [
     { name = "cmasher", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "cmasher", version = "1.9.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "ipykernel", version = "6.31.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "ipykernel", version = "7.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "jsonschema", version = "4.25.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "jsonschema", version = "4.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "lxml" },
@@ -715,12 +713,24 @@ mesh = [
     { name = "nibabel", version = "5.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "trimesh" },
 ]
+notebook = [
+    { name = "ipykernel", version = "6.31.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "ipykernel", version = "7.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "ipykernel", version = "6.31.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "ipykernel", version = "7.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pytest", version = "9.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "cmasher" },
     { name = "fast-simplification", marker = "extra == 'mesh'", specifier = ">=0.1.13,<0.2" },
-    { name = "ipykernel", specifier = ">=6.31.0" },
+    { name = "ipykernel", marker = "extra == 'notebook'", specifier = ">=6.31.0" },
     { name = "jsonschema", specifier = ">=4" },
     { name = "lxml", specifier = ">=4.9" },
     { name = "matplotlib", specifier = ">=3.7,<4" },
@@ -731,7 +741,13 @@ requires-dist = [
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "trimesh", marker = "extra == 'mesh'", specifier = ">=4,<5" },
 ]
-provides-extras = ["dev", "mesh"]
+provides-extras = ["dev", "mesh", "notebook"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "ipykernel", specifier = ">=6.31.0" },
+    { name = "pytest", specifier = ">=7" },
+]
 
 [[package]]
 name = "fonttools"
