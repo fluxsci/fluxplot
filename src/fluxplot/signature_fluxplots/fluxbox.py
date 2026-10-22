@@ -16,6 +16,11 @@ agree dot for dot and can be swapped for one another. Four statistics are read s
   observations within ``whis`` × IQR of the box (Tukey's rule — exactly ``plt.boxplot``'s
   whiskers), the full range, or a pair of percentiles.
 
+On a log y axis (``yscale="log"``, or drawn into axes that are already log-scaled) every statistic is
+taken in log space and drawn back on the data scale: the quartiles and median are unchanged, the mean
+notch marks the **geometric** mean, and Tukey's whisker reach is a factor of the IQR in log units, so
+the box reads the way the axis does. Non-positive values cannot sit on such an axis and are left out.
+
 Observations beyond the whiskers are not drawn a second time as fliers — the individual points
 already show them. With ``show_individual_points=False`` they are (``show_fliers="auto"``).
 
@@ -119,6 +124,19 @@ def _box_stats(vals, rule):
             "outliers": outliers}
 
 
+def _log_box_stats(vals, rule):
+    """:func:`_box_stats` taken in log10 space and returned on the data scale (geometric mean; the
+    sd / sem are the multiplicative geometric factors; the iqr is ``q3 - q1`` as drawn)."""
+    v = vals[np.isfinite(vals) & (vals > 0)]
+    st = _box_stats(np.log10(v), rule)
+    if st is None:
+        return None
+    back = {k: 10.0 ** st[k] for k in ("mean", "median", "q1", "q3", "whiskerLow", "whiskerHigh")}
+    factors = {k: (10.0 ** st[k] if np.isfinite(st[k]) else float("nan")) for k in ("sd", "sem")}
+    return dict(st, **back, **factors, iqr=back["q3"] - back["q1"],
+                outliers=[10.0 ** o for o in st["outliers"]], scale="log", meanKind="geometric")
+
+
 def _manifest_value(v):
     return [_plain(e) for e in v] if isinstance(v, list) else _plain(v)
 
@@ -170,6 +188,7 @@ def fluxbox(
     ax=None,
     # the box
     whis: Union[float, str, Sequence[float]] = 1.5,
+    yscale: Optional[str] = None,
     show_mean: bool = True,
     show_median: bool = True,
     show_whiskers: bool = True,
@@ -242,6 +261,10 @@ def fluxbox(
         How far the whiskers reach: a factor of the IQR (default ``1.5`` — Tukey's rule, as
         ``plt.boxplot``), ``"range"`` (the minimum and maximum), or a ``(low, high)`` pair of
         percentiles. Each whisker ends on the most extreme observation within that reach.
+    yscale
+        ``"linear"`` or ``"log"`` (default: the axes' current y scale). On a log axis the statistics
+        are taken in log space and drawn back on the data scale — the mean notch is the geometric
+        mean and the whisker reach is measured in log units; non-positive values are left out.
     show_mean, show_median, show_whiskers, show_caps
         Toggle the mean notch, the median line, the whiskers and whisker caps (off by default).
     show_fliers
@@ -344,6 +367,12 @@ def fluxbox(
     if not 0.0 <= box_alpha <= 1.0:
         raise ValueError(f"fluxbox: box_alpha must be in [0, 1]; got {box_alpha!r}")
     rule = _whisker_rule(whis)
+    yscale = ax.get_yscale() if yscale is None else yscale
+    if yscale not in ("linear", "log"):
+        raise ValueError(f"fluxbox: yscale must be 'linear' or 'log'; got {yscale!r}")
+    log = yscale == "log"
+    if log:
+        ax.set_yscale("log")
     cut = _cut_colour(ax, cut_color)  # the ground every ink is judged against
     fr = _frame("fluxbox", data, x, y, units, order, unit_order, jitter=jitter, palette=palette,
                 group_color=group_color, group_color_position=group_color_position,
@@ -351,6 +380,8 @@ def fluxbox(
                 interleave_shades=interleave_shades, series=series, unit_series=unit_series,
                 connect=connect_identical_points_across_x_values, point_fill_alpha=point_fill_alpha,
                 ground=cut)
+    if log:
+        fr.ys[~(fr.ys > 0)] = np.nan  # a log axis cannot show them, and the box must not count them
     reg = _tagger.registry_for(ax.figure)
     artists = {"box": [], "whiskers": [], "caps": [], "median": [], "mean": [], "fliers": [],
                "points": [], "lines": []}
@@ -366,7 +397,7 @@ def fluxbox(
     notch, notch_ms = _notch_marker(box_width, mean_notch_depth, mean_notch_height)
     stats = {}
     for k, c in enumerate(fr.cats):
-        st = _box_stats(fr.ys[fr.rows_in[c]], rule)
+        st = (_log_box_stats if log else _box_stats)(fr.ys[fr.rows_in[c]], rule)
         if st is None:
             continue
         s, col = fr.series_of[c], fr.group_colors[c]

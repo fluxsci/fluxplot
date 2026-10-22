@@ -262,3 +262,30 @@ def test_fluxbox_is_deterministic(tmp_path):
         plt.close(fig)
         outs.append((tmp_path / "d.svg").read_bytes())
     assert outs[0] == outs[1]
+
+
+def test_on_a_log_axis_the_box_is_taken_in_log_space(tmp_path):
+    vals = [0.5, 1.0, 2.0, 4.0, 8.0, 64.0, -1.0]
+    fig, ax = plt.subplots()
+    fb = fp.fluxbox({"g": ["a"] * len(vals), "v": vals}, x="g", y="v", ax=ax, yscale="log")
+    assert ax.get_yscale() == "log"
+    st = fb.stats["a"]
+    logs = np.log10([v for v in vals if v > 0])
+    ref = cbook.boxplot_stats(logs, whis=1.5)[0]
+    assert st["n"] == 6 and st["scale"] == "log" and st["meanKind"] == "geometric"
+    assert st["mean"] == pytest.approx(10 ** logs.mean())
+    for key, mine in (("med", "median"), ("q1", "q1"), ("q3", "q3"),
+                      ("whislo", "whiskerLow"), ("whishi", "whiskerHigh")):
+        assert st[mine] == pytest.approx(10 ** ref[key])
+    _, man, _ = _save(fig, tmp_path)
+    assert _series(man)["a"]["fluxbox"]["meanKind"] == "geometric"
+
+
+def test_log_scale_follows_the_axes_and_bad_scales_are_refused():
+    fig, ax = plt.subplots()
+    ax.set_yscale("log")
+    fb = fp.fluxbox({"g": ["a"] * 4, "v": [1.0, 10.0, 100.0, 1000.0]}, x="g", y="v", ax=ax)
+    assert fb.stats["a"]["mean"] == pytest.approx(10 ** 1.5)
+    with pytest.raises(ValueError, match="fluxbox: yscale"):
+        fp.fluxbox({"g": ["a"], "v": [1.0]}, x="g", y="v", ax=ax, yscale="symlog")
+    plt.close(fig)
