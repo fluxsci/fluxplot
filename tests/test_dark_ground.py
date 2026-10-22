@@ -80,7 +80,9 @@ def test_fluxbox_marks_stand_off_the_ground(theme):
     for coll in fb.artists["points"]:
         for face, edge in zip(coll.get_facecolor(), coll.get_edgecolor()):
             assert max(_contrast(face, ground), _contrast(edge, ground)) >= 1.5, theme
-    for ln in fb.artists["box"] + fb.artists["whiskers"] + fb.artists["median"] + fb.artists["caps"]:
+    for box in fb.artists["box"]:  # a filled outline: its face colour carries the box's alpha
+        assert _contrast(to_rgba(box.get_facecolor()), ground) >= 1.5, (theme, to_hex(box.get_facecolor()))
+    for ln in fb.artists["whiskers"] + fb.artists["median"] + fb.artists["caps"]:
         colour = to_rgba(ln.get_color(), alpha=ln.get_alpha())
         assert _contrast(colour, ground) >= 1.5, (theme, to_hex(colour))
 

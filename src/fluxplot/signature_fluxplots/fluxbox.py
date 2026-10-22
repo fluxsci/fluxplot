@@ -9,8 +9,9 @@ agree dot for dot and can be swapped for one another. Four statistics are read s
 * the **median** — a solid line across the box in the group's own hue, deepened (on a dark
   background: lifted) just as far as it takes to stand clearly off the box, so it reads for any
   palette and any theme. That colour is the box plot's one *ink*: the whiskers (and fliers) share it;
-* the **mean** — a V-notch cut into both edges of the box (the glowbar's median notch). A mean that
-  falls outside the box (a strongly skewed group) keeps its mark: the same two V's, drawn solid in
+* the **mean** — a V-notch cut into both edges of the box (the glowbar's median notch). The notch
+  is a true gap in the box's outline, not paint: the ground, and anything drawn behind the box,
+  shows through it. A mean that falls outside the box (a strongly skewed group) keeps its mark: the same two V's, drawn solid in
   the ink, pointing in at the whisker;
 * the **whiskers** — plain capless lines in the median's colour, reaching the most extreme
   observations within ``whis`` × IQR of the box (Tukey's rule — exactly ``plt.boxplot``'s
@@ -56,6 +57,7 @@ Example
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import lru_cache
 from numbers import Real
 from typing import Any, Optional, Sequence, Union
 
@@ -139,6 +141,55 @@ def _log_box_stats(vals, rule):
 
 def _manifest_value(v):
     return [_plain(e) for e in v] if isinstance(v, list) else _plain(v)
+
+
+# ---------------------------------------------------------------------------
+# the box: one outline with the mean notch left out of it
+# ---------------------------------------------------------------------------
+@lru_cache(maxsize=None)
+def _notched_box_class():
+    from matplotlib.patches import Patch
+    from matplotlib.path import Path
+    from matplotlib.transforms import IdentityTransform
+
+    class NotchedBox(Patch):
+        """The Q1–Q3 box, ``width`` points wide, with a V cut ``depth`` × ``height`` points into
+        both edges at ``notch`` (data; ``None``: no notch). The cut is a genuine gap in the outline —
+        whatever lies behind the box shows through it, on any ground.
+
+        Its width and cut are in points while its ends and notch sit in data, so the outline is
+        rebuilt in display space every time it is drawn: it follows limits, scale and dpi.
+        """
+
+        def __init__(self, ax, x, y0, y1, notch, width, depth, height, **kw):
+            super().__init__(**kw)
+            self.axes_ref, self.x, self.y0, self.y1 = ax, x, y0, y1
+            self.notch, self.width, self.depth, self.height = notch, width, depth, height
+
+        def get_transform(self):
+            return IdentityTransform()
+
+        def get_path(self):
+            pt = self.axes_ref.figure.dpi / 72.0
+            ys = [self.y0, self.y1] + ([] if self.notch is None else [self.notch])
+            disp = self.axes_ref.transData.transform([(self.x, y) for y in ys])
+            X = disp[0, 0]
+            lo, hi = sorted(disp[:2, 1])
+            e = self.width * pt / 2
+            verts = [(X - e, lo), (X + e, lo)]
+            if self.notch is not None and lo <= disp[2, 1] <= hi:
+                yn, h = disp[2, 1], self.height * pt / 2
+                tip = e - min(self.depth * pt, e)  # a cut never crosses the centre line
+                # near Q1 / Q3 the V is clipped at the box's end rather than overhanging it
+                below, above = max(yn - h, lo), min(yn + h, hi)
+                right = [(X + e, below), (X + tip, yn), (X + e, above)]
+                verts += right + [(X + e, hi), (X - e, hi)] + [(2 * X - vx, vy) for vx, vy in right[::-1]]
+            else:
+                verts += [(X + e, hi), (X - e, hi)]
+            return Path(verts + [verts[0]],
+                        [Path.MOVETO] + [Path.LINETO] * (len(verts) - 1) + [Path.CLOSEPOLY])
+
+    return NotchedBox
 
 
 @dataclass
@@ -286,7 +337,8 @@ def fluxbox(
         it is also the colour of the whiskers, fliers and a solid (out-of-box) mean mark.
     mean_notch_depth, mean_notch_height
         How far each V-cut of the mean notch reaches into the box, and its height, in points. The
-        notch is drawn above the median, so it stays visible when the mean meets the median.
+        notch is cut out of the box (whatever lies behind shows through), and the median line is
+        trimmed to the notched outline, so the notch stays open where the mean meets the median.
     whisker_width, whisker_color
         Whisker stroke (points) and colour (default: the median's colour).
     cap_size, cap_width, cap_color
@@ -295,8 +347,8 @@ def fluxbox(
     flier_size
         Marker area (points²) of the fliers.
     cut_color
-        Colour of the mean notch "cut" (default: the axes background); also the ground the median's
-        contrast is judged against.
+        The ground the median's contrast is judged against (default: the axes background). The
+        mean notch is a real gap in the box and takes no colour.
 
     show_individual_points
         Draw the individual observations (default ``True``).
@@ -394,7 +446,8 @@ def fluxbox(
     fliers_on = not show_individual_points if show_fliers == "auto" else show_fliers
 
     # ---- the box ---------------------------------------------------------------------------------------
-    notch, notch_ms = _notch_marker(box_width, mean_notch_depth, mean_notch_height)
+    notch, notch_ms = _notch_marker(box_width, mean_notch_depth, mean_notch_height, bleed=0.0)
+    NotchedBox = _notched_box_class()
     stats = {}
     for k, c in enumerate(fr.cats):
         st = (_log_box_stats if log else _box_stats)(fr.ys[fr.rows_in[c]], rule)
@@ -433,10 +486,15 @@ def fluxbox(
             reg.add(Mark(role="flier", series=s, name="fliers", kind="fluxbox", artists=[fl]))
             artists["fliers"].append(fl)
 
-        # the box: a butt-capped stroke exactly box_width points wide, spanning Q1–Q3 in data units;
-        # the exact statistics drawn ride on it → the manifest
-        (body,) = ax.plot([bx, bx], [q1, q3], color=col, alpha=box_alpha, lw=box_width,
-                          solid_capstyle="butt", zorder=zorder + 0.6)
+        # the box: exactly box_width points wide, spanning Q1–Q3 in data units, with the mean notch
+        # cut out of its outline (inside the box only); the exact statistics drawn ride on it → the
+        # manifest
+        cut_in = show_mean and q1 < q3 and q1 <= st["mean"] <= q3
+        body = NotchedBox(ax, bx, q1, q3, st["mean"] if cut_in else None, box_width,
+                          mean_notch_depth, mean_notch_height, facecolor=col, alpha=box_alpha,
+                          edgecolor="none", linewidth=0, zorder=zorder + 0.6)
+        ax.add_patch(body)
+        ax.update_datalim([(bx, q1), (bx, q3)])  # a display-space outline sets no limits itself
         payload = {"fluxbox": {"part": "summary", "category": _plain(c), "units": fr.units_name,
                                "groupColor": _hex(col), "palette": _palette_spec_json(fr.palette_used.get(c)),
                                **{key: _manifest_value(v) for key, v in st.items()}}}
@@ -447,14 +505,15 @@ def fluxbox(
             # marker '_' spans exactly ms points: the median line is as wide as the box
             (med,) = ax.plot([bx], [st["median"]], ls="none", marker="_", ms=box_width,
                              mew=median_line_width, color=ink, zorder=zorder + 1.5)
+            med.set_clip_path(body)  # follows the notch where the mean meets it, never fills it
             reg.add(Mark(role="median", series=s, kind="fluxbox", artists=[med]))
             artists["median"].append(med)
         if show_mean:
-            # inside the box the notch is cut out of it; outside (or on a box of no height) there is
-            # nothing to cut, so the same V's are drawn solid in the ink, pointing in at the whisker
-            cut_in = q1 < q3 and q1 <= st["mean"] <= q3
+            # inside the box the notch is the gap cut in its outline, and this part only names it
+            # (it paints nothing); outside (or on a box of no height) there is nothing to cut, so
+            # the same V's are drawn solid in the ink, pointing in at the whisker
             (mean_mk,) = ax.plot([bx], [st["mean"]], ls="none", marker=notch, ms=notch_ms,
-                                 mfc=cut if cut_in else ink, mec="none", mew=0, zorder=zorder + 2)
+                                 mfc="none" if cut_in else ink, mec="none", mew=0, zorder=zorder + 2)
             reg.add(Mark(role="mean", series=s, kind="fluxbox", artists=[mean_mk]))
             artists["mean"].append(mean_mk)
 

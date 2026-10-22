@@ -82,8 +82,12 @@ def test_the_box_spans_the_quartiles_at_its_stated_width():
     fig, ax = plt.subplots()
     fb = fp.fluxbox(_table(), x="type", y="APP", ax=ax, box_width=6.0)
     st, body = fb.stats["SD"], fb.artists["box"][1]
-    assert list(body.get_ydata()) == pytest.approx([st["q1"], st["q3"]])
-    assert body.get_linewidth() == 6.0 and body.get_solid_capstyle() == "butt"
+    fig.canvas.draw()
+    ext = body.get_path().get_extents()                    # display pixels
+    q1, q3 = (ax.transData.transform([(st["x"], y) for y in (st["q1"], st["q3"])])[:, 1])
+    assert (ext.y0, ext.y1) == pytest.approx((q1, q3))
+    assert ext.width == pytest.approx(6.0 * fig.dpi / 72)
+    assert (ext.x0 + ext.x1) / 2 == pytest.approx(ax.transData.transform((st["x"], 0))[0])
     lo_seg, hi_seg = np.split(fb.artists["whiskers"][1].get_ydata(), [2])
     assert list(lo_seg) == pytest.approx([st["q1"], st["whiskerLow"]])
     assert list(hi_seg[1:]) == pytest.approx([st["q3"], st["whiskerHigh"]])  # hi_seg[0] is the break
@@ -109,18 +113,61 @@ def test_everything_outside_the_box_is_the_glowbars():
     plt.close(fig)
 
 
+def _render(fig):
+    """The figure as RGBA pixels (rows top → bottom), drawn on a transparent ground."""
+    fig.patch.set_alpha(0)
+    for a in fig.axes:
+        a.patch.set_alpha(0)
+    fig.canvas.draw()
+    return np.asarray(fig.canvas.buffer_rgba()).astype(float) / 255
+
+
+def _pixel(fig, ax, x, x_pt, y):
+    """The pixel ``x_pt`` points right of data ``x``, at data ``y``."""
+    px, py = ax.transData.transform((x, y))
+    return int(fig.canvas.get_width_height()[1] - py), int(px + x_pt * fig.dpi / 72)
+
+
 def test_the_mean_notch_is_cut_in_the_box_and_drawn_solid_outside_it():
     t = {"g": ["in"] * 6 + ["out"] * 6 + ["one"],
          "v": [1, 2, 3, 4, 5, 6] + [0, 0.1, 0.2, 0.3, 0.2, 20] + [7]}  # "out": mean ≈ 3.5 ≫ Q3
     fig, ax = plt.subplots()
     fb = fp.fluxbox(t, x="g", y="v", ax=ax)
-    white = to_rgba("white")
     face = {c: to_rgba(m.get_markerfacecolor()) for c, m in zip(fb.categories, fb.artists["mean"])}
-    assert face["in"] == white                                    # cut out of the box
+    assert face["in"][3] == 0                         # the cut is the box's own outline: nothing painted
+    assert fb.artists["box"][0].notch == fb.stats["in"]["mean"]
     ink = {c: to_rgba(m.get_color()) for c, m in zip(fb.categories, fb.artists["median"])}
     assert face["out"] == pytest.approx(ink["out"])   # nothing to cut: drawn solid, in the ink
     assert face["one"] == pytest.approx(ink["one"])   # a box of no height: drawn solid
+    assert fb.artists["box"][1].notch is None and fb.artists["box"][2].notch is None
     assert fb.stats["out"]["mean"] > fb.stats["out"]["q3"]
+    plt.close(fig)
+
+
+@pytest.mark.parametrize("ground", [None, "#1C1B1A"])
+def test_the_mean_notch_is_a_true_gap_that_shows_what_lies_behind(ground):
+    """Nothing is painted in the notch — no background-coloured patch to show on another ground,
+    and whatever is drawn behind the box shows through it."""
+    v = [1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0]  # mean = median = 1.5: the notch meets the median
+    fig, ax = plt.subplots(dpi=200)
+    if ground:
+        ax.set_facecolor(ground)
+    fb = fp.fluxbox({"g": ["a"] * 8, "v": v}, x="g", y="v", ax=ax, show_individual_points=False,
+                    box_width=20.0, mean_notch_depth=6.0, mean_notch_height=10.0)
+    st = fb.stats["a"]
+    assert st["mean"] == st["median"] == 1.5
+    behind = ax.axhspan(1.2, 1.6, color="#00FF00", zorder=-10)
+    img = _render(fig)
+    edge = _pixel(fig, ax, st["x"], 9.0, 1.5)      # 1 pt inside the box's right edge, at the notch's apex
+    body = _pixel(fig, ax, st["x"], 9.0, 1.25)     # the same, in the uncut box
+    assert img[edge] == pytest.approx([0, 1, 0, 1], abs=0.02)            # the green shows through
+    assert np.abs(img[body] - [0, 1, 0, 1]).max() > 0.2                  # the box covers it
+    behind.remove()
+    img = _render(fig)
+    assert img[edge][3] == 0                                             # transparent: no cut colour
+    centre = _pixel(fig, ax, st["x"], 0.0, 1.5)
+    assert img[centre][3] == pytest.approx(1, abs=0.02)                  # the median still crosses the waist
+    assert ax.get_ylim()[0] <= st["q1"] and st["q3"] <= ax.get_ylim()[1]
     plt.close(fig)
 
 
@@ -137,7 +184,7 @@ def test_the_median_is_a_solid_line_that_stands_off_its_box(ground, colour):
     fb = fp.fluxbox(_table(), x="type", y="APP", ax=ax, group_color=colour)
     body, med = fb.artists["box"][0], fb.artists["median"][0]
     assert body.get_alpha() == 0.5 and med.get_alpha() is None     # a wash of a box; an opaque line
-    assert med.get_markersize() == body.get_linewidth() == 7.0       # exactly as wide as the box
+    assert med.get_markersize() == body.width == 7.0                 # exactly as wide as the box
     col, bg = np.array(to_rgba(colour)[:3]), np.array(to_rgba(ground)[:3])
     box = 0.5 * col + 0.5 * bg                                       # the box as it renders
     ink = np.array(to_rgba(med.get_color())[:3])
