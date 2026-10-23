@@ -24,7 +24,7 @@ import fluxplot as fp  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(__file__))
 from test_surface import _sphere  # noqa: E402
-from test_glowbar import _table  # noqa: E402
+from test_categorical import _table  # noqa: E402
 
 
 def strict(schema):
@@ -125,9 +125,9 @@ def _hexmatrix_matrix():
     return fig
 
 
-def _glowbar():
+def _meanmark():
     fig, ax = plt.subplots()
-    fp.glowbar(_table(), x="type", y="APP", units="subject", ax=ax, connect_identical_points_across_x_values=False)
+    fp.meanmark(_table(), x="type", y="APP", units="subject", ax=ax, connect_identical_points_across_x_values=False)
     return fig
 
 
@@ -177,7 +177,7 @@ def _polar_and_dates():
 
 BUILDERS = {
     "basic": _basic, "distributions": _distributions, "fields": _fields, "scatter_c": _scatter_c,
-    "hexmatrix": _hexmatrix, "hexmatrix_matrix": _hexmatrix_matrix, "glowbar": _glowbar, "fluxbox": _fluxbox,
+    "hexmatrix": _hexmatrix, "hexmatrix_matrix": _hexmatrix_matrix, "meanmark": _meanmark, "fluxbox": _fluxbox,
     "surface": _surface, "seaborn": _seaborn, "polar_and_dates": _polar_and_dates,
 }
 

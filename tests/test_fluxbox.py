@@ -1,8 +1,8 @@
-"""fp.fluxbox — the glowbar with a box plot for its summary.
+"""fp.fluxbox — a box plot with individual observations.
 
 What this file pins down: the box, whiskers and outliers are exactly matplotlib's box-plot statistics,
 every piece is a named part with a manifest payload, the mean notch never silently disappears, and
-everything outside the box — lanes, colours, names, connectors — is the glowbar's, dot for dot.
+everything outside the box — lanes, colours, names, connectors — is the meanmark's, dot for dot.
 """
 import json
 
@@ -94,14 +94,18 @@ def test_the_box_spans_the_quartiles_at_its_stated_width():
     plt.close(fig)
 
 
-def test_everything_outside_the_box_is_the_glowbars():
-    """Swapping fp.glowbar for fp.fluxbox must keep every dot, colour, lane and name."""
+def test_everything_outside_the_box_is_the_meanmarks():
+    """Shared controls preserve dots, colours, lanes and names across plot types."""
     kw = {"x": "type", "y": "APP", "units": "subject", "palette": ["cmasher.emerald", "YlOrRd"],
-          "connect_identical_points_across_x_values": True}
+          "connect_identical_points_across_x_values": True, "jitter": .14,
+          "point_colors": "auto", "point_fill_alpha": 1., "point_size": 18.,
+          "point_edge_width": .5, "connect_line_width": .6, "connect_color": None,
+          "connect_alpha": .8}
     t = _table()
     t["subject"] = [f"m{(i % 6) + 1}" for i in range(12)]  # paired: six mice in both groups
     fig, (a, b) = plt.subplots(1, 2)
-    gb, fb = fp.glowbar(t, ax=a, **kw), fp.fluxbox(t, ax=b, **kw)
+    gb = fp.meanmark(t, ax=a, mark_offset=.42, mark_side="outer", **kw)
+    fb = fp.fluxbox(t, ax=b, **kw)
     assert gb.categories == fb.categories and gb.series == fb.series and gb.unit_series == fb.unit_series
     assert gb.group_colors == fb.group_colors and gb.point_colors == fb.point_colors
     for g, f in zip(gb.artists["points"], fb.artists["points"]):

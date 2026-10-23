@@ -81,6 +81,11 @@ def mark_kind(mark: "Mark") -> Optional[str]:
     """Data-kind hint for a Mark: the role's static kind, else inferred from its artist."""
     from . import roles as _roles
 
+    # A mean can be a line (box plots) or a filled circle (meanmark).
+    if mark.role == "mean" and mark.artists:
+        from matplotlib.patches import Patch
+        if isinstance(mark.artists[0], Patch):
+            return "shape"
     k = _roles.kind_for_role(mark.role)
     if k is not None:
         return k

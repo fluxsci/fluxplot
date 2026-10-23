@@ -150,6 +150,8 @@ def build_manifest(
                 svg[COMPOSITE_ROLES[crole]] = members
         # Escape-hatch series (fp.tag) carry no helper kind; fall back to the first
         # tagged role so `kind` is always a string (Flux's validator rejects null).
+        if any(m.kind == "meanmark" for m in marks):
+            kind = "meanmark"
         if kind is None:
             kind = marks[0].role
         if not svg:
@@ -178,7 +180,7 @@ def build_manifest(
                     extra = axis_value_labels(mpl_axis, data[key])
                     for k, v in extra.items():
                         data[key + k] = v
-        for field in ("bar", "band", "uncertainty", "field", "glowbar", "fluxbox", "hexmatrix", "image", "step", "stem",
+        for field in ("bar", "band", "uncertainty", "field", "meanmark", "fluxbox", "hexmatrix", "image", "step", "stem",
                       "regression", "kde"):
             payload = next((m.data[field] for m in marks if m.data.get(field)), None)
             if payload is not None:
@@ -193,6 +195,9 @@ def build_manifest(
         paint = next((m.data["color"] for m in marks if m.data.get("color") and drawn(m) and m.role in primary), None)
         if paint is None:
             paint = next((m.data["color"] for m in marks if m.data.get("color") and drawn(m)), None)
+        if kind == "meanmark":
+            paint = next((m.data["color"] for m in marks if m.role == "mean"
+                          and m.data.get("color") and drawn(m)), paint)
         if paint:
             colour.update(paint)
         scale = next((m.data["color_scale"]["id"] for m in marks if m.data.get("color_scale") and _keep(m.gid)), None)
@@ -214,11 +219,11 @@ def build_manifest(
         entry['capabilities'] = {'dataMorph': bool(ordinary and data and
             not any(c['svgId'] in rasterized for c in components) and
             (svg.get('line') or points))}
-        # keyed members (bars by category, cells and hexes by row.col, glowbar / fluxbox parts by
+        # keyed members (bars by category, cells and hexes by row.col, meanmark / fluxbox parts by
         # category) let two versions of the plot be tweened member by member
         keyed = any((m.role == 'bar' and (m.data.get('bar') or {}).get('keys'))
                     or (m.data.get('field_config') and (m.data.get('cells') or m.data.get('hexmatrix')))
-                    or m.kind in ('glowbar', 'fluxbox') for m in marks)
+                    or m.kind in ('meanmark', 'fluxbox') for m in marks)
         entry['capabilities']['valueMorph'] = bool(keyed and not any(c['svgId'] in rasterized for c in components))
         if label:
             entry["label"] = label
@@ -712,7 +717,10 @@ def _build_parts_tree(
                         kids.append(_ref(c["svgId"], kind, role))
             elif role == "bar" or role in COMPOSITE_ROLES or len(components) > 1:
                 plural = "bars" if role == "bar" else COMPOSITE_ROLES.get(role, role + "-parts")
-                kids.append(_group(s["id"] + "." + plural, role, [c["svgId"] for c in components]))
+                node = _group(s["id"] + "." + plural, role, [c["svgId"] for c in components])
+                if kind is not None:
+                    node["kind"] = kind  # artist-informed, e.g. a mean circle is a shape
+                kids.append(node)
             else:
                 kids.append(_ref(components[0]["svgId"], kind, role))
         node = {"id": s["id"], "role": "series", "kind": "container", "children": kids,

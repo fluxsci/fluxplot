@@ -57,7 +57,7 @@ import numpy as np
 from .. import ids as _ids
 from .. import tagger as _tagger
 from ..descriptors import Mark
-from .glowbar import _column, _floats, _hex, _plain
+from ._categorical import _column, _floats, _hex, _plain
 
 __all__ = ["hexmatrix", "HexMatrixResult"]
 

@@ -1,4 +1,4 @@
-"""Signature plots on dark grounds (B5): every mark a glowbar, fluxbox or hexmatrix draws stands off
+"""Signature plots on dark grounds (B5): every mark a meanmark, fluxbox or hexmatrix draws stands off
 the axes background under the light, paper and dark themes (WCAG contrast ≥ 1.5), and the
 bracket / identity lines by ≥ 3; inks lift on dark grounds instead of deepening."""
 import matplotlib
@@ -45,29 +45,26 @@ def _contrast(colour, ground):
 
 
 @pytest.mark.parametrize("theme", THEMES)
-def test_glowbar_marks_stand_off_the_ground(theme):
+def test_meanmark_theme_adaptive_colours_stand_off_the_ground(theme):
     getattr(style, theme)()
     fig, ax = plt.subplots()
-    gb = fp.glowbar(_table(), x="type", y="APP", units="subject", ax=ax,
-                    connect_identical_points_across_x_values=True)
+    gb = fp.meanmark(_table(), x="type", y="APP", units="subject", ax=ax,
+                    connect_identical_points_across_x_values=True, connect_color=None,
+                    point_colors="shades", point_fill_alpha=1, point_edge_width=.5)
     ground = _ground(ax)
     for coll in gb.artists["points"]:
         # a point reads through its face or its rim: the palest shade on white is outlined by a
         # deeper rim (that is what the rim is for), the deepest on a dark ground by a lighter one
         for face, edge in zip(coll.get_facecolor(), coll.get_edgecolor()):
             assert max(_contrast(face, ground), _contrast(edge, ground)) >= 1.5, (theme, to_hex(face), to_hex(edge))
-    for ln in gb.artists["mean"] + gb.artists["caps"] + gb.artists["lines"]:
-        assert _contrast(ln.get_color(), ground) >= 1.5, (theme, to_hex(ln.get_color()))
-    for glow in gb.artists["glow"]:
-        assert _contrast(glow.get_colors()[0][:3], ground) >= 1.5
+    for part in gb.artists["mean"] + gb.artists["error_low"] + gb.artists["error_high"]:
+        assert _contrast(part.get_edgecolor(), ground) >= 1.5
+    for ln in gb.artists["lines"]:
+        assert _contrast(ln.get_color(), ground) >= 1.5
     if theme == "use_dark":
-        # inks lift on a dark ground: the mean line is paler than the group colour, not deeper
-        col = gb.group_colors["SD"]
-        mean = next(ln for ln in gb.artists["mean"])
-        assert _colour.perceptual(np.array(to_rgba(mean.get_color())[:3]))[0] > _colour.perceptual(np.array(col[:3]))[0]
-        assert gb.artists["lines"][0].get_color() == style.ACTIVE["tokens"]["grid"]  # the dark grid reads
+        assert gb.artists["lines"][0].get_color() == style.ACTIVE["tokens"]["grid"]
     if theme == "use_light":
-        from fluxplot.signature_fluxplots.glowbar import CONNECT_GREY
+        from fluxplot.signature_fluxplots._categorical import CONNECT_GREY
         assert gb.artists["lines"][0].get_color() == CONNECT_GREY  # the light grid would not: base-300 stays
 
 

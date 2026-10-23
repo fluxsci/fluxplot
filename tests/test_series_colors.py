@@ -66,20 +66,20 @@ def test_category_colours_do_not_depend_on_which_categories_are_present():
     assert categorical_colors(["b"], palette={"b": "#000000"})["b"] == "#000000"  # an explicit palette still wins
 
 
-def test_project_colours_file_pins_glowbar_groups(tmp_path, monkeypatch):
+def test_project_colours_file_pins_meanmark_groups(tmp_path, monkeypatch):
     path = tmp_path / "fluxplot.colors.json"
     path.write_text(json.dumps({"spec": "fluxplot/colors", "version": 1,
                                 "categories": {"SD": "#bc5215"}, "palette": "flexoki"}))
     fx.categories.reset()  # the next use auto-discovers the file in the working directory
     fig, ax = plt.subplots()
-    gb = fp.glowbar(_table(), x="type", y="APP", units="subject", ax=ax)
+    gb = fp.meanmark(_table(), x="type", y="APP", units="subject", ax=ax)
     assert gb.group_colors["SD"] == pytest.approx(to_rgba("#bc5215"))
     assert gb.group_colors["S"] != gb.group_colors["SD"]
     man = _save(fig, tmp_path)
     sd = next(s for s in man["series"] if s["id"] == "sd")
-    assert sd["glowbar"]["groupColor"] == "#bc5215" and sd["glowbar"]["palette"] == "#bc5215"
+    assert sd["meanmark"]["groupColor"] == "#bc5215" and sd["meanmark"]["palette"] == "#bc5215"
     s_ = next(s for s in man["series"] if s["id"] == "s")
-    assert s_["glowbar"]["palette"] == "YlOrRd"  # the default map for the second category, recorded
+    assert s_["meanmark"]["palette"] == "YlOrRd"  # the default map for the second category, recorded
     assert fx.categories.path == str(path)
     # nothing is ever written implicitly; save() is explicit
     fx.categories.assign({"Sleep": fx.blue600})
@@ -116,7 +116,7 @@ def test_recipe_series_colours_and_palette(tmp_path, monkeypatch):
     assert to_hex(ln.get_color()) == "#00ff00"  # the recipe's colour wins over the script's
     other = fp.line(a, [0, 1], [1, 0], series="other")
     assert to_hex(other.get_color()) == fx.palettes.get("tol", "bright")[0]  # …and the cycle is the palette
-    gb = fp.glowbar(_table(), x="type", y="APP", units="subject", ax=b)
+    gb = fp.meanmark(_table(), x="type", y="APP", units="subject", ax=b)
     assert gb.group_colors["SD"] == pytest.approx(to_rgba("#112233"))
     man = _save(fig, tmp_path)
     assert next(s for s in man["series"] if s["id"] == "panel.a.ctl")["color"]["hex"] == "#00ff00"

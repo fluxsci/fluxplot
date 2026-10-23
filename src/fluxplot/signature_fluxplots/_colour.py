@@ -97,7 +97,7 @@ class ColourSource:
         from matplotlib.colors import LinearSegmentedColormap
         if self.cmap is not None:
             return self.cmap
-        return LinearSegmentedColormap.from_list(f"glowbar-{self.label}", [c[:3] for c in self.colours])
+        return LinearSegmentedColormap.from_list(f"signature-{self.label}", [c[:3] for c in self.colours])
 
 
 def _from_colormap(cm, label, kind_hint=None, discrete_hint=None):
@@ -215,7 +215,7 @@ def _single(spec, label):
         ) from None
     rgb = np.array(colour[:3])
     ramp = [tuple(1 - 0.82 * (1 - rgb)), tuple(rgb), darken(colour, 0.6)[:3]]
-    src = _from_colormap(mpl.colors.LinearSegmentedColormap.from_list(f"glowbar-{label}", ramp),
+    src = _from_colormap(mpl.colors.LinearSegmentedColormap.from_list(f"signature-{label}", ramp),
                          label, "sequential")
     src.fixed = colour
     return src
@@ -352,7 +352,7 @@ def shade_bounds(pale: float, dark: float, ground=None) -> tuple:
 def median_ink(col, alpha, ground, contrast):
     """The group colour, deepened — or, on a ground darker than it, lifted — only as far as it takes
     to stand ``contrast`` lightness units (0–100) off the group's mark as rendered over ``ground``
-    at opacity ``alpha`` (the fluxbox's box wash, the glowbar's glow peak)."""
+    at opacity ``alpha`` (the fluxbox's box wash)."""
     from matplotlib.colors import to_rgba
     rgb, bg = np.array(to_rgba(col)[:3]), np.array(to_rgba(ground)[:3])
     box = perceptual(alpha * rgb + (1 - alpha) * bg)[0]

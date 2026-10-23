@@ -135,10 +135,15 @@ def primary_paint(mark):
                 return {'hex': 'varies'}
             rgba = first
         elif isinstance(art, Patch):
-            first = to_rgba(art.get_facecolor())
-            if any(to_rgba(a.get_facecolor()) != first for a in arts if isinstance(a, Patch)):
-                return {'hex': 'varies'}
-            rgba = first
+            if mark.kind == "meanmark":
+                # The signature's identity colour is its outline, including on
+                # hollow circles and unfilled uncertainty-arm patches.
+                rgba = to_rgba(art.get_edgecolor())
+            else:
+                first = to_rgba(art.get_facecolor())
+                if any(to_rgba(a.get_facecolor()) != first for a in arts if isinstance(a, Patch)):
+                    return {'hex': 'varies'}
+                rgba = first
     except (ValueError, TypeError, AttributeError):
         return None
     if rgba is None:

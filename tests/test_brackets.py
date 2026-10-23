@@ -174,11 +174,11 @@ def test_top_and_log_axes_stack_multiplicatively():
     assert geo[1][2] > geo[0][2] and geo[2][2] > geo[1][2]
 
 
-def test_glowbar_and_fluxbox_results_bracket_their_own_categories(tmp_path):
+def test_meanmark_and_fluxbox_results_bracket_their_own_categories(tmp_path):
     table = {"group": [g for g in GROUPS for _ in range(8)], "value": [v for g in GROUPS for v in GROUPS[g] + 5]}
     rows = fp.stats.pairwise(fp.stats.welch_hedges, GROUPS)
     fig, (a, b) = plt.subplots(1, 2, figsize=(8, 3))
-    gb = fp.glowbar(data=table, x="group", y="value", ax=a)
+    gb = fp.meanmark(data=table, x="group", y="value", ax=a)
     assert gb.positions == {"ctl": 0.0, "low": 1.0, "mid": 2.0, "high": 3.0}
     out = gb.brackets(rows, ns=False)
     assert 1 <= len(out) <= 6
@@ -186,7 +186,7 @@ def test_glowbar_and_fluxbox_results_bracket_their_own_categories(tmp_path):
     assert fb.positions == gb.positions
     out_b = fb.brackets(rows, label="p")
     assert len(out_b) == 6
-    # each bracket clears the glowbar's points and glow
+    # each bracket clears the meanmark's points and uncertainty arms
     for br in out:
         x_lo, x_hi, base, _ = _geometry(br)
         assert base > max(GROUPS[n].max() + 5 for n, x in POS.items() if x_lo <= x <= x_hi)

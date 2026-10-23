@@ -2,7 +2,7 @@
 behind every star recorded in the manifest.
 
 >>> rows = fp.stats.pairwise(fp.stats.welch_hedges, {"ctl": ctl, "drug": drug, "sham": sham})
->>> gb = fp.glowbar(data=df, x="group", y="value", ax=ax)
+>>> gb = fp.meanmark(data=df, x="group", y="value", ax=ax)
 >>> gb.brackets(rows)                      # or fp.brackets(ax, rows, positions=gb.positions)
 
 Each post-hoc row names its pair in ``groups``; ``positions`` maps a group name to its x. Brackets
@@ -82,7 +82,10 @@ def _data_top(ax, x_lo: float, x_hi: float) -> Optional[float]:
         if not isinstance(patch, Patch):
             continue
         try:
-            v = patch.get_path().transformed(patch.get_patch_transform()).vertices
+            # Patches may be anchored in display space (point-sized signature
+            # marks) rather than data space. Resolve their complete transform.
+            display = patch.get_transform().transform(patch.get_path().vertices)
+            v = ax.transData.inverted().transform(display)
         except Exception:  # a patch with no data-space geometry
             continue
         take(v[:, 0], v[:, 1])
@@ -131,8 +134,8 @@ def brackets(ax, rows: Iterable[dict], *, positions: Optional[Dict[Any, float]] 
         Reporting rows whose ``groups`` is the pair ``[a, b]`` (``fp.stats.pairwise``,
         ``tukey_hsd``, ``games_howell``, ``dunn``; or any two-group row given ``names=``).
     positions
-        ``{group name: x}``. Default: the axes' x tick labels (a glowbar / fluxbox / categorical
-        axis), which must name every group; ``GlowbarResult.positions`` and
+        ``{group name: x}``. Default: the axes' x tick labels (a meanmark / fluxbox / categorical
+        axis), which must name every group; ``MeanmarkResult.positions`` and
         ``FluxboxResult.positions`` give it directly.
     pairs
         Draw only these ``(a, b)`` pairs (either order), in this order of priority when several

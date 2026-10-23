@@ -1,15 +1,15 @@
 """``fp.fluxbox`` — the box plot, drawn the FluxPlot way.
 
-A fluxbox is a glowbar whose summary mark is a box plot. Every observation is a dot and, beside each
+A fluxbox summarizes each category with a box plot. Every observation is a dot and, beside each
 group, sits a slim box; everything else — the fixed per-unit lanes and colours, the paired
-connectors, the names — is the glowbar's own machinery, so a fluxbox and a glowbar of the same table
+connectors, the names — uses the shared categorical machinery, so a fluxbox and a meanmark of the same table
 agree dot for dot and can be swapped for one another. Four statistics are read straight off the box:
 
 * the **interquartile range** (Q1–Q3) — the box, a half-strength wash of the group colour;
 * the **median** — a solid line across the box in the group's own hue, deepened (on a dark
   background: lifted) just as far as it takes to stand clearly off the box, so it reads for any
   palette and any theme. That colour is the box plot's one *ink*: the whiskers (and fliers) share it;
-* the **mean** — a V-notch cut into both edges of the box (the glowbar's median notch). The notch
+* the **mean** — a V-notch cut into both edges of the box. The notch
   is a true gap in the box's outline, not paint: the ground, and anything drawn behind the box,
   shows through it. A mean that falls outside the box (a strongly skewed group) keeps its mark: the same two V's, drawn solid in
   the ink, pointing in at the whisker;
@@ -43,7 +43,7 @@ points (no ``units``)    ``<category>.points``, ``<category>.point.<k>``  ``poin
 
 Each category series carries a ``fluxbox`` payload in the manifest with the exact statistics drawn
 (n, mean, median, sd, sem, q1, q3, iqr, the whisker rule and ends, the outliers, the group colour),
-and each unit series carries its identity, exactly as for the glowbar.
+and each unit series carries its identity, as in meanmark.
 
 Example
 -------
@@ -66,19 +66,31 @@ import numpy as np
 from .. import tagger as _tagger
 from ..descriptors import Mark
 from ._colour import median_ink as _median_ink
-from .glowbar import (
+from ._categorical import (
     _SIDES,
     _cut_colour,
     _draw_units,
     _finish,
     _frame,
     _hex,
-    _notch_marker,
     _palette_spec_json,
     _plain,
 )
 
 __all__ = ["fluxbox", "FluxboxResult"]
+
+def _notch_marker(box_width, depth, height, bleed=0.3):
+    """Both V-cuts of the mean notch as ONE marker path, in points around the box's centre line.
+
+    Returns ``(path, markersize)``; that markersize makes matplotlib's marker scale exactly 1, so the
+    path's units stay points. The bases sit ``bleed`` pt outside the box edges (no anti-alias seam).
+    """
+    from matplotlib.path import Path
+    e, tip, h = box_width / 2 + bleed, box_width / 2 - depth, height / 2
+    verts = [(-e, -h), (-tip, 0), (-e, h), (-e, -h), (e, -h), (tip, 0), (e, h), (e, -h)]
+    codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY] * 2
+    return Path(verts, codes), 2 * float(np.abs(verts).max())
+
 
 # ---------------------------------------------------------------------------
 # statistics
@@ -366,7 +378,7 @@ def fluxbox(
         Per-category colour source, given once for every category, as a list (cycled in category
         order) or as a ``{category: spec}`` mapping — any colormap or palette in fluxplot's colour
         library, a matplotlib colormap, a list of colours, or a single colour; exactly as for
-        :func:`fluxplot.glowbar`. Default: the ColorBrewer maps ``YlGnBu``, ``YlOrRd``, ``RdPu``,
+        :func:`fluxplot.meanmark`. Default: the ColorBrewer maps ``YlGnBu``, ``YlOrRd``, ``RdPu``,
         ``BuGn``, ``Purples``, ``YlOrBr``.
     group_color_position
         Pin the group colour to a point of an ordered (sequential) source's light → dark ramp

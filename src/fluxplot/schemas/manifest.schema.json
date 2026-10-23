@@ -364,7 +364,7 @@
     },
     "idAliases": {
       "type": "object",
-      "description": "Ids an older fluxplot gave the same parts: old id (or old id prefix, for a series root) → current id. Resolve saved overrides through it; kept for one minor version after a rename.",
+      "description": "Ids an older fluxplot gave the same parts: old id (or old id prefix, for a series root) \u2192 current id. Resolve saved overrides through it; kept for one minor version after a rename.",
       "additionalProperties": {
         "type": "string"
       }
@@ -506,7 +506,7 @@
         },
         "secondary": {
           "type": "object",
-          "description": "A secondary axis: samples of the parent → secondary transform.",
+          "description": "A secondary axis: samples of the parent \u2192 secondary transform.",
           "required": [
             "of",
             "samples"
@@ -941,12 +941,36 @@
           "items": {
             "type": "string"
           }
+        },
+        "meanKind": {
+          "type": "string"
+        },
+        "scale": {
+          "type": "string"
+        },
+        "orientation": {
+          "enum": [
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "categoryPosition": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ]
         }
       },
       "required": [
         "part"
       ],
-      "description": "fp.glowbar / fp.fluxbox payload: part=summary carries the statistics drawn for a category; part=unit a unit's identity."
+      "description": "fp.meanmark / fp.fluxbox payload: part=summary carries the statistics drawn for a category; part=unit a unit's identity."
     },
     "hexmatrix": {
       "type": "object",
@@ -1284,7 +1308,7 @@
         "kind",
         "parts"
       ],
-      "description": "fp.surface payload: the complete value→colour contract of a surface (brain) map and every part."
+      "description": "fp.surface payload: the complete value\u2192colour contract of a surface (brain) map and every part."
     },
     "series": {
       "type": "object",
@@ -1652,7 +1676,7 @@
         "field": {
           "$ref": "#/definitions/field"
         },
-        "glowbar": {
+        "meanmark": {
           "$ref": "#/definitions/signatureStats"
         },
         "fluxbox": {

@@ -45,7 +45,7 @@ from .surface import (  # noqa: E402,F401
 )
 from .signature_fluxplots import (  # noqa: E402,F401  (preset plot types unique to Flux)
     fluxbox,
-    glowbar,
+    meanmark,
     hexmatrix,
 )
 from .style import (  # noqa: E402,F401  (re-exported for convenience)
@@ -67,7 +67,7 @@ __all__ = [
     "__version__",
     "Scene3D", "scene3d", "mesh3d", "surface3d", "can_morph", "SCENE3D_SPEC_VERSION",
     "surface",
-    "glowbar",
+    "meanmark",
     "fluxbox",
     "hexmatrix",
     "panel",

@@ -1,4 +1,4 @@
-"""The fluxbox — the glowbar with a box plot for its summary — on the glowbar's two designs.
+"""The fluxbox — a box plot with individual observations, in two designs.
 
 * ``out/fluxbox.svg``        two independent groups, one dot per animal (fixed lane + colour per animal)
 * ``out/fluxbox_paired.svg`` the same animals measured twice, joined across conditions

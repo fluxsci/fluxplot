@@ -445,58 +445,89 @@ label rather than being dropped.
 
 **Signature fluxplots** — complete, opinionated plot types that are unique to Flux. They take a
 DataFrame (pandas, polars or a dict of columns) plus column names, seaborn-style, and name every
-part for you. The first is the **glowbar**:
+part for you. **Meanmark** draws an arithmetic mean as an outlined circle with a tinted
+interior and two uncertainty arms, matching the compact mean-and-error marks used in scientific
+figures:
 
 ```python
-gb = fp.glowbar(df, x="condition", y="APP/GAPDH", units="subject", ax=ax)
-gb = fp.glowbar(df, x="condition", y="signal", units="mouse",          # paired / repeated measures
-                connect_identical_points_across_x_values=True, ax=ax)
+mm = fp.meanmark(df, x="condition", y="signal", units="subject", ax=ax)
+# Summary alone, solid dots, 95% Student-t confidence intervals and endpoint caps:
+mm = fp.meanmark(df, x="condition", y="signal", ax=ax,
+                 show_individual_points=False, interval="ci", confidence=.95,
+                 mark_fill_color="stroke", show_caps=True)
 ```
 
-Every observation is a dot; beside each group sits a slim bar that *glows* — its ink densest at
-the centre of the distribution and fading to hard caps at the interval ends — with the **mean** as
-a heavy, haloed line across the bar and the **median** as a V-notch cut into both of its edges.
-The interval is mean ± SEM by default, glowing around the mean; `interval="iqr"` spans the box of
-a box plot and glows around the median, `"sd"` gives mean ± SD, and a callable
-`values -> (low, high)` is accepted. Default groups use ColorBrewer's `YlGnBu`, then `YlOrRd`.
+The default is a **95% Student-t confidence interval** around the mean (`interval="ci"`,
+`confidence=.95`), using sample SD (`ddof=1`). `"sem"` gives mean ± SEM, `"sd"` gives mean ± SD,
+`"range"` spans the observations, and a
+callable `values -> (low, high)` supplies absolute bounds (finite and containing the mean).
+Statistics count finite observations, without collapsing repeated rows per unit. A singleton has
+an observable mean but no estimable SD/SEM/CI: its circle is drawn with null uncertainty bounds.
+Empty categories retain a tick and have no summary. `orientation="horizontal"` rotates the layout;
+`x` still supplies categories and `y` values. `value_scale="log"` changes the value axis while
+preserving the arithmetic mean in original units; nonpositive data or bounds raise an error.
 
-With `units=` every unit (animal, subject, cell) keeps a **fixed lane and colour derived from the
-table, never from the values**, so plots of different measures made from one table agree dot for
-dot — even when a unit is missing from one of them. Unit colours are equal *perceptual* steps
-(CAM02-UCS) of each group's ColorBrewer map between `shade_range=(88, 22)` lightness, dealt across
-lanes so neighbours always contrast (`interleave_shades=True`), and rimmed in a deeper shade of
-themselves so the palest dots stay crisp (`point_edge="rim"`). Connectors are a quiet neutral grey
-and break at a unit's missing category rather than bridging it.
+The circle diameter (`mark_size=4.5`) and outline (`mark_edge_width=1.5`) are in points. Its stroke
+uses the group colour unless `mark_color` overrides it. `mark_fill_color="auto"` mixes 25% of the
+stroke with the axes ground into an opaque tint (`mark_fill_mix=.25`). Use `"stroke"` for a solid
+dot, `"none"` for a hollow circle, or any explicit colour. `mark_fill_alpha` affects only the fill.
+The arms stop at the circle rim, so a transparent interior never reveals a line through its centre;
+intervals shorter than the radius fit inside the circle and have no visible arm beyond it.
+`error_width=1.7` / `error_color` control the arms; `show_error=False` hides them.
+Caps are on by default (`cap_size=3.5`, `cap_width=1.2`); `cap_color` overrides their colour.
+Use `show_caps=False` to remove them. Each endpoint remains individually editable.
+`show_notch=True` cuts two V-shaped notches into the circle's actual outline, at the exact mean.
+`notch_depth` and `notch_height` are in points; the cutouts are transparent on any background.
 
-| part | default id | role |
+With `units=` every unit keeps a lane and colour derived from the table, never the measured values,
+so different measures from the same table agree even with missing values. Points default to the
+category colour (`point_colors="group"`), with area 13 pt², .06 jitter, .2 pt rims and .45 fill alpha.
+Use `point_colors="shades"` for equal perceptual steps through the palette, interleaved across lanes.
+Paired connectors default on when `units` is supplied (`connect_identical_points_across_x_values="auto"`);
+use `False` to disable them or `True` to require units. They break at missing categories and default to
+.5 pt width, `#5f5f5f`, and .2 alpha. Set `connect_color=None` for the theme's neutral colour.
+These controls are shared with `fluxbox`, whose defaults differ:
+
+- `show_individual_points`, `point_size` (points²), `jitter`, `point_edge`, `point_edge_width`,
+  `point_fill_alpha` (the rim stays opaque).
+- `palette`, `group_color`, `group_color_position`, `point_colors`, `shade_range`, `interleave_shades`.
+  Palettes accept FluxPlot and matplotlib colormaps, discrete palettes, or individual colours;
+  mappings choose a palette per category. Defaults cycle through `YlGnBu`, `YlOrRd`, `RdPu`,
+  `BuGn`, `Purples`, and `YlOrBr`.
+- `connect_identical_points_across_x_values`, `connect_line_width`, `connect_color`, `connect_alpha`.
+- `order`, `unit_order`, `series`, `unit_series`, `label_axes`, `zorder`.
+
+`mark_offset=None` resolves to .25 category units when points or connectors are shown, otherwise zero.
+`mark_side="right"` puts summaries to the right; `"left"` places them to the left,
+and `"outer"` puts the first left and the others right. For horizontal plots those sides are below/above.
+Set `mark_offset=0` to centre all summaries on their category ticks.
+
+| part | default SVG id | role / editing kind |
 |---|---|---|
-| interval glow | `<category>.glow` | `box` |
-| interval caps | `<category>.caps` | `cap` |
-| mean line | `<category>.mean` | `mean` |
-| median notch | `<category>.median` | `median` |
-| a unit's point(s) / connector | `<unit>.points`, `<unit>.point.<k>` / `<unit>.line` | `point` / `line` |
-| points without `units` | `<category>.points`, `<category>.point.<k>` | `point` |
+| mean circle, including its cutout outline | `<category>.mean` | `mean` / shape |
+| lower uncertainty arm | `<category>.error-low` | `errorbar` / line |
+| upper uncertainty arm | `<category>.error-high` | `errorbar` / line |
+| optional lower / upper caps | `<category>.cap-low`, `<category>.cap-high` | `cap` / line |
+| unit points / connector | `<unit>.points`, `<unit>.point.<k>` / `<unit>.line` | `point` / `line` |
+| points without units | `<category>.points`, `<category>.point.<k>` | `point` |
 
-Each category series carries a `glowbar` manifest payload with the exact statistics drawn (`n`,
-`mean`, `median`, `sd`, `sem`, `q1`, `q3`, `interval`, `low`, `high`, `center`, `x`, `groupColor`),
-and each unit series its identity (`units`, `unit`, `categories`, `colors`); the manifest's
-`plotType` is `"glowbar"`. Series names default to the category / unit values — `series=` and
-`unit_series=` (a mapping or a callable) rename them. Every visual choice is a keyword:
-`bar_width`, `bar_offset`, `bar_side` (`"outer"` — the default: the first category's bar to
-the left of its points, every other to the right — or `"left"` / `"right"` for all), `glow_steps`, `glow_alpha`, `mean_line_width`, `mean_color`,
-`mean_halo_width`, `median_notch_depth`, `median_notch_height`, `cap_width`, `cap_color`,
-`show_mean`/`show_median`/`show_caps`/`show_individual_points`, `point_size`, `jitter`,
-`point_edge`, `point_fill_alpha` (fill only — the rim stays opaque), `palette` (per category: any
-`fp.colors.maps` colormap such as `"cmasher.emerald"`, any `fp.colors.palettes` palette such as
-`"brewer.Set2"` / `"tol.bright"`, a matplotlib map, a list of colours or one colour — glowbar picks
-as many distinct point colours as it needs plus a solid group colour), `group_color`, `group_color_position`, `point_colors`, `shade_range`,
-`interleave_shades`, `connect_line_width`, `connect_color`, `connect_alpha` (see
-`help(fp.glowbar)`). It returns a `GlowbarResult` (`.ax`, `.categories`, `.stats`, `.group_colors`,
-`.point_colors`, `.series`, `.unit_series`, `.artists`). `examples/glowbar_example.py` draws both
-designs.
+`fp.save` writes the SVG, manifest and regeneration recipe together. The manifest lists the circle,
+each arm and each cap as separate components, with `meanmark` statistics (`n`, `mean`, `meanKind`,
+`sd`, `sem`, `interval`, `confidence`, `low`, `high`, `x`, `y`, `categoryPosition`, `orientation`,
+`scale`, `groupColor`, `palette`) and unit identity. IDs persist when caps, points or notches are
+toggled; lower/upper always refer to data values, including on inverted axes. The recipe records
+the producing script; use `fp.params` and `recipe={"params": ...}` to expose adjustable controls
+for Flux regeneration (see `examples/meanmark_example.py`). Geometry lives in the SVG, statistics
+in the manifest, and regeneration settings in the recipe.
 
-The **fluxbox** is the glowbar with a box plot for its summary — the same call, the same lanes,
-colours, connectors and names, so the two can be swapped for one another dot for dot:
+The return value is `MeanmarkResult` with `.ax`, `.categories`, `.stats`, `.group_colors`,
+`.point_colors`, `.series`, `.unit_series`, `.orientation`, and `.artists`. Artists are grouped under
+`mean`, `error_low`, `error_high`, `cap_low`, `cap_high`, `points`, and `lines`; each summary part
+is an independent matplotlib artist. Vertical plots also support `.positions` and `.brackets(...)`.
+
+The **fluxbox** uses a box plot for its summary — the same call, the same lanes,
+colours, connectors and names. Set their shared controls explicitly to preserve the same
+point styling when swapping between them:
 
 ```python
 fb = fp.fluxbox(df, x="condition", y="APP/GAPDH", units="subject", ax=ax)
@@ -507,7 +538,7 @@ Beside each group sits a slim box (Q1–Q3), a half-strength wash of the group c
 a dark background lifted, only as far as it takes to differ from the box by `median_contrast=30`
 units of perceived lightness, so it reads for any palette and theme; the whiskers (and fliers) share
 that colour, so the box is the only wash. The **mean** is a V-notch cut
-into both edges of the box — the glowbar's median notch; a mean outside the box (a strongly skewed
+into both edges of the box; a mean outside the box (a strongly skewed
 group) keeps its mark as the same two V's drawn solid, pointing in at the whisker. The capless
 whiskers reach the most extreme observations within `whis` × IQR of the box (`1.5` — Tukey's rule,
 exactly `plt.boxplot`'s whiskers), `"range"`, or a `(low, high)` pair of percentiles. Observations
@@ -522,7 +553,7 @@ points are hidden (`show_fliers="auto"`).
 | median line | `<category>.median` | `median` |
 | mean notch | `<category>.mean` | `mean` |
 | fliers (points hidden) | `<category>.fliers` | `flier` |
-| points / connectors | as for the glowbar | `point` / `line` |
+| points / connectors | as for the meanmark | `point` / `line` |
 
 Each category series carries a `fluxbox` manifest payload with the exact statistics drawn (`n`,
 `mean`, `median`, `sd`, `sem`, `q1`, `q3`, `iqr`, `whis`, `whiskerLow`, `whiskerHigh`, `outliers`,
@@ -531,8 +562,8 @@ Each category series carries a `fluxbox` manifest payload with the exact statist
 median outright), `median_contrast`, `mean_notch_depth`, `mean_notch_height`, `whisker_width`, `whisker_color`,
 `cap_size`, `cap_width`, `cap_color`, `flier_size`, `cut_color` and
 `show_mean`/`show_median`/`show_whiskers`/`show_caps`/`show_fliers`; every point, colour, connector
-and naming keyword is the glowbar's. It returns a `FluxboxResult` with the same fields as a
-`GlowbarResult`. `examples/fluxbox_example.py` draws both designs.
+and naming keyword is the meanmark's. It returns a `FluxboxResult` with the same core fields as a
+`MeanmarkResult` (without `orientation`). `examples/fluxbox_example.py` draws both designs.
 
 The **hexmatrix** tiles the plane with regular hexagons, each one a named part. One call covers a
 point cloud's density, a 2D gradient of a third variable, and a matrix drawn on a hex lattice:
@@ -644,12 +675,12 @@ test above over the pairs of a `{name: sample}` family and corrects across them:
 *From rows to brackets* — `fp.brackets(ax, rows, positions=…)` draws one significance bracket per
 post-hoc row and stacks them automatically: shortest span first, each bracket one `step` above the
 data it spans and above every bracket it overlaps in x (multiplicative steps on a log axis), so
-nothing crosses. `positions` maps group name → x; a glowbar / fluxbox result provides it, and
+nothing crosses. `positions` maps group name → x; a meanmark / fluxbox result provides it, and
 `gb.brackets(rows)` is the one-liner:
 
 ```python
 rows = fp.stats.pairwise(fp.stats.welch_hedges, {"ctl": ctl, "drug": drug, "sham": sham})
-gb = fp.glowbar(data=df, x="group", y="value", ax=ax)
+gb = fp.meanmark(data=df, x="group", y="value", ax=ax)
 gb.brackets(rows)                                   # *** / ** / * / ns from p_corrected_holm
 gb.brackets(rows, label="p", ns=False, p_column="p_corrected_bh")   # "p = 0.003", drop ns pairs
 ```
@@ -807,12 +838,12 @@ fluxplot/
     brackets.py       # fp.brackets: stats rows → stacked significance brackets
     fits.py           # fp.regression, fp.kde
     seaborn_adapters.py  # exact identity for seaborn's categorical plots and hue splits
-    signature_fluxplots/  # preset plot types unique to Flux (fp.glowbar, fp.fluxbox, fp.hexmatrix)
+    signature_fluxplots/  # preset plot types unique to Flux (fp.meanmark, fp.fluxbox, fp.hexmatrix)
     stats/            # tests behind the plots, returning reporting rows (two-group, paired, k-group, post hoc)
     schemas/          # JSON Schemas for the manifest and recipe (validated on every save)
     definitions/      # the shipped colormap / palette / token tables
   examples/growth_plot.py     # the worked example above
-  examples/glowbar_example.py # the glowbar signature plot, unpaired + paired
+  examples/meanmark_example.py # the meanmark signature plot, paired + summary variants
   examples/fluxbox_example.py # the fluxbox signature plot, unpaired + paired
   examples/hexmatrix_example.py # the hexmatrix: joint, log-log, spatial, gradient, lattice map
   examples/image_example.py   # a two-channel micrograph with a scale bar and per-channel keys
@@ -1024,12 +1055,12 @@ Every series records its primary paint in the manifest — `series[].color = {"h
 "alpha": 1.0, "token": "flexoki.green-400", "palette": {"name": "flexoki.light", "index": 2}}`:
 the exact palette token that names it when one does, its slot in the active cycle when it came
 from there (`"varies"` for a colour-mapped collection, whose `scale` names the colour scale).
-The glowbar and fluxbox payloads record the `palette` spec each category's shades came from.
+The meanmark and fluxbox payloads record the `palette` spec each category's shades came from.
 
 `fp.colors.categories` keeps categories consistent across figures: `get("SD")` returns the colour
 pinned to a category, else assigns the next unused slot of the palette (default: the theme's
 cycle) in first-request order and remembers it, so `"b"` is the same colour whether or not `"a"`
-is on the plot — `categorical_colors` (surface maps), glowbar and fluxbox group colours and
+is on the plot — `categorical_colors` (surface maps), meanmark and fluxbox group colours and
 `tag_seaborn`'s hue levels all consult it. `assign({...})` pins colours, `save()` / `load()`
 write and read a project file, `fluxplot.colors.json`
 (`{"spec": "fluxplot/colors", "version": 1, "categories": {"SD": "#bc5215"}, "palette": "flexoki"}`),
@@ -1037,16 +1068,17 @@ which the first use auto-loads from `$FLUXPLOT_COLORS` or the nearest one betwee
 directory and the Git root; nothing is ever written implicitly. `categories.auto_series = True`
 colours `fp.line` / `fp.scatter` series by their name when the call gives no colour (off by
 default). Two more recipe controls follow: `__fluxplot__.palette = "tol.bright"` makes every
-`fx.use_*` install that palette as the prop cycle (and glowbar categories draw from it), and
+`fx.use_*` install that palette as the prop cycle (and meanmark categories draw from it), and
 `__fluxplot__.series = {"<series id>": {"color": "#…"}}` recolours a series on a rerun — the
 helpers and the signature plots check it before drawing.
 
 ### Signature plots on dark grounds
 
-The glowbar, fluxbox and hexmatrix judge every ink against the ground they are drawn on. On a
+The meanmark, fluxbox and hexmatrix judge every ink against the ground they are drawn on. On a
 dark theme the point rims lighten instead of darkening, the shades stay at least 20 lightness
-units above the ground, the mean and median inks lift off their marks instead of deepening
-(`_colour.median_ink`, shared by both plots), connectors take the theme's grid neutral, a
+units above the ground, and fluxbox's median ink lifts off its box instead of deepening
+(`_colour.median_ink`). Meanmark derives its circle tint from its stroke and the ground.
+Connectors take the theme's grid neutral, a
 qualitative palette's group ink is the light neutral, and a hexmatrix's single-colour ramp turns
 (deep near the ground → pale at the top, named `hexmatrix.mono-dark:#…` so a rerun rebuilds it).
 `tests/test_dark_ground.py` pins WCAG contrast ≥ 1.5 for every mark and ≥ 3 for bracket and
