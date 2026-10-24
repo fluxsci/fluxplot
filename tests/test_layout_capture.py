@@ -58,3 +58,36 @@ def test_tiny_log_domains_and_secondary_limits_preserve_precision(tmp_path):
     child = next(a for a in axes if a['id'].endswith('.y2'))
     assert child['initialDomain']['y'] == pytest.approx(secondary.get_ylim())
     plt.close(fig)
+
+
+def test_non_affine_secondary_has_named_fallback(tmp_path):
+    fig, ax = plt.subplots(layout='constrained')
+    ax.plot([1,2,3],[1,2,3]); ax.set_xlim(1,3)
+    ax.secondary_xaxis('top',functions=(np.square,np.sqrt))
+    result=fp.save(fig,str(tmp_path/'secondary.svg'),recipe=False)
+    layout=json.loads(Path(result.manifest).read_text())['layout']
+    assert not layout['supported']
+    assert any(r.startswith('transform:secondary-axis:') for r in layout['reasons'])
+    plt.close(fig)
+
+def test_formatter_minus_policy_and_custom_locale(monkeypatch):
+    from matplotlib import ticker
+    import matplotlib as mpl
+    from fluxplot.layout import formatter_record
+    import locale
+    with mpl.rc_context({'axes.unicode_minus':False}):
+        assert formatter_record(ticker.PercentFormatter())['unicodeMinus'] is False
+        assert formatter_record(ticker.StrMethodFormatter('{x:.1f}'))['unicodeMinus'] is False
+    monkeypatch.setattr(locale,'localeconv',lambda:{'decimal_point':',','thousands_sep':'.'})
+    assert formatter_record(ticker.ScalarFormatter(useLocale=True))['kind']=='custom'
+
+
+def test_empty_major_log_subs_has_named_template_fallback(tmp_path):
+    from matplotlib.ticker import LogLocator
+    fig,ax=plt.subplots(layout='constrained');ax.plot([1e-12,1e12],[0,1]);ax.set_xscale('log')
+    ax.xaxis.set_major_locator(LogLocator(subs=(1,2,5)))
+    result=fp.save(fig,str(tmp_path/'empty-ticks.svg'),recipe=False)
+    layout=json.loads(Path(result.manifest).read_text())['layout']
+    assert not layout['supported']
+    assert any(r.startswith('ticks:no-template:') for r in layout['reasons'])
+    plt.close(fig)

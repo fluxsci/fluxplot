@@ -55,6 +55,13 @@ def locator_record(loc):
 
 def formatter_record(fmt):
     if isinstance(fmt, ticker.ScalarFormatter):
+        # Locale-specific grouping/decimal transforms are custom in V1. Keep
+        # their measured source labels rather than silently formatting in C.
+        if fmt.get_useLocale():
+            import locale
+            convention=locale.localeconv()
+            if convention['decimal_point']!='.' or convention['thousands_sep']:
+                return dict(kind='custom')
         return dict(kind="scalar", useOffset=fmt.get_useOffset(), offset=fmt.offset if not fmt.get_useOffset() else None,
                     offsetThreshold=fmt._offset_threshold, useMathText=fmt.get_useMathText(),
                     powerlimits=fmt._powerlimits, scientific=fmt._scientific,
@@ -63,9 +70,9 @@ def formatter_record(fmt):
         return dict(kind="log-sci", base=fmt._base, labelOnlyBase=fmt.labelOnlyBase,
                     minorThresholds=["inf" if v==float("inf") else "-inf" if v==float("-inf") else v for v in fmt.minor_thresholds], minExponent=mpl.rcParams["axes.formatter.min_exponent"])
     if isinstance(fmt, ticker.PercentFormatter):
-        return dict(kind="percent", xmax=fmt.xmax, decimals=fmt.decimals, symbol=fmt.symbol)
+        return dict(kind="percent", xmax=fmt.xmax, decimals=fmt.decimals, symbol=fmt.symbol,unicodeMinus=mpl.rcParams["axes.unicode_minus"])
     if isinstance(fmt, ticker.StrMethodFormatter) and re.fullmatch(r"\{x:(?:,?\.\d+[fe]|g)\}", fmt.fmt):
-        return dict(kind="str-method", fmt=fmt.fmt)
+        return dict(kind="str-method", fmt=fmt.fmt,unicodeMinus=mpl.rcParams["axes.unicode_minus"])
     return dict(kind="fixed" if isinstance(fmt, (ticker.FixedFormatter, ticker.NullFormatter)) else "custom")
 
 
@@ -194,6 +201,8 @@ def capture_layout(fig, engine, panels, reg, alloc, initial_positions=None, init
                        minorValues=[float(t.get_loc()) for t in axis.get_minor_ticks() if np.isfinite(t.get_loc())],
                        minorLabels=[(t.label2 if far else t.label1).get_text() for t in axis.get_minor_ticks() if np.isfinite(t.get_loc())],
                        minorRetick=minor['kind'] in ('auto-minor','log') and (isinstance(axis.get_minor_formatter(),ticker.NullFormatter) or formatter_record(axis.get_minor_formatter())['kind'] not in ('custom','fixed')))
+        if ticking['retick'] and not ticking['values'] and style['visible'] and (style['tickTop'] or style['tickBottom']):
+            refuse('ticks:no-template',owner+'.'+key)
         return style, ticking
 
     if fig.subfigs:
@@ -220,6 +229,16 @@ def capture_layout(fig, engine, panels, reg, alloc, initial_positions=None, init
             continue
         if ax.name != "rectilinear":
             refuse("3d" if ax.name == "3d" else "projection:" + ax.name)
+        if type(ax).__name__=='SecondaryAxis':
+            secondary_axis=ax.xaxis if ax._orientation=='x' else ax.yaxis
+            samples=np.linspace(*secondary_axis.get_view_interval(),9)
+            try:
+                transformed=secondary_axis.get_transform().transform(samples)
+                linear=np.linspace(transformed[0],transformed[-1],9)
+                if not np.isfinite(transformed).all() or not np.allclose(transformed,linear,rtol=1e-9,atol=max(abs(transformed[-1]-transformed[0]),1e-30)*1e-12):
+                    refuse('transform:secondary-axis',aid)
+            except (ValueError,TypeError,ArithmeticError):
+                refuse('transform:secondary-axis',aid)
         ss = ax.get_subplotspec()
         locator = ax.get_axes_locator()
         locator = getattr(locator,"_orig_locator",locator)

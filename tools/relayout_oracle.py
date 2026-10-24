@@ -88,13 +88,13 @@ def build_extended(name, w, h):
     elif name=="log":ax.loglog(x,x*x)
     elif name in ("log-wide", "log-subs"):
         from matplotlib.ticker import LogLocator, LogFormatterSciNotation
-        ax.plot([1e-12,1e12],[1e-9,1e9]);ax.set_xscale('log');ax.set_yscale('log')
+        ax.plot([1e-12,1e12] if name=='log-wide' else [1e-2,1e3],[1e-9,1e9],label='signal');ax.set_xscale('log');ax.set_yscale('log')
         if name=='log-wide':ax.tick_params(labelsize=16)
         else:
             ax.xaxis.set_major_locator(LogLocator(subs=(1,2,5)))
             ax.xaxis.set_major_formatter(LogFormatterSciNotation(minor_thresholds=(float('inf'),float('inf'))))
     elif name=="both-sides":
-        ax.plot(x,np.sin(x));ax.tick_params(top=True,right=True,labeltop=True,labelright=True)
+        ax.plot(x,np.sin(x),label='signal');ax.tick_params(top=True,right=True,labeltop=True,labelright=True)
     elif name=="manual-colorbar":
         im=ax.imshow(np.arange(30).reshape(5,6),aspect='auto');cax=fig.add_axes([.85,.2,.025,.6]);fig.colorbar(im,cax=cax)
     elif name=="annotation-symlog":
