@@ -4038,6 +4038,54 @@
             }
           }
         },
+        "mark": {
+          "type": "object",
+          "properties": {
+            "orientation": {
+              "enum": [
+                "vertical",
+                "horizontal"
+              ]
+            },
+            "position": {
+              "type": "number"
+            },
+            "mean": {
+              "type": "number"
+            },
+            "bound": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "radiusPt": {
+              "type": "number"
+            },
+            "capPt": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "orientation",
+            "position",
+            "mean",
+            "bound",
+            "radiusPt",
+            "capPt"
+          ]
+        },
         "anchorsPt": {
           "type": "array",
           "items": {

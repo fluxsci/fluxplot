@@ -357,7 +357,14 @@ def capture_layout(fig, engine, panels, reg, alloc, initial_positions=None, init
                       style=type(arrow.get_arrowstyle()).__name__, connection=type(arrow.get_connectionstyle()).__name__)
         elif aid:
             transform = art.get_transform()
-            if type(art).__name__ == "NotchedBox" and getattr(art, "axes_ref", None) is ax:
+            if type(art).__name__ == "_MeanPart" and getattr(art, "_ax", None) is ax:
+                # meanmark parts are point-sized geometry anchored to data (see _MeanPart.get_path):
+                # the circle translates rigidly with its mean; arms run from the rim to the bound;
+                # caps keep their point length at the bound.
+                frames[gid] = dict(f="glyph", axes=aid, mark=dict(orientation=art.orientation,
+                    position=art.position, mean=art.mean, bound=art.bound if art.shape is None else None,
+                    radiusPt=art.radius, capPt=art.cap_size))
+            elif type(art).__name__ == "NotchedBox" and getattr(art, "axes_ref", None) is ax:
                 frames[gid] = dict(f="glyph", axes=aid, box=dict(x=art.x, y0=art.y0, y1=art.y1,
                     notch=art.notch, widthPt=art.width, depthPt=art.depth, heightPt=art.height))
             elif isinstance(art, PathCollection):

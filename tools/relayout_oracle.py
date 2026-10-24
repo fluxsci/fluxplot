@@ -23,7 +23,8 @@ CASES = SPIKE_CASES + ("scatter-sizes", "bars", "hist", "errorbar", "fill", "ble
     "datalim", "box-aspect", "span", "nested", "twin", "secondary", "inset", "log",
     "symlog", "category", "date", "offset", "rotated", "legend-corner", "legend-best",
     "legend-outside", "figure-text", "annotation", "tight", "raster", "hexmatrix", "fluxbox", "seaborn",
-    "polar", "subfigures", "3d", "line-updated", "log-wide", "log-subs", "both-sides", "manual-colorbar", "annotation-symlog")
+    "polar", "subfigures", "3d", "line-updated", "log-wide", "log-subs", "both-sides", "manual-colorbar", "annotation-symlog",
+    "meanmark", "meanmark-log", "tight-rect")
 
 
 def build(name, w, h):
@@ -53,6 +54,12 @@ def build_extended(name, w, h):
     from matplotlib.ticker import FixedLocator
     if name == "subfigures":
         fig=plt.figure(figsize=(w,h));fig.subfigures(1,2)[0].subplots().plot([0,1],[0,1]);return fig
+    if name=="tight-rect":
+        # A live tight engine whose rect reserves the top 14 % for a figure legend.
+        fig,axs=plt.subplots(1,2,figsize=(w,h));x=np.linspace(.1,10,31)
+        for a in axs:a.plot(x,np.sin(x),label='Signal');a.set(xlabel='Time (s)',ylabel='Response')
+        fig.legend(*axs[0].get_legend_handles_labels(),loc='upper right',bbox_to_anchor=(1,1))
+        fig.set_layout_engine('tight',pad=.5,rect=(0,0,1,.86));return fig
     if name in ("polar","3d"):
         fig=plt.figure(figsize=(w,h));ax=fig.add_subplot(projection=name);ax.plot([0,1],[0,1]);return fig
     fig,ax=plt.subplots(figsize=(w,h),layout="tight" if name=="tight" else "constrained")
@@ -113,6 +120,14 @@ def build_extended(name, w, h):
     elif name=="raster":ax.scatter(rng.normal(size=2000),rng.normal(size=2000))
     elif name=="hexmatrix":fp.hexmatrix(matrix=rng.normal(size=(8,8)),ax=ax,series='matrix')
     elif name=="fluxbox":fp.fluxbox({'g':['a']*10+['b']*10,'v':rng.normal(size=20)},x='g',y='v',ax=ax)
+    elif name=="meanmark":
+        # Notched circles, arms and caps; group c's interval is shorter than the radius (cut caps).
+        fp.meanmark({'g':['a']*10+['b']*10+['c']*10,'u':list(range(10))*3,
+                     'v':np.r_[rng.normal(size=20),1+rng.normal(scale=.002,size=10)]},
+                    x='g',y='v',units='u',ax=ax,show_notch=True)
+    elif name=="meanmark-log":
+        fp.meanmark({'g':['a']*12+['b']*12,'v':np.exp(rng.normal(size=24))},x='g',y='v',ax=ax,
+                    orientation='horizontal',value_scale='log',interval='range')
     elif name=="seaborn":
         import seaborn as sns
         sns.barplot(x=['a']*10+['b']*10,y=rng.normal(size=20),ax=ax,seed=316);fig.tight_layout()

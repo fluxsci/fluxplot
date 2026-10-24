@@ -279,7 +279,7 @@ Flux uses these facts to reflow a placed plot at a new physical size without mea
 text or executing Python. Data follows axes affines; glyphs, typography and stroke widths keep
 their point sizes. Tick values identify existing labels across reticks. The matplotlib oracle in
 `tools/relayout_oracle.py` generates layout, tick and solver truth for the Flux verification gates.
-Date/category/custom (including locale-specific) ticks reposition without reticking. Secondary
+Date/category/custom (including locale-specific) ticks reposition without reticking. Point-sized glyphs anchored to data keep their point geometry: fluxbox boxes (`box` frames) and meanmark circles, arms and caps (`mark` frames, rebuilt exactly as `_MeanPart.get_path` draws them). Secondary
 axes with affine conversions reflow; non-affine conversions record a named transform refusal. A dynamic major locator that emits no
 native ticks records `ticks:no-template`, since there is no faithful SVG tick template to clone.
 Polar, 3D, subfigures, compressed

@@ -40,6 +40,8 @@ cb = named("LayoutColorbar", obj({**axis_props, **dict(parents=arr(S), location=
 endpoint = named("LayoutEndpoint", obj(dict(f=enum("data", "axes", "figure"), axes=nullable(S), pt=arr(), nativePt=nullable(arr())), ("f", "pt")))
 frame = named("LayoutFrame", obj(dict(f=enum("data", "glyph", "blend", "image", "gradient", "clip", "axes", "offset", "arrow", "figure", "axis", "title", "legend"),
     box=obj(dict(x=N,y0=N,y1=N,notch=nullable(N),widthPt=N,depthPt=N,heightPt=N)),
+    mark=obj(dict(orientation=enum("vertical", "horizontal"), position=N, mean=N, bound=nullable(N),
+        radiusPt=N, capPt=nullable(N)), ("orientation", "position", "mean", "bound", "radiusPt", "capPt")),
     anchorsPt=arr(arr()), axes=nullable(S), anchor=S, frac=arr(), geometry=B, x=S, y=S, base=ref("layoutEndpoint"), offsetPt=arr(),
     textcoords=S, text=S, xy=ref("layoutEndpoint"), shrinkA=N, shrinkB=N, style=S, connection=S,
     axis=S, part=S, value=nullable(N), minor=B, side=S, position=arr({"anyOf": [S,N]}), slot=S), ("f",)))

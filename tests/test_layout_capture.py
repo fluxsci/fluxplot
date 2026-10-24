@@ -91,3 +91,22 @@ def test_empty_major_log_subs_has_named_template_fallback(tmp_path):
     assert not layout['supported']
     assert any(r.startswith('ticks:no-template:') for r in layout['reasons'])
     plt.close(fig)
+
+
+@pytest.mark.parametrize('orientation',['vertical','horizontal'])
+def test_meanmark_parts_are_resizable_mark_frames(tmp_path,orientation):
+    rng=np.random.default_rng(3)
+    fig,ax=plt.subplots(layout='constrained')
+    res=fp.meanmark({'g':['a']*8+['b']*8,'v':np.exp(rng.normal(size=16))},x='g',y='v',ax=ax,
+                    orientation=orientation,value_scale='log',interval='range',show_notch=True)
+    result=fp.save(fig,str(tmp_path/'meanmark.svg'),recipe=False)
+    layout=json.loads(Path(result.manifest).read_text())['layout']
+    assert layout['supported'] and not layout['reasons']
+    marks={gid:frame['mark'] for gid,frame in layout['frames'].items() if 'mark' in frame}
+    assert {gid.split('.',1)[1] for gid in marks}=={'mean','error-low','error-high','cap-low','cap-high'}
+    st=res.stats['a']
+    assert marks['a.mean']=={'orientation':orientation,'position':pytest.approx(st['categoryPosition']),
+                             'mean':pytest.approx(st['mean']),'bound':None,'radiusPt':0,'capPt':None}
+    assert marks['a.cap-high']['bound']==pytest.approx(st['high']) and marks['a.cap-high']['capPt']==3.5
+    assert marks['a.error-low']['capPt'] is None and marks['a.error-low']['radiusPt']==2.25
+    plt.close(fig)
