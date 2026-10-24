@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fluxplot"
-version = "0.1.0"
+version = "0.4.0"
 description = "matplotlib, but every meaningful thing has a name — semantic SVG plots for the Flux ecosystem"
 readme = "README.md"
 requires-python = ">=3.9"

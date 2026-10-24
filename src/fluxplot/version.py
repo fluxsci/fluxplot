@@ -1,6 +1,6 @@
 """Single source of truth for version + spec version (kept separate to avoid import cycles)."""
 
-__version__ = "0.1.0"
+__version__ = "0.4.0"
 
 # The manifest/recipe schema version this build emits.
 # 0.2.0 — completed the parts model: gridlines/ticks/spines/legend-entries tagged,
@@ -16,4 +16,5 @@ __version__ = "0.1.0"
 #         tokens and themes, series colours, quality.color lint, twin axes (y2 / x2), figure-scope
 #         parts, images, bands, brackets with stats, tick schemes, member keys and valueMorph,
 #         categorical / date data labels, insets, secondary axes, regression / kde / step / stem.
-SPEC_VERSION = "0.3.2"
+# 0.4.0 — additive elastic layout inputs, SVG frames and matplotlib font metrics.
+SPEC_VERSION = "0.4.0"

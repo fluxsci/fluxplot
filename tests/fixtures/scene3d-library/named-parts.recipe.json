@@ -8,7 +8,7 @@
   },
   "params": {},
   "plot": "named-parts",
-  "schemaVersion": "0.3.2",
+  "schemaVersion": "0.4.0",
   "script": null,
   "spec": "fluxplot/recipe"
 }

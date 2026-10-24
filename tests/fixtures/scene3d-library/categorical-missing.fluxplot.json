@@ -15,10 +15,10 @@
     ]
   },
   "build": {
-    "generator": "fluxplot 0.1.0"
+    "generator": "fluxplot 0.4.0"
   },
   "glb": "categorical-missing.glb",
-  "glbSha256": "7f53730b72f3703e1ed6ebc2f8f68976a88990e0c0cd2c33ef5fc6f63b5d14a1",
+  "glbSha256": "b60f4fa54ebf040591a4e4e39ad7bd1a62fed9b6946906b5554a7ba78f59de82",
   "layout": {
     "legend": "right"
   },

@@ -59,8 +59,8 @@ def final_layout(fig):
         fig.set_dpi(72)
         fig.draw_without_rendering()
         fig.set_layout_engine('none')
-        yield
+        yield engine
     finally:
-        fig.set_layout_engine(engine)
+        fig.set_layout_engine(engine if engine is not None else "none")
         fig.set_dpi(dpi)
         fig.set_canvas(canvas)

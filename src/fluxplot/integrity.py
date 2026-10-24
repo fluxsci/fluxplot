@@ -22,6 +22,19 @@ def validate_references(manifest, present):
         refs.update(node.get('members', []))
         for child in node.get('children', []): walk(child)
     walk(manifest['parts'])
+    layout=manifest.get('layout')
+    if layout:
+        refs.update(layout['texts']);refs.update(layout['frames'])
+        refs.update(l['id'] for l in layout['legends'])
+        for a in [*layout['axes'],*layout['colorbars']]:
+            refs.add(a['id']);refs.update(a.get('extraLayoutIds',[]))
+            for key in ('left','center','right'):
+                if a.get('title',{}).get(key):refs.add(a['title'][key])
+            for style in a['axisStyle'].values():
+                for key in ('offsetText','label'):
+                    if style.get(key):refs.add(style[key])
+        for key in ('suptitle','supxlabel','supylabel'):
+            if layout['figure'].get(key):refs.add(layout['figure'][key])
     missing = refs - present
     if missing:
         raise ValueError('manifest references missing SVG parts: ' + ', '.join(sorted(missing)[:10]))

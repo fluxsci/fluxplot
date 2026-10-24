@@ -556,7 +556,8 @@ def colorbar_guides(fig, owner, alloc):
         vertical = cb.orientation == 'vertical'
         axis = ax.yaxis if vertical else ax.xaxis
         parts = []
-        artists = [('label', axis.label), ('outline', cb.outline)]
+        artists = [('label', axis.label), ('outline', cb.outline), ('background', ax.patch),
+                   ('offset', axis.offsetText), ('divider', cb.dividers)]
         primary_side = 2 if axis.get_ticks_position() in ('right', 'top') else 1
         artists.extend((suffix.replace('ticklabel', 'tick-label'), art)
                        for suffix, role, _, art in tagger.axis_tick_artists(axis, primary_side)
@@ -579,8 +580,9 @@ def colorbar_guides(fig, owner, alloc):
                 extend_parts[role[len('extend-'):]] = part
                 role = 'extend'
             kind = {'label': 'text', 'tick-label': 'text', 'tick': 'line',
-                    'gridline': 'line', 'outline': 'line', 'solids': 'shape', 'extend': 'shape'}[role]
-            parts.append({'svgId': part, 'role': 'colorbar-' + role, 'kind': kind})
+                    'gridline': 'line', 'outline': 'line', 'solids': 'shape', 'extend': 'shape',
+                    'background': 'shape', 'offset': 'text', 'divider': 'line'}[role]
+            parts.append({'svgId': part, 'role': 'background' if role == 'background' else 'colorbar-' + role, 'kind': kind})
             guides.append(GuideTag(gid=part, role=parts[-1]['role'], kind=kind))
         lo, hi = sorted(axis.get_view_interval())
         visible_ticks = [t.get_loc() for t in axis.get_major_ticks()

@@ -267,6 +267,21 @@ anchors + a scale type is the complete, portable contract. (FluxPlot computes th
 dpi-invariant fraction method that round-trips *exactly* against the positions matplotlib actually
 emits — verified in `NOTES_matplotlib_svg.md`.)
 
+### Layout capture — resizing without rerunning Python
+
+Schema 0.4 adds a `layout` block, captured after the final SVG-renderer draw while the layout
+is frozen. It records the original engine and GridSpec inputs, axes domains and aspect rules,
+text anchors/extents, font advances, numeric locator/formatter parameters, legends, colorbars
+and coordinate frames. Initial layout inputs are preserved across repeated saves, so the same
+figure remains deterministic even when a draw adjusts its limits or subplot parameters.
+
+Flux uses these facts to reflow a placed plot at a new physical size without measuring browser
+text or executing Python. Data follows axes affines; glyphs, typography and stroke widths keep
+their point sizes. Tick values identify existing labels across reticks. The matplotlib oracle in
+`tools/relayout_oracle.py` generates layout, tick and solver truth for the Flux verification gates.
+Date/category/custom ticks reposition without reticking. Polar, 3D, subfigures, compressed
+layout, usetex and unsupported transforms record named refusals; their SVG still saves normally.
+
 ---
 
 ## Semantic IDs: the universal join key

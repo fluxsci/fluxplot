@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://flux.dev/schemas/fluxplot-manifest-0.3.2.json",
+  "$id": "https://flux.dev/schemas/fluxplot-manifest-0.4.0.json",
   "title": "FluxPlot manifest",
   "type": "object",
   "required": [
@@ -418,6 +418,9 @@
           "type": "string"
         }
       }
+    },
+    "layout": {
+      "$ref": "#/definitions/layout"
     }
   },
   "definitions": {
@@ -2498,6 +2501,1698 @@
         "editable"
       ],
       "description": "A portable colour scale (colorscale.py): the exact lookup table and norm of every colour-mapped mark, the svg groups it colours and the colour keys drawing it. The id equals the recipe's colour-control key."
+    },
+    "layout": {
+      "title": "FluxPlotLayout",
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "supported": {
+          "type": "boolean"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "figure": {
+          "type": "object",
+          "properties": {
+            "widthPt": {
+              "type": "number"
+            },
+            "heightPt": {
+              "type": "number"
+            },
+            "suptitle": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "supxlabel": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "supylabel": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "auto": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "boolean"
+              }
+            }
+          },
+          "required": [
+            "widthPt",
+            "heightPt"
+          ]
+        },
+        "engine": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "none",
+                "tight",
+                "constrained"
+              ]
+            },
+            "wPad": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "hPad": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "wSpace": {
+              "type": "number"
+            },
+            "hSpace": {
+              "type": "number"
+            },
+            "rect": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            "pad": {
+              "type": "number"
+            },
+            "fontPt": {
+              "type": "number"
+            },
+            "subplotpars": {
+              "type": "object",
+              "properties": {
+                "left": {
+                  "type": "number"
+                },
+                "right": {
+                  "type": "number"
+                },
+                "bottom": {
+                  "type": "number"
+                },
+                "top": {
+                  "type": "number"
+                },
+                "wspace": {
+                  "type": "number"
+                },
+                "hspace": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        "grids": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "nrows": {
+                "type": "number"
+              },
+              "ncols": {
+                "type": "number"
+              },
+              "widthRatios": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "heightRatios": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "wspace": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "hspace": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "parent": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/layoutSlot"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "nrows",
+              "ncols",
+              "widthRatios",
+              "heightRatios"
+            ]
+          }
+        },
+        "axes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/layoutAxis"
+          }
+        },
+        "colorbars": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/layoutColorbar"
+          }
+        },
+        "legends": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "collision": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "boxes": {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        }
+                      },
+                      "lines": {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "type": "number"
+                            }
+                          }
+                        }
+                      },
+                      "points": {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "id": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "string"
+              },
+              "locRequested": {
+                "type": "string"
+              },
+              "locResolved": {
+                "type": "string"
+              },
+              "bboxToAnchor": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "bbox": {
+                        "type": "array",
+                        "items": {
+                          "type": "number"
+                        }
+                      },
+                      "frame": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "borderAxesPadPt": {
+                "type": "number"
+              },
+              "inLayout": {
+                "type": "boolean"
+              },
+              "sizePt": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "bbox": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "owner",
+              "locRequested",
+              "locResolved",
+              "sizePt",
+              "bbox",
+              "borderAxesPadPt"
+            ]
+          }
+        },
+        "texts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "bbox": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "anchor": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "ha": {
+                "type": "string"
+              },
+              "va": {
+                "type": "string"
+              },
+              "rotation": {
+                "type": "number"
+              },
+              "font": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "bbox",
+              "anchor",
+              "ha",
+              "va",
+              "rotation",
+              "font",
+              "text"
+            ]
+          }
+        },
+        "frames": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/layoutFrame"
+          }
+        },
+        "fonts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "family": {
+                "type": "string"
+              },
+              "sizePt": {
+                "type": "number"
+              },
+              "weight": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "style": {
+                "type": "string"
+              },
+              "ascentPt": {
+                "type": "number"
+              },
+              "descentPt": {
+                "type": "number"
+              },
+              "advances": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number"
+                }
+              },
+              "math": {
+                "type": "object",
+                "properties": {
+                  "powerRawWidthPt": {
+                    "type": "number"
+                  },
+                  "supAdvancePt": {
+                    "type": "number"
+                  },
+                  "minusAdvancePt": {
+                    "type": "number"
+                  },
+                  "quantumPt": {
+                    "type": "number"
+                  },
+                  "supScale": {
+                    "type": "number"
+                  },
+                  "supRisePt": {
+                    "type": "number"
+                  },
+                  "baseAdvance10": {
+                    "type": "number"
+                  },
+                  "powerWidthPt": {
+                    "type": "number"
+                  },
+                  "powerHeightPt": {
+                    "type": "number"
+                  },
+                  "powerDescentPt": {
+                    "type": "number"
+                  },
+                  "coeffPrefixPt": {
+                    "type": "number"
+                  },
+                  "timesPadPt": {
+                    "type": "number"
+                  }
+                }
+              }
+            },
+            "required": [
+              "family",
+              "sizePt",
+              "ascentPt",
+              "descentPt",
+              "advances"
+            ]
+          }
+        }
+      },
+      "required": [
+        "version",
+        "supported",
+        "reasons",
+        "figure",
+        "engine",
+        "grids",
+        "axes",
+        "colorbars",
+        "legends",
+        "texts",
+        "frames",
+        "fonts"
+      ]
+    },
+    "layoutSlot": {
+      "title": "LayoutSlot",
+      "type": "object",
+      "properties": {
+        "grid": {
+          "type": "string"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "cols": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "grid",
+        "rows",
+        "cols"
+      ]
+    },
+    "layoutAxis": {
+      "title": "LayoutAxis",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "slot": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/layoutSlot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "position": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "initialPosition": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "extraLayoutIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "positionMode": {
+          "enum": [
+            "grid",
+            "manual",
+            "inset"
+          ]
+        },
+        "initialDomain": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "dataLim": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "inset": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "parent": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "bounds": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "frame": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inLayout": {
+          "type": "boolean"
+        },
+        "aspect": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "dataRatio": {
+          "type": "number"
+        },
+        "dataAspect": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "managed": {
+          "type": "boolean"
+        },
+        "adjustable": {
+          "type": "string"
+        },
+        "anchor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          ]
+        },
+        "boxAspect": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "twins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "axis": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "sharex": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sharey": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "type": "object",
+          "properties": {
+            "left": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "center": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "right": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "padPt": {
+              "type": "number"
+            }
+          }
+        },
+        "axisStyle": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/layoutAxisStyle"
+          }
+        },
+        "ticking": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/layoutTicking"
+          }
+        },
+        "margins": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "pixelBox": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "slot",
+        "position",
+        "positionMode",
+        "inLayout",
+        "aspect",
+        "adjustable",
+        "anchor",
+        "title",
+        "axisStyle",
+        "ticking",
+        "margins",
+        "pixelBox"
+      ]
+    },
+    "layoutColorbar": {
+      "title": "LayoutColorbar",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "slot": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/layoutSlot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "position": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "initialPosition": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "extraLayoutIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "positionMode": {
+          "enum": [
+            "grid",
+            "manual",
+            "inset"
+          ]
+        },
+        "initialDomain": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "dataLim": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "inset": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "parent": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "bounds": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "frame": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inLayout": {
+          "type": "boolean"
+        },
+        "aspect": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "dataRatio": {
+          "type": "number"
+        },
+        "dataAspect": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "managed": {
+          "type": "boolean"
+        },
+        "adjustable": {
+          "type": "string"
+        },
+        "anchor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          ]
+        },
+        "boxAspect": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "twins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "axis": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "sharex": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sharey": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "type": "object",
+          "properties": {
+            "left": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "center": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "right": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "padPt": {
+              "type": "number"
+            }
+          }
+        },
+        "axisStyle": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/layoutAxisStyle"
+          }
+        },
+        "ticking": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/layoutTicking"
+          }
+        },
+        "margins": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "pixelBox": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "parents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "location": {
+          "type": "string"
+        },
+        "orientation": {
+          "type": "string"
+        },
+        "fraction": {
+          "type": "number"
+        },
+        "shrink": {
+          "type": "number"
+        },
+        "padFrac": {
+          "type": "number"
+        },
+        "panchor": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "extendFrac": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "parents",
+        "location",
+        "orientation",
+        "fraction",
+        "shrink",
+        "aspect",
+        "padFrac",
+        "axisStyle",
+        "ticking",
+        "pixelBox",
+        "margins"
+      ]
+    },
+    "layoutLocator": {
+      "title": "LayoutLocator",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "maxn",
+            "multiple",
+            "log",
+            "null",
+            "auto-minor",
+            "fixed",
+            "category",
+            "date",
+            "custom"
+          ]
+        },
+        "nbins": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "enum": [
+                "auto"
+              ]
+            }
+          ]
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "integer": {
+          "type": "boolean"
+        },
+        "symmetric": {
+          "type": "boolean"
+        },
+        "prune": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "minNTicks": {
+          "type": "number"
+        },
+        "base": {
+          "type": "number"
+        },
+        "offset": {
+          "type": "number"
+        },
+        "subs": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "numticks": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "n": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "enum": [
+                "auto"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "layoutFormatter": {
+      "title": "LayoutFormatter",
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "scalar",
+            "log-sci",
+            "percent",
+            "str-method",
+            "fixed",
+            "custom"
+          ]
+        },
+        "useOffset": {
+          "type": "boolean"
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "offsetThreshold": {
+          "type": "number"
+        },
+        "useMathText": {
+          "type": "boolean"
+        },
+        "powerlimits": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "scientific": {
+          "type": "boolean"
+        },
+        "useLocale": {
+          "type": "boolean"
+        },
+        "unicodeMinus": {
+          "type": "boolean"
+        },
+        "base": {
+          "type": "number"
+        },
+        "labelOnlyBase": {
+          "type": "boolean"
+        },
+        "minorThresholds": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "enum": [
+                  "inf",
+                  "-inf"
+                ]
+              }
+            ]
+          }
+        },
+        "minExponent": {
+          "type": "number"
+        },
+        "xmax": {
+          "type": "number"
+        },
+        "decimals": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "fmt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "layoutAxisStyle": {
+      "title": "LayoutAxisStyle",
+      "type": "object",
+      "properties": {
+        "side": {
+          "type": "string"
+        },
+        "labelSide": {
+          "type": "string"
+        },
+        "tickDir": {
+          "type": "string"
+        },
+        "tickLenPt": {
+          "type": "number"
+        },
+        "tickPadPt": {
+          "type": "number"
+        },
+        "minorTickLenPt": {
+          "type": "number"
+        },
+        "labelPadPt": {
+          "type": "number"
+        },
+        "labelAuto": {
+          "type": "boolean"
+        },
+        "font": {
+          "type": "string"
+        },
+        "labelRotation": {
+          "type": "number"
+        },
+        "labelHa": {
+          "type": "string"
+        },
+        "offsetText": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "offsetSpec": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "anchor": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            "font": {
+              "type": "string"
+            },
+            "ha": {
+              "type": "string"
+            },
+            "va": {
+              "type": "string"
+            },
+            "rotation": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "id",
+            "anchor",
+            "font",
+            "ha",
+            "va",
+            "rotation"
+          ]
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "visible": {
+          "type": "boolean"
+        },
+        "tickTop": {
+          "type": "boolean"
+        },
+        "labelTop": {
+          "type": "boolean"
+        },
+        "tickBottom": {
+          "type": "boolean"
+        },
+        "labelBottom": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "side",
+        "font",
+        "tickLenPt",
+        "tickPadPt",
+        "labelPadPt",
+        "visible"
+      ]
+    },
+    "layoutTicking": {
+      "title": "LayoutTicking",
+      "type": "object",
+      "properties": {
+        "major": {
+          "$ref": "#/definitions/layoutLocator"
+        },
+        "minor": {
+          "$ref": "#/definitions/layoutLocator"
+        },
+        "formatter": {
+          "$ref": "#/definitions/layoutFormatter"
+        },
+        "retick": {
+          "type": "boolean"
+        },
+        "minorFormatter": {
+          "$ref": "#/definitions/layoutFormatter"
+        },
+        "minorValues": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "minorLabels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "minorRetick": {
+          "type": "boolean"
+        },
+        "domain": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "scale": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "offsetText": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "major",
+        "minor",
+        "formatter",
+        "retick",
+        "domain",
+        "scale",
+        "values"
+      ]
+    },
+    "layoutFrame": {
+      "title": "LayoutFrame",
+      "type": "object",
+      "properties": {
+        "f": {
+          "enum": [
+            "data",
+            "glyph",
+            "blend",
+            "image",
+            "gradient",
+            "clip",
+            "axes",
+            "offset",
+            "arrow",
+            "figure",
+            "axis",
+            "title",
+            "legend"
+          ]
+        },
+        "box": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y0": {
+              "type": "number"
+            },
+            "y1": {
+              "type": "number"
+            },
+            "notch": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "widthPt": {
+              "type": "number"
+            },
+            "depthPt": {
+              "type": "number"
+            },
+            "heightPt": {
+              "type": "number"
+            }
+          }
+        },
+        "anchorsPt": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "axes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "anchor": {
+          "type": "string"
+        },
+        "frac": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "geometry": {
+          "type": "boolean"
+        },
+        "x": {
+          "type": "string"
+        },
+        "y": {
+          "type": "string"
+        },
+        "base": {
+          "$ref": "#/definitions/layoutEndpoint"
+        },
+        "offsetPt": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "textcoords": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "xy": {
+          "$ref": "#/definitions/layoutEndpoint"
+        },
+        "shrinkA": {
+          "type": "number"
+        },
+        "shrinkB": {
+          "type": "number"
+        },
+        "style": {
+          "type": "string"
+        },
+        "connection": {
+          "type": "string"
+        },
+        "axis": {
+          "type": "string"
+        },
+        "part": {
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "minor": {
+          "type": "boolean"
+        },
+        "side": {
+          "type": "string"
+        },
+        "position": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "slot": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "f"
+      ]
+    },
+    "layoutEndpoint": {
+      "title": "LayoutEndpoint",
+      "type": "object",
+      "properties": {
+        "f": {
+          "enum": [
+            "data",
+            "axes",
+            "figure"
+          ]
+        },
+        "axes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pt": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        },
+        "nativePt": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "f",
+        "pt"
+      ]
     }
   }
 }

@@ -91,3 +91,16 @@ makes it safe to raise dpi purely to give rasterized layers enough pixels.
 ## Internal references that the GUI must re-prefix when inlining
 `<use xlink:href="#m…">` ↔ `<path id="m…">` (defs), and `clip-path="url(#p…)"` ↔ `<clipPath id="p…">`.
 Per-instance id prefixing in the app must rewrite both sides to keep them paired.
+
+## Layout frames (manifest 0.4)
+
+`layout.py` captures SVG-renderer measurements during `final_layout`, before export can redraw.
+Frames distinguish data affines, physical glyphs anchored in data space, axes/figure fractions,
+blended coordinates, tick/axis decorations, legends and annotation offsets/arrows. Clip rectangles,
+images and gradients follow the same axes mapping. Nonlinear annotation endpoints include their
+native SVG point so fixed-domain repositioning does not assume a linear scale. Both tick sides
+carry their physical side explicitly. Text advances and mathtext superscript metrics come from
+matplotlib, never a downstream DOM measurement. The layout schema generator and deterministic
+oracle are in `tools/`; update captures and regenerate fixtures rather than editing generated JSON.
+Restoring a figure with no layout engine must use `"none"`, since `set_layout_engine(None)` would
+select the current global rcParams engine and make a second save differ from its first.

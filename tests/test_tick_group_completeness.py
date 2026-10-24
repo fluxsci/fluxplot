@@ -79,7 +79,8 @@ def test_colorbar_ticks_groups_kinds_and_range(tmp_path, location):
     assert set(ticks) == set(root.xpath('//*[@data-role="colorbar-tick"]/@id'))
     assert set(labels) == set(root.xpath('//*[@data-role="colorbar-tick-label"]/@id'))
     expected = {'colorbar-label': 'text', 'colorbar-tick-label': 'text',
-                'colorbar-tick': 'line', 'colorbar-outline': 'line', 'colorbar-solids': 'shape'}
+                'colorbar-tick': 'line', 'colorbar-outline': 'line', 'colorbar-solids': 'shape',
+                'background': 'shape', 'colorbar-offset': 'text', 'colorbar-divider': 'line'}
     for part in guide['parts']:
         assert part['kind'] == expected[part['role']]
     assert guide['mappable'] == 'counts.x-heatmap'

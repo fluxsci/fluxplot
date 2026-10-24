@@ -268,6 +268,10 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator", secondary: str | None = None
         guides.append(
             GuideTag(gid=title_gid, role="axis-title", axis=which, text=mpl_axis.label.get_text())
         )
+        offset_gid = alloc.take(_ids.axis_id(which, "offset-text"))
+        mpl_axis.offsetText.set_gid(offset_gid)
+        guides.append(GuideTag(gid=offset_gid, role="tick-offset", axis=which,
+                               text=mpl_axis.offsetText.get_text()))
 
         # a twin's value axis draws its ticks on the far side (right / top): that side is its primary
         far = secondary is not None and mpl_axis.get_ticks_position() in ("top", "right", "default", "unknown")
@@ -326,6 +330,11 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator", secondary: str | None = None
         g = alloc.take("legend")
         legend.set_gid(g)
         guides.append(GuideTag(gid=g, role="legend"))
+        legend_title = legend.get_title()
+        if legend_title.get_text():
+            tg = alloc.take("legend.title")
+            legend_title.set_gid(tg)
+            guides.append(GuideTag(gid=tg, role="legend-title", text=legend_title.get_text()))
         frame = legend.legendPatch
         if legend.get_frame_on() and frame is not None and frame.get_visible():
             fg = alloc.take("legend.background")
@@ -383,6 +392,14 @@ def autotag_scaffold(ax, alloc: "_ids.IdAllocator", secondary: str | None = None
     # containers, not these lists, so they never appear here).
     _sweep_extra(ax, alloc, guides)
 
+    # Annotation's arrow is a separate draw call, outside the text's SVG group.
+    for text in ax.texts:
+        arrow = getattr(text, "arrow_patch", None)
+        if arrow is not None and arrow.get_visible() and text.get_gid() and not arrow.get_gid():
+            gid = alloc.take(text.get_gid() + ".arrow")
+            arrow.set_gid(gid)
+            guides.append(GuideTag(gid=gid, role="annotation-arrow"))
+
     return guides
 
 
@@ -423,6 +440,11 @@ def autotag_figure(fig, alloc: "_ids.IdAllocator", first_prefix: str = "") -> li
         g = alloc.take("figure.legend" if k == 0 else f"figure.legend.{k}")
         legend.set_gid(g)
         guides.append(GuideTag(gid=g, role="legend", index=k, data={**scope}))
+        legend_title = legend.get_title()
+        if legend_title.get_text():
+            tg = alloc.take(g + ".title")
+            legend_title.set_gid(tg)
+            guides.append(GuideTag(gid=tg, role="legend-title", text=legend_title.get_text(), data={**scope}))
         frame = legend.legendPatch
         if legend.get_frame_on() and frame is not None and frame.get_visible():
             fg = alloc.take(g + ".background")

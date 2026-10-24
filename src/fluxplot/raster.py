@@ -128,7 +128,8 @@ def _draw_order(fig) -> list:
         out.append(artist)
 
     def descend(artist):
-        if hasattr(artist, 'get_xaxis'):
+        from matplotlib.figure import SubFigure
+        if hasattr(artist, 'get_xaxis') or isinstance(artist, SubFigure):
             for child in sorted(artist.get_children(), key=_zorder):
                 descend(child)
         else:

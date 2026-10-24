@@ -922,6 +922,9 @@ def _save(
     lint="off",
     _now=None,
     _registry=None,
+    _layout_engine=None,
+    _layout_initial_positions=None,
+    _layout_initial_domains=None,
 ) -> SaveResult:
     """Emit ``<path>.svg`` + ``<path>.fluxplot.json`` + ``<path>.recipe.json`` for ``fig``.
 
@@ -1050,6 +1053,8 @@ def _save(
     plot_axes = [a for p in panels for a in p.all_axes]
     guides = [g for local in guides_by_panel for g in local] + figure_guides
     geometry_warnings = _warn_log_zero_anchors(plot_axes, plot_name)
+    from .layout import capture_layout
+    layout = capture_layout(fig, _layout_engine, panels, reg, alloc, _layout_initial_positions, _layout_initial_domains)
 
     # accessibility lint (B3): findings travel with the plot; "error" refuses it outright
     lint_findings, lint_warnings = [], []
@@ -1121,6 +1126,8 @@ def _save(
         manifest_filename=manifest_filename, spec_version=SPEC_VERSION,
         recipe_dir=os.path.dirname(os.path.abspath(svg_path)), now=_now,
     )
+    from .layout import retain_layout_references
+    man['layout'] = retain_layout_references(layout, present)
     # the complete current state of every colour scale (colorscale.controls_state): what the Flux
     # editor starts from, and what a rerun replays byte for byte
     from .colorscale import controls_state
@@ -1187,10 +1194,39 @@ def save(fig, path, *, recipe=None, validate=True, force_vectors=False,
     from .fields import resolve_scales
     resolve_scales(fig)  # shared scales take the union of their members' values before layout
     reg = _tagger.snapshot(fig)
-    with _tagger.temporary_gids(fig, reg), _render.final_layout(fig):
-        return _save(fig, path, recipe=recipe, validate=validate, force_vectors=force_vectors,
-                     raster_threshold=raster_threshold, raster_dpi=raster_dpi, theme_vars=theme_vars,
-                     lint=lint, _now=_now, _registry=reg)
+    initial_positions,initial_domains={},{}
+    for a in _panels.all_axes(fig):
+        position=tuple(a.get_position(original=True).bounds)
+        domain=dict(x=list(a.get_xlim()),y=list(a.get_ylim()))
+        previous=getattr(a,'_fluxplot_layout_input',None)
+        initial_positions[id(a)]=previous['position'] if previous and position==previous['last_position'] else position
+        initial_domains[id(a)]=previous['domain'] if previous and domain==previous['last_domain'] else domain
+    subplot_keys=('left','right','bottom','top','wspace','hspace')
+    subplot_now={k:getattr(fig.subplotpars,k) for k in subplot_keys}
+    subplot_previous=getattr(fig,'_fluxplot_subplot_input',None)
+    subplot_input=subplot_previous['input'] if subplot_previous and subplot_now==subplot_previous['last'] else subplot_now
+    if subplot_previous and subplot_now==subplot_previous['last']:
+        fig.subplotpars.update(**subplot_input)
+    from matplotlib.transforms import Bbox
+    for a in _panels.all_axes(fig):
+        if getattr(a,'_fluxplot_layout_input',None):
+            a._set_position(Bbox.from_bounds(*initial_positions[id(a)]))
+            for key in ('x','y'):
+                getattr(a,key+'axis').set_view_interval(*initial_domains[id(a)][key],ignore=True)
+    try:
+        with _tagger.temporary_gids(fig, reg), _render.final_layout(fig) as engine:
+            return _save(fig, path, recipe=recipe, validate=validate, force_vectors=force_vectors,
+                         raster_threshold=raster_threshold, raster_dpi=raster_dpi, theme_vars=theme_vars,
+                         lint=lint, _now=_now, _registry=reg, _layout_engine=engine, _layout_initial_positions=initial_positions, _layout_initial_domains=initial_domains)
+    finally:
+        # A layout draw changes positions/limits. Reusing those as the next input
+        # would make a repeated save differ from itself. Explicit user changes
+        # to either are detected before reusing this pre-draw snapshot.
+        fig._fluxplot_subplot_input=dict(input=subplot_input,last={k:getattr(fig.subplotpars,k) for k in subplot_keys})
+        for a in _panels.all_axes(fig):
+            if id(a) in initial_positions:
+                a._fluxplot_layout_input=dict(position=initial_positions[id(a)],domain=initial_domains[id(a)],
+                    last_position=tuple(a.get_position(original=True).bounds),last_domain=dict(x=list(a.get_xlim()),y=list(a.get_ylim())))
 
 
 save.__doc__ = _save.__doc__
