@@ -853,6 +853,7 @@ fluxplot/
     colorscale.py     # the portable colour-scale law (LUT lookup) the manifest's colorScales carry
     colors.py, colorcheck.py, style.py  # colormap / palette collections, accessibility lint, themes
     images.py         # fp.image (channels, LUTs, display ranges) + fp.scalebar
+    _fluximg/         # fp.fluximg / fp.imsave / fp.imread: N-D images as fluximg/1 bundles (Zarr v3 + layers)
     brackets.py       # fp.brackets: stats rows → stacked significance brackets
     fits.py           # fp.regression, fp.kde
     seaborn_adapters.py  # exact identity for seaborn's categorical plots and hue splits
@@ -1213,6 +1214,26 @@ Scenes display interactively in trusted notebooks with a PNG fallback. Flux can 
 another angle, restyle parts and remap fields without rerunning Python. See the
 [3D guide](docs/SCENE3D.md) for shape states, same-topology morphs, supported mesh inputs,
 optional decimation and a self-contained neuron demo.
+
+### Scientific images (fluximg)
+
+`fp.fluximg()` / `fp.imsave()` save an N-dimensional image (a micrograph, a z-stack, a multi-gigabyte
+movie) as a **fluximg** bundle: the pixels with their physical axes and channels, plus layers on the
+same pixel grid (other images, labelled objects with exact outlines and a table, lines and circles)
+and named regions. Flux browses planes, adjusts contrast and toggles layers without rerunning Python.
+
+```python
+img = fp.fluximg(mean_image, dims=("c", "y", "x"), pixel_size=0.25, channels=["structure", "signal"])
+img.add_labels("cells", label_map, table=cells, key="cell_id")
+img.save("plots/mean")                                 # plots/mean.fluximg/
+fp.imsave("plots/stack", stack, dims=("c", "z", "y", "x"), coords={"z": z_um}, pixel_size=0.25)
+img = fp.imread("plots/stack")                         # .values, .dims, .axes, .layer(id), .to_xarray()
+```
+
+Integer pixels are stored exactly. Float pixels are stored at 16 bits per channel range only when a
+check on the image shows the rounding step is negligible next to its pixel-to-pixel variation, and
+the printed report says which was chosen and why; `lossless=True` always keeps the floats. Needs a
+zstd library (`pip install "fluxplot[images]"`). See the [image guide](docs/FLUXIMG.md).
 
 ## License
 
