@@ -58,7 +58,9 @@ class ChannelAcc:
             self.max = float(hi)
         first = (-self.seen) % self.sample_stride
         if first < n:
-            self.samples.append(np.array(valid_values[first::self.sample_stride], dtype=np.float64))
+            # a copy in the input dtype: exact (every stored type converts to float64 exactly), and it
+            # does not keep the whole plane alive
+            self.samples.append(valid_values[first::self.sample_stride].copy())
         self.seen += n
         return float(valid_values.sum(dtype=np.float64)), int(n)
 
@@ -70,10 +72,13 @@ class ChannelAcc:
         ok = np.isfinite(p[:, 1:]) & np.isfinite(p[:, :-1])
         vals = d[ok]
         if vals.size:
-            self.diffs.append(vals[:: self.diff_stride])
+            self.diffs.append(vals[:: self.diff_stride].copy())       # not a view: it would pin all of vals
 
     def sample(self) -> np.ndarray:
-        return np.concatenate(self.samples) if self.samples else np.empty(0)
+        """The value sample as float64."""
+        if not self.samples:
+            return np.empty(0)
+        return np.concatenate([np.asarray(s, dtype=np.float64) for s in self.samples])
 
     def median_diff(self) -> float:
         if not self.diffs:

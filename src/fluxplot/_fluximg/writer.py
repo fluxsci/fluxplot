@@ -558,7 +558,7 @@ class FluxImage:
         is_bg = arr == bg
         rest = arr[~is_bg]
         if rest.size and rest.min() <= 0:
-            bad_value = rest[rest <= 0][0]
+            bad_value = rest[rest <= 0][0].item()
             _bad(f"labels {id!r}: every value but background={background!r} must be a positive label; found {bad_value!r}")
         top = int(rest.max()) if rest.size else 0
         if top > 0xFFFFFFFF:
@@ -1028,23 +1028,28 @@ def _write_pixels(root, img, *, level, codec, pool, max_shard_bytes):
         lshape = list(lead_shape) + [-(-H // f), -(-W // f)]
         writers.append(_zarr.ArrayWriter(root, f"pixels/{i}", lshape, stored_dtype, _inner(lshape), fill, dims,
                                          level=level, max_shard_bytes=max_shard_bytes, codec=codec, pool=pool))
-    for lead in np.ndindex(*lead_shape):
-        c = lead[ci] if ci >= 0 else 0
-        plane = source(lead)
-        for li, (f, w) in enumerate(zip(factors, writers)):
-            if li == 0:
-                stored = _store(plane, encoding, c, stored_dtype)
-            else:
-                stored = _overview(plane, f, work, encoding, c, stored_dtype, nodata)
-            for ty, tx, chunk in _tiles(stored, w.inner[-2], w.inner[-1], fill):
-                w.add(lead + (ty, tx), chunk)
-    levels = []
-    nbytes = files = 0
-    for i, (f, w) in enumerate(zip(factors, writers)):
-        w.finish()
-        levels.append({"path": str(i), "shape": w.shape, "downsample": f})
-        nbytes += w.bytes
-        files += w.files
+    try:
+        for lead in np.ndindex(*lead_shape):
+            c = lead[ci] if ci >= 0 else 0
+            plane = source(lead)
+            for li, (f, w) in enumerate(zip(factors, writers)):
+                if li == 0:
+                    stored = _store(plane, encoding, c, stored_dtype)
+                else:
+                    stored = _overview(plane, f, work, encoding, c, stored_dtype, nodata)
+                for ty, tx, chunk in _tiles(stored, w.inner[-2], w.inner[-1], fill):
+                    w.add(lead + (ty, tx), chunk)
+        levels = []
+        nbytes = files = 0
+        for i, (f, w) in enumerate(zip(factors, writers)):
+            w.finish()
+            levels.append({"path": str(i), "shape": w.shape, "downsample": f})
+            nbytes += w.bytes
+            files += w.files
+    except BaseException:
+        for w in writers:
+            w.abort()
+        raise
 
     # ---- channels, profiles ------------------------------------------------------------------
     stats = [enc.finish_stats(a) for a in accs]

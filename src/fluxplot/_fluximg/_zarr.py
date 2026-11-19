@@ -218,10 +218,15 @@ class ArrayWriter:
 
     A shard spans the whole array along every dimension but the first; along the first it holds
     as many slabs (rows of inner chunks) as keep a file near ``max_shard_bytes``, judged from the
-    compressed size of the first slabs (up to eight). Chunks that are entirely fill are not stored,
-    and a shard with no stored chunk is not written. With a thread ``pool`` compression runs in
-    parallel while at most ``max_inflight`` raw chunks wait for it.
+    compressed size of the first slabs (up to eight, the only ones held in memory). After that each
+    compressed chunk goes straight into its open shard file, whose index is appended when the
+    shard is complete. Chunks that are entirely fill are not stored, and a shard with no stored
+    chunk is not written. With a thread ``pool`` compression runs in parallel while at most
+    ``max_inflight`` chunks wait for it.
     """
+
+    #: the first slabs whose compressed size fixes the shard height
+    DECIDE_SLABS = 8
 
     def __init__(self, root, path, shape, dtype, inner, fill, dims, *, level, max_shard_bytes, codec,
                  pool=None, max_inflight=None):
@@ -234,13 +239,15 @@ class ArrayWriter:
         self.counts = [_ceil_div(s, i) for s, i in zip(self.shape, self.inner)]
         self.per_slab = _prod(self.counts[1:])
         self.chunk_bytes = _prod(self.inner) * self.dtype.itemsize
-        self.pending = {}             # flat chunk number -> compressed bytes (or a Future of them)
-        self.inflight = collections.deque()
+        self.queue = collections.deque()  # (flat chunk number, bytes or a Future of them), not yet written
         self.slabs_seen = 0
         self.slabs_per_shard = 0
-        self.flushed_slabs = 0
         self.bytes = 0
         self.files = 0
+        self._shard = None                 # the open shard: its number, file, entries and write position
+        self._file = None
+        self._entries = {}
+        self._pos = 0
         os.makedirs(os.path.join(root, path), exist_ok=True)
 
     def _flat(self, coords):
@@ -259,78 +266,86 @@ class ArrayWriter:
             if raw.nbytes != self.chunk_bytes:
                 raise ValueError(f"fluximg: chunk has {raw.nbytes} bytes, expected {self.chunk_bytes}")
             if self.pool is None:
-                self.pending[self._flat(coords)] = self.codec.compress(raw, self.level)
+                item = self.codec.compress(raw, self.level)
             else:
-                fut = self.pool.submit(self.codec.compress, raw, self.level)
-                self.pending[self._flat(coords)] = fut
-                self.inflight.append(fut)
-                while len(self.inflight) > self.max_inflight:
-                    self.inflight.popleft().result()
-        self._maybe_flush(slab)
+                item = self.pool.submit(self.codec.compress, raw, self.level)
+            self.queue.append((self._flat(coords), item))
+        if not self.slabs_per_shard and slab >= min(self.DECIDE_SLABS, self.counts[0]):
+            self._decide(slab)                                        # slabs before this one are complete
+        if self.slabs_per_shard:
+            self._drain(force=False)
+        elif len(self.queue) > self.max_inflight:
+            self._resolve(len(self.queue) - self.max_inflight)        # bound the raw chunks still waiting
 
-    def _blob(self, flat):
-        blob = self.pending.pop(flat, None)
-        if blob is not None and not isinstance(blob, (bytes, bytearray)):
-            blob = blob.result()
-        return blob
+    def _resolve(self, n):
+        """Turn the first ``n`` queued Futures into their bytes."""
+        for i in range(n):
+            flat, item = self.queue[i]
+            if not isinstance(item, (bytes, bytearray)):
+                self.queue[i] = (flat, item.result())
 
-    def _size(self, flat):
-        blob = self.pending.get(flat)
-        if blob is None:
-            return 0
-        if not isinstance(blob, (bytes, bytearray)):
-            blob = self.pending[flat] = blob.result()
-        return len(blob)
-
-    def _maybe_flush(self, current_slab, final=False):
+    def _decide(self, complete):
+        known = max(1, complete)
+        self._resolve(len(self.queue))
+        total = sum(len(item) for flat, item in self.queue if flat // self.per_slab < known)
+        mean = total / known
         n0 = self.counts[0]
-        if not self.slabs_per_shard:
-            seen = self.slabs_seen if final else current_slab        # slabs known to be complete
-            if not final and seen < min(8, n0):
-                return
-            known = max(1, seen)
-            total_known = sum(self._size(f) for f in range(known * self.per_slab) if f in self.pending)
-            mean = total_known / known
-            if mean * n0 <= self.max_shard_bytes or mean <= 0:
-                self.slabs_per_shard = n0
-            else:
-                self.slabs_per_shard = max(1, min(n0, int(self.max_shard_bytes * 0.9 // mean)))
-        k = self.slabs_per_shard
-        complete = n0 if final else current_slab
-        while self.flushed_slabs < n0 and (self.flushed_slabs + k <= complete or final):
-            self._write_shard(self.flushed_slabs // k)
-            self.flushed_slabs += k
+        if mean * n0 <= self.max_shard_bytes or mean <= 0:
+            self.slabs_per_shard = n0
+        else:
+            self.slabs_per_shard = max(1, min(n0, int(self.max_shard_bytes * 0.9 // mean)))
 
-    def _write_shard(self, shard_no):
+    def _drain(self, force):
+        while self.queue:
+            flat, item = self.queue[0]
+            if not isinstance(item, (bytes, bytearray)):
+                if not force and not item.done() and len(self.queue) <= self.max_inflight:
+                    break
+                item = item.result()
+            self.queue.popleft()
+            self._write_chunk(flat, item)
+
+    def _write_chunk(self, flat, blob):
         k = self.slabs_per_shard
-        n = k * self.per_slab
-        offsets, lengths, parts = [None] * n, [0] * n, []
-        offset = 0
-        for local in range(n):
-            slab = shard_no * k + local // self.per_slab
-            if slab >= self.counts[0]:
-                break
-            blob = self._blob(slab * self.per_slab + local % self.per_slab)
-            if blob is None:
-                continue
-            offsets[local], lengths[local] = offset, len(blob)
-            parts.append(blob)
-            offset += len(blob)
-        if not parts:
-            return                                                    # an entirely empty shard is not written
+        slab = flat // self.per_slab
+        shard = slab // k
+        if shard != self._shard:
+            self._close_shard()
+            key = os.path.join(self.root, self.path, "c", str(shard), *(["0"] * (len(self.shape) - 1)))
+            os.makedirs(os.path.dirname(key), exist_ok=True)
+            self._file = open(key, "wb")
+            self._shard, self._entries, self._pos = shard, {}, 0
+        self._file.write(blob)
+        self._entries[(slab - shard * k) * self.per_slab + flat % self.per_slab] = (self._pos, len(blob))
+        self._pos += len(blob)
+
+    def _close_shard(self):
+        if self._file is None:
+            return
+        n = self.slabs_per_shard * self.per_slab
+        offsets, lengths = [None] * n, [0] * n
+        for local, (o, ln) in self._entries.items():
+            offsets[local], lengths[local] = o, ln
         index = encode_shard_index(offsets, lengths)
-        key = os.path.join(self.root, self.path, "c", str(shard_no), *(["0"] * (len(self.shape) - 1)))
-        os.makedirs(os.path.dirname(key), exist_ok=True)
-        with open(key, "wb") as f:
-            for p in parts:
-                f.write(p)
-            f.write(index)
-        self.bytes += offset + len(index)
+        self._file.write(index)
+        self._file.close()
+        self._file = None
+        self.bytes += self._pos + len(index)
         self.files += 1
 
+    def abort(self):
+        """Close an open shard file after a failure (the caller removes the directory)."""
+        if self._file is not None:
+            self._file.close()
+            self._file = None
+
     def finish(self, attributes=None) -> dict:
-        """Write the remaining shards and ``zarr.json``; return the metadata dict."""
-        self._maybe_flush(self.counts[0], final=True)
+        """Write the remaining chunks, close the last shard and write ``zarr.json``; return the
+        metadata dict."""
+        if not self.slabs_per_shard:
+            self._decide(self.slabs_seen)
+        self._drain(force=True)
+        self._close_shard()
         outer = [self.slabs_per_shard * self.inner[0]] + [c * i for c, i in zip(self.counts[1:], self.inner[1:])]
         meta = array_meta_json(self.shape, self.dtype.name, self.inner, outer, self.fill, self.dims, self.level,
                                attributes)
