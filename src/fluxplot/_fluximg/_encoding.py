@@ -18,7 +18,7 @@ import numpy as np
 __all__ = [
     "GUARD_THRESHOLD", "PERCENTILE_KEYS", "ChannelAcc", "finish_stats", "default_range", "layer_range",
     "linear16_params", "encode_linear16", "decode_linear16", "guard_ratio", "guard_passes", "choose_encoding",
-    "block_mean", "is_float",
+    "block_mean", "is_float", "round_half_up",
 ]
 
 #: compact storage only while one rounding step stays under this fraction of the neighbour difference
@@ -135,12 +135,22 @@ def linear16_params(lo, hi) -> dict:
     return {"scale": span / 65534 if span > 0 else 1.0, "offset": float(lo)}
 
 
+def round_half_up(x) -> np.ndarray:
+    """Round to nearest, ties toward +infinity: JavaScript's ``Math.round``, so this writer and the
+    reference store the same numbers (SPEC allows either tie rule). Exact for ``|x| < 2**52``."""
+    x = np.asarray(x, dtype=np.float64)
+    fl = np.floor(x)
+    with np.errstate(invalid="ignore"):
+        return fl + ((x - fl) >= 0.5)
+
+
 def encode_linear16(values, scale, offset) -> np.ndarray:
-    """``k = 1 + round((v - offset) / scale)`` clamped to 1..65535; 0 where ``v`` is not finite."""
+    """``k = 1 + round((v - offset) / scale)`` clamped to 1..65535; 0 where ``v`` is not finite.
+    Evaluated as the reference writer does: ``(v - offset) * (1 / scale)``, ties rounded up."""
     v = np.asarray(values, dtype=np.float64)
     finite = np.isfinite(v)
     with np.errstate(invalid="ignore", over="ignore"):
-        k = np.rint((v - offset) / scale)
+        k = round_half_up((v - offset) * (1 / scale))
         k += 1
         np.clip(k, 1, 65535, out=k)
     k[~finite] = 0

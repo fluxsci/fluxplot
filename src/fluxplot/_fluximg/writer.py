@@ -37,7 +37,7 @@ SUFFIX = ".fluximg"
 MANIFEST = "fluximg.json"
 CORE_DIMS = ("t", "c", "z", "y", "x")
 #: a plane larger than this on either side is stored as tiles and gets overview levels
-TILE_THRESHOLD = 2048
+TILE_THRESHOLD = 1024
 TILE_SIZE = 512
 #: overview levels stop once the longer side is at most this
 OVERVIEW_FLOOR = 512
@@ -174,7 +174,7 @@ def _narrow_int(lo, hi, what):
     _bad(f"{what}: integer values {lo}..{hi} do not fit a 32-bit integer; convert to float64 first")
 
 
-def _axis_from_values(values, unit, d):
+def _axis_from_values(values, unit, d, starts=None):
     """An axis entry from coordinate values: evenly spaced → ``scale`` / ``offset``; strings →
     ``labels``; otherwise explicit ``coords``. datetime64 / timedelta64 become seconds."""
     v = np.asarray(values)
@@ -183,6 +183,8 @@ def _axis_from_values(values, unit, d):
     if v.dtype.kind in "USO" and not (v.dtype.kind == "O" and all(isinstance(x, (int, float)) for x in v.tolist())):
         return {"unit": None, "scale": 1.0, "offset": 0.0, "labels": [str(x) for x in v.tolist()]}
     if v.dtype.kind == "M":
+        if v.size and starts is not None:
+            starts[d] = str(np.datetime_as_string(v[0]))   # the absolute start, kept in provenance.meta
         v = (v - v[0]) / np.timedelta64(1, "s") if v.size else v.astype(float)
         unit = unit or "s"
     elif v.dtype.kind == "m":
@@ -303,7 +305,8 @@ class FluxImage:
     """
 
     def __init__(self, data, dims=None, *, pixel_size=None, unit="µm", channels=None, coords=None, dt=None,
-                 t0=None, nodata=None, transform=None, meta=None, name=None, lossless=False, photometric=None):
+                 t0=None, nodata=None, transform=None, meta=None, name=None, lossless=False, photometric=None,
+                 default_index=None):
         arr, da_dims, da_coords, da_units = _unpack(data)
         if dims is None:
             dims = da_dims
@@ -381,6 +384,7 @@ class FluxImage:
             if min(size) <= 0:
                 _bad("pixel_size must be positive")
         unit = None if unit is None else str(unit)
+        self._starts = {}
         self.axes = {}
         for d in self.dims:
             if d == "c":
@@ -390,12 +394,12 @@ class FluxImage:
                 vals = np.asarray(coords[d])
                 if vals.shape != (n,):
                     _bad(f"coords[{d!r}] has {vals.size} values for {n} positions")
-                axis = _axis_from_values(vals, unit if d in _SPATIAL else ("s" if d == "t" else None), d)
+                axis = _axis_from_values(vals, unit if d in _SPATIAL else ("s" if d == "t" else None), d, self._starts)
             elif d in da_coords:
                 vals, cunit = da_coords[d]
                 if cunit is None and d in _SPATIAL:
                     cunit = da_units if da_units is not None else unit
-                axis = _axis_from_values(vals, cunit, d)
+                axis = _axis_from_values(vals, cunit, d, self._starts)
             else:
                 axis = {"unit": None, "scale": 1.0, "offset": 0.0}
             if d in ("y", "x") and size is not None:
@@ -453,7 +457,24 @@ class FluxImage:
             self.world = json_safe(world)
         if meta is not None and not isinstance(meta, dict):
             _bad("meta must be a dict")
-        self.meta = None if meta is None else json_safe(meta)
+        starts = {f"{d}_start": iso for d, iso in self._starts.items()}
+        self.meta = None if meta is None and not starts else json_safe({**starts, **(meta or {})})
+
+        # ---- where the image opens ---------------------------------------------------------------
+        self.default_index = None
+        if default_index is not None:
+            if not isinstance(default_index, dict):
+                _bad("default_index must be a dict such as {'z': 10}")
+            index = {}
+            for d, i in default_index.items():
+                if d not in self.dims[:-2] or d == "c":
+                    movable = [x for x in self.dims[:-2] if x != "c"]
+                    _bad(f"default_index names {d!r}; it can name {', '.join(movable) or 'no dimension of this image'}")
+                n = self.shape[self.dims.index(d)]
+                if isinstance(i, bool) or not isinstance(i, (int, np.integer)) or not 0 <= int(i) < n:
+                    _bad(f"default_index[{d!r}] must be an integer 0..{n - 1}, got {i!r}")
+                index[d] = int(i)
+            self.default_index = index
         self._layers: List[dict] = []
         self._regions: List[dict] = []
 
@@ -810,8 +831,8 @@ class FluxImage:
         Parameters
         ----------
         layers
-            A bundle path (or a list of them) whose layers are copied into this one (hard links
-            where possible), each recording ``from``; refused when the pixel grids differ.
+            A bundle path (or a list of them) whose layers are copied into this one, each recording
+            ``from``; refused when the pixel grids differ.
         recipe
             Writes ``<stem>.recipe.json`` beside the bundle: ``True`` for fp.save's automatic
             script discovery, or a dict with the same meaning as for ``fp.save``. ``None`` / ``False``
@@ -922,8 +943,17 @@ def _overview(plane, f, work, encoding, channel, stored_dtype, nodata):
         return _store(m, encoding, channel, stored_dtype)
     if work.kind == "f":
         return m.astype(stored_dtype)
-    filled = np.where(np.isnan(m), nodata if nodata is not None else 0, np.rint(m))
+    filled = np.where(np.isnan(m), nodata if nodata is not None else 0, enc.round_half_up(m))
     return filled.astype(stored_dtype)
+
+
+def _opening_index(img, d):
+    """Where Flux opens along ``d``: ``default_index``, else the middle plane in z, else 0."""
+    if d == "c":
+        return 0
+    if img.default_index and d in img.default_index:
+        return img.default_index[d]
+    return img.shape[img.dims.index(d)] // 2 if d == "z" else 0
 
 
 def _even_planes(total, k):
@@ -956,6 +986,7 @@ def _write_pixels(root, img, *, level, codec, pool, max_shard_bytes):
     union = None
     missing_seen = False
     preview = {}
+    opening = [_opening_index(img, d) for d in dims[:-2]]
     seen = [0] * C
 
     # ---- pass 1: learn the image --------------------------------------------------------------
@@ -980,7 +1011,7 @@ def _write_pixels(root, img, *, level, codec, pool, max_shard_bytes):
         if flat in region_planes:
             m = np.ones((H, W), dtype=bool) if mask is None else mask
             union = m.copy() if union is None else (union | m)
-        if all(lead[k] == 0 for k in range(nd - 2) if k != ci) and c not in preview:
+        if all(lead[k] == opening[k] for k in range(nd - 2) if k != ci) and c not in preview:
             preview[c] = _preview_values(plane, mask, work)
 
     names = [ch["name"] or (("red", "green", "blue")[i] if img.photometric == "rgb" else "image" if C == 1
@@ -1276,20 +1307,18 @@ def _borrow_plan(sources, img, dest_bundle):
     return plan
 
 
-def _link_tree(src, dst):
-    """Hard-link (else copy) a file or a directory tree."""
+def _copy_tree(src, dst):
+    """Copy a file or a directory tree. Never a hard link: a later in-place edit of the source bundle
+    must not change this one."""
     if os.path.isdir(src):
         for dirpath, _dirs, files in os.walk(src):
             rel = os.path.relpath(dirpath, src)
             os.makedirs(os.path.join(dst, rel), exist_ok=True)
             for f in files:
-                _link_tree(os.path.join(dirpath, f), os.path.join(dst, rel, f))
+                _copy_tree(os.path.join(dirpath, f), os.path.join(dst, rel, f))
         return
     os.makedirs(os.path.dirname(dst), exist_ok=True)
-    try:
-        os.link(src, dst)
-    except OSError:
-        shutil.copy2(src, dst)
+    shutil.copy2(src, dst)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1422,7 +1451,7 @@ def _save(img, path, *, layers, recipe, regions, zstd_level, max_shard_bytes=Non
         by_source = {}
         for src, entry, files in borrowed:
             for rel in files:
-                _link_tree(os.path.join(src, rel), os.path.join(tmp, rel))
+                _copy_tree(os.path.join(src, rel), os.path.join(tmp, rel))
             entries.append(entry)
             by_source.setdefault(entry["from"], []).append(entry["id"])
         notes += [f"borrowed from {src}: {', '.join(ids)}" for src, ids in by_source.items()]
@@ -1450,6 +1479,8 @@ def _save(img, path, *, layers, recipe, regions, zstd_level, max_shard_bytes=Non
             manifest["photometric"] = img.photometric
         if px["profiles"]:
             manifest["profiles"] = px["profiles"]
+        if img.default_index:
+            manifest["defaults"] = {"index": dict(img.default_index)}
         manifest["layers"] = entries
         manifest["regions"] = region_list
         if img.world is not None:
@@ -1491,7 +1522,7 @@ def _validate_recipe(rec):
 # the public functions
 # ---------------------------------------------------------------------------------------------
 def fluximg(data, dims=None, *, pixel_size=None, unit="µm", channels=None, coords=None, dt=None, t0=None, nodata=None,
-            transform=None, meta=None, name=None, lossless=False, photometric=None) -> FluxImage:
+            transform=None, meta=None, name=None, lossless=False, photometric=None, default_index=None) -> FluxImage:
     """An N-dimensional scientific image to save as a fluximg bundle (``<stem>.fluximg/``), which
     Flux places, browses and annotates without rerunning Python.
 
@@ -1503,7 +1534,8 @@ def fluximg(data, dims=None, *, pixel_size=None, unit="µm", channels=None, coor
     ----------
     data
         A numpy array, or an xarray DataArray (its dims, coordinates, channel labels and coordinate
-        ``units`` are used; explicit keywords win).
+        ``units`` are used; explicit keywords win). A datetime coordinate becomes seconds from its
+        first value, which is kept in ``provenance.meta`` as ``<dim>_start``.
     dims
         One name per axis of ``data``: ``y`` and ``x`` (required), optional ``t``, ``c`` (channels),
         ``z`` and any other lower-case names (``trial``). Default ``("y", "x")`` for 2-D data;
@@ -1535,6 +1567,10 @@ def fluximg(data, dims=None, *, pixel_size=None, unit="µm", channels=None, coor
         stores the floats exactly. Integer data is always stored exactly.
     photometric
         ``"rgb"`` for a true-colour photograph (three channels shown as red, green, blue).
+    default_index
+        Where the image opens along its other dimensions, e.g. ``{"z": 10}`` (written as
+        ``defaults.index``). Without it Flux opens at the middle z plane and the first position
+        elsewhere; ``preview.png`` shows the same plane.
 
     Examples
     --------
@@ -1544,7 +1580,7 @@ def fluximg(data, dims=None, *, pixel_size=None, unit="µm", channels=None, coor
     """
     return FluxImage(data, dims, pixel_size=pixel_size, unit=unit, channels=channels, coords=coords, dt=dt, t0=t0,
                      nodata=nodata, transform=transform, meta=meta, name=name, lossless=lossless,
-                     photometric=photometric)
+                     photometric=photometric, default_index=default_index)
 
 
 def imsave(path, data, dims=None, *, layers=None, recipe=None, regions="auto", zstd_level=DEFAULT_ZSTD_LEVEL,
@@ -1552,7 +1588,8 @@ def imsave(path, data, dims=None, *, layers=None, recipe=None, regions="auto", z
     """Save an image as a fluximg bundle in one call: ``fp.fluximg(data, dims, **keywords).save(path, …)``.
 
     Takes every keyword of :func:`fluximg` (``pixel_size``, ``unit``, ``channels``, ``coords``,
-    ``dt``, ``t0``, ``nodata``, ``transform``, ``meta``, ``name``, ``lossless``, ``photometric``)
+    ``dt``, ``t0``, ``nodata``, ``transform``, ``meta``, ``name``, ``lossless``, ``photometric``,
+    ``default_index``)
     and of :meth:`FluxImage.save` (``layers``, ``recipe``, ``regions``, ``zstd_level``).
 
     Examples
