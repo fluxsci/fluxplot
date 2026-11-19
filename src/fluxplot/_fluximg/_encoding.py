@@ -151,11 +151,16 @@ def round_half_up(x) -> np.ndarray:
 
 def encode_linear16(values, scale, offset) -> np.ndarray:
     """``k = 1 + round((v - offset) / scale)`` clamped to 1..65535; 0 where ``v`` is not finite.
-    Evaluated as the reference writer does: ``(v - offset) * (1 / scale)``, ties rounded up."""
-    v = np.asarray(values, dtype=np.float64)
-    finite = np.isfinite(v)
+    Evaluated as the reference writer does: ``(v - offset) * (1 / scale)``, ties rounded up
+    (:func:`round_half_up`, done in place here: this runs once per stored plane)."""
+    x = np.array(values, dtype=np.float64)                    # always a copy: worked on in place
+    finite = np.isfinite(x)
     with np.errstate(invalid="ignore", over="ignore"):
-        k = round_half_up((v - offset) * (1 / scale))
+        x -= offset
+        x *= 1 / scale
+        k = np.floor(x)
+        x -= k                                                # the fraction
+        k += x >= 0.5
         k += 1
         np.clip(k, 1, 65535, out=k)
     k[~finite] = 0
