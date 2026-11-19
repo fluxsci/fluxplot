@@ -63,15 +63,18 @@ def build_recipe(
     plot_name: str,
     svg_filename: str | None = None,
     glb_filename: str | None = None,
+    fluximg_filename: str | None = None,
     manifest_filename: str,
     spec_version: str,
     base_dir: str | None = None,
     recipe_dir: str | None = None,
     now: str | None = None,
 ) -> dict:
-    if (svg_filename is None) == (glb_filename is None):
-        raise ValueError("provide exactly one svg_filename or glb_filename")
-    output_name = glb_filename if glb_filename is not None else svg_filename
+    given = [(kind, name) for kind, name in (("svg", svg_filename), ("glb", glb_filename),
+                                             ("fluximg", fluximg_filename)) if name is not None]
+    if len(given) != 1:
+        raise ValueError("provide exactly one svg_filename or glb_filename (or fluximg_filename)")
+    output_kind, output_name = given[0]
     # recipe semantics (plan §1): None → automatic provenance; False → explicitly suppress it
     # (still writes a valid, non-rerunnable recipe); a dict → explicit fields win, an inferred
     # script only fills a *missing* script. Inputs are never discovered automatically.
@@ -106,7 +109,7 @@ def build_recipe(
         "spec": "fluxplot/recipe",
         "schemaVersion": spec_version,
         "plot": plot_name,
-        "outputs": {("glb" if glb_filename is not None else "svg"): output_name, "manifest": manifest_filename},
+        "outputs": {output_kind: output_name, "manifest": manifest_filename},
         "generatedAt": now or _now_iso(),
         "script": script,
         "params": recipe.get("params", {}),

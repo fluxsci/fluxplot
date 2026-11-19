@@ -59,6 +59,7 @@ from .surface3d import surface3d
 from .fields import heatmap, contour, contourf, colorbar, color_scale
 from .brackets import brackets
 from .images import image, scalebar
+from ._fluximg import fluximg, imread, imsave  # N-dimensional images as fluximg/1 bundles
 from .fits import regression, kde
 from .panels import panel
 from .version import SPEC_VERSION, __version__  # noqa: F401
@@ -79,6 +80,9 @@ __all__ = [
     "brackets",
     "image",
     "scalebar",
+    "fluximg",
+    "imsave",
+    "imread",
     "regression",
     "kde",
     "SPEC_VERSION",
