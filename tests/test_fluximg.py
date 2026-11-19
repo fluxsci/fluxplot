@@ -380,6 +380,16 @@ def test_channels_names_colours_luts_and_ranges(tmp_path):
     assert [c["color"] for c in many] == list(W.DEFAULT_COLOURS) + [W.DEFAULT_COLOURS[0]]
 
 
+def test_colour_map_names_are_canonical_whatever_was_imported(tmp_path):
+    pytest.importorskip("cmasher")                             # registers cmasher's maps as "cmr.*" in matplotlib
+    img = fp.fluximg(noisy((3, 6, 6)), dims=("c", "y", "x"),
+                     channels=[{"lut": "cmr.ember"}, {"lut": "ember"}, {"lut": "cmr.ember_r"}])
+    img.add_image("a", noisy((6, 6)), lut="cmr.ember")
+    m = man(img.save(tmp_path / "a"))
+    assert [c["lut"] for c in m["channels"]] == ["cmasher.ember", "cmasher.ember", "cmasher.ember_r"]
+    assert m["layers"][0]["lut"] == "cmasher.ember"
+
+
 def test_channel_errors():
     with pytest.raises(ValueError, match="2 entries for 3"):
         fp.fluximg(np.zeros((3, 4, 4)), dims=("c", "y", "x"), channels=["a", "b"])

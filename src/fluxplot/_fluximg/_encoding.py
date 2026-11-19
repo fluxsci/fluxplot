@@ -214,8 +214,9 @@ def choose_encoding(accs, dtype, lossless, threshold=GUARD_THRESHOLD, what="pixe
     failing = [f"{n} ({_fmt_ratio(r)})" for n, r in zip(names, ratios) if r is None or not r < threshold]
     note = (f"{what}: stored exactly ({dtype.name}); a 16-bit copy was refused because its rounding step would not be "
             f"small next to the difference between neighbouring pixels for {', '.join(failing)} (limit {threshold:g}). "
-            "That usually means a few extreme values stretch the range, or the image is constant or piecewise "
-            "constant. Nothing is lost; look at the channel's min / max if you expected a compact copy.")
+            "That usually means a few extreme values stretch the range (compare the channel's min / max with its "
+            "1st-99.9th percentiles in the manifest), or the image is constant or piecewise constant. Nothing is "
+            "lost: the values are kept exactly. Pass lossless=True to store floats exactly without this check.")
     return {"kind": "exact", "sourceDtype": dtype.name, "fallback": "guard", "guard": guard}, note
 
 

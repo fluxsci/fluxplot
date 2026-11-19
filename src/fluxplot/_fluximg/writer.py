@@ -112,6 +112,10 @@ def _colour_or_lut(spec, what):
     name = str(cmap.name)
     if name.startswith(_MONO_PREFIX):
         return name[len(_MONO_PREFIX):], None
+    if name.startswith("cmr."):
+        # once cmasher itself is imported, matplotlib resolves its maps under the legacy "cmr."
+        # prefix; store fluxplot's (and Flux's) canonical name whatever was imported
+        name = "cmasher." + name[len("cmr."):]
     return None, name
 
 
