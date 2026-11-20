@@ -108,6 +108,11 @@ def test_writer_conforms_on_every_fixture_input(fixtures, tmp_path, monkeypatch)
         levels = [lv["downsample"] for lv in rep.manifest["pixels"]["levels"]]
         if levels != f["levels"]:
             problems.append(f"{name}: levels {levels}, the fixture's are {f['levels']}")
+        # contract update 2: the same input and cap give the same shard shape on every level
+        shapes = [json.loads((Path(rep.path) / "pixels" / lv["path"] / "zarr.json").read_text())["chunk_grid"]
+                  ["configuration"]["chunk_shape"] for lv in rep.manifest["pixels"]["levels"]]
+        if shapes != f["chunkShapes"]:
+            problems.append(f"{name}: shard shapes {shapes}, the reference writer's are {f['chunkShapes']}")
         got = np.load(tmp_path / f"{name}.values.npy")
         x = data.astype(np.float64)
         if f["nodata"] is not None:
@@ -122,6 +127,46 @@ def test_writer_conforms_on_every_fixture_input(fixtures, tmp_path, monkeypatch)
             if not err <= bound * (1 + 1e-9):
                 problems.append(f"{name}: channel {c} error {err} > maxAbsError {bound}")
     assert not problems, "\n".join(problems)
+
+
+def test_writer_conforms_on_the_contract_update_2_fixtures(fixtures):
+    out, index = fixtures
+    assert {"stack_cz_split_u16", "stack_tcz_split_u16", "rows_split_u8", "hidden_channel_u8"} <= set(index)
+    assert index["stack_cz_split_u16"]["chunkShapes"] == [[1, 4, 40, 48]]
+    assert index["stack_tcz_split_u16"]["chunkShapes"] == [[1, 1, 2, 40, 48]]
+    assert index["rows_split_u8"]["chunkShapes"][0] == [1024, 1024]
+
+
+SHARD_SCRIPT = """
+import { readFileSync } from "node:fs";
+import { shardChunks } from "%s";
+const cases = JSON.parse(readFileSync(process.argv[2], "utf8"));
+console.log(JSON.stringify(cases.map((c) => shardChunks(c.counts, { planes: c.planes, planeBytes: c.planeBytes, rows: c.rows, rowBytes: c.rowBytes }, c.cap))));
+"""
+
+
+def test_shard_rule_port_matches_the_reference(tmp_path):
+    from fluxplot._fluximg._zarr import shard_chunks
+    rng = np.random.default_rng(5)
+    cases = []
+    for _ in range(400):
+        lead = [int(v) for v in rng.integers(1, 40, rng.integers(0, 4))]
+        ny, nx = int(rng.integers(1, 9)), int(rng.integers(1, 9))
+        planes = int(rng.integers(0, 9))
+        plane = int(rng.choice([0, 1, int(rng.integers(1, 10 ** 8))]))
+        rows = planes * ny + int(rng.integers(0, ny))
+        cap = int(rng.choice([8192, 15000, 64 * 1024 * 1024, int(rng.integers(1000, 10 ** 9))]))
+        cases.append({"counts": lead + [ny, nx], "planes": planes, "planeBytes": planes * plane,
+                      "rows": rows, "rowBytes": rows * plane // max(1, ny), "cap": cap})
+    script = tmp_path / "shard_check.ts"
+    script.write_text(SHARD_SCRIPT % (CONTRACT / "src" / "lib" / "fluximg" / "writer.ts").resolve().as_uri())
+    (tmp_path / "cases.json").write_text(json.dumps(cases))
+    r = node(script, tmp_path / "cases.json")
+    assert r.returncode == 0, r.stderr
+    reference = json.loads(r.stdout)
+    for c, want in zip(cases, reference):
+        got = shard_chunks(c["counts"], c["planes"], c["planeBytes"], c["rows"], c["rowBytes"], c["cap"])
+        assert got == want, c
 
 
 def test_writer_tiles_the_mid_sized_fixture_like_the_contract(fixtures, tmp_path):

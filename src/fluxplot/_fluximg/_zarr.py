@@ -2,8 +2,8 @@
 whose inner chunks are ``bytes`` (little-endian) + ``zstd``, and whose index (``offset``, ``nbytes``
 as little-endian uint64 per inner chunk in C order, then a CRC-32C) sits at the end of each shard.
 
-:class:`ArrayWriter` streams inner chunks, in C order, into shard files split along the first
-dimension; :class:`ArrayReader` reads them back.
+:class:`ArrayWriter` streams inner chunks, in C order, into shard files shaped by the shard rule
+(:func:`shard_chunks`); :class:`ArrayReader` reads them back.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ import numpy as np
 
 __all__ = [
     "FluximgFormatError", "DTYPES", "crc32c", "encode_shard_index", "decode_shard_index", "array_meta_json",
-    "group_meta_json", "parse_array_meta", "ArrayWriter", "ArrayReader", "OME_UNITS",
+    "group_meta_json", "parse_array_meta", "ArrayWriter", "ArrayReader", "OME_UNITS", "shard_chunks",
 ]
 
 #: SPEC 3.2: the stored sample types (little-endian on disk).
@@ -213,20 +213,54 @@ def all_fill(chunk, fill) -> bool:
 # ---------------------------------------------------------------------------------------------
 # writing
 # ---------------------------------------------------------------------------------------------
+#: how many planes the shard-size estimate looks at (SPEC 3.3, "the estimate")
+SHARD_SAMPLE_PLANES = 8
+
+
+def shard_chunks(counts, planes, plane_bytes, rows, row_bytes, cap):
+    """SPEC 3.3's shard rule (contract update 2): inner chunks per shard along each dimension.
+
+    ``counts`` are the inner chunks along each dimension; ``planes`` complete planes sampled took
+    ``plane_bytes`` and ``rows`` complete rows of inner chunks took ``row_bytes`` (compressed). A shard
+    spans y and x whole; the leading dimensions are taken from the LAST one backwards and spanned whole
+    while the estimate stays within ``cap``; the first that does not fit is split into runs of
+    ``k = floor(9 cap / (10 b))`` (b = bytes of one step along it, k >= 1) and every earlier one gets 1.
+    Only a single plane over the cap splits y (runs of rows, x whole). Exact integer arithmetic, like
+    Flux's ``shardChunks``, so the two writers agree whenever they measured the same bytes.
+    """
+    counts = [int(c) for c in counts]
+    nd = len(counts)
+    per = list(counts)
+    if not (planes > 0 and plane_bytes <= cap * planes):
+        for i in range(nd - 2):
+            per[i] = 1
+        if row_bytes > 0:
+            per[nd - 2] = max(1, min(counts[nd - 2], (9 * cap * rows) // (10 * row_bytes)))
+        return per
+    unit = 1                                                       # planes in one step along dimension i
+    for i in range(nd - 3, -1, -1):
+        if plane_bytes * unit * counts[i] <= cap * planes:
+            unit *= counts[i]
+            continue
+        per[i] = max(1, min(counts[i], (9 * cap * planes) // (10 * plane_bytes * unit)))
+        for j in range(i):
+            per[j] = 1
+        break
+    return per
+
+
 class ArrayWriter:
     """Streams inner chunks, in C order of their chunk coordinates, into shard files.
 
-    A shard spans the whole array along every dimension but the first; along the first it holds
-    as many slabs (rows of inner chunks) as keep a file near ``max_shard_bytes``, judged from the
-    compressed size of the first slabs (up to eight, the only ones held in memory). After that each
-    compressed chunk goes straight into its open shard file, whose index is appended when the
-    shard is complete. Chunks that are entirely fill are not stored, and a shard with no stored
-    chunk is not written. With a thread ``pool`` compression runs in parallel while at most
-    ``max_inflight`` chunks wait for it.
+    The shard shape follows SPEC 3.3 (:func:`shard_chunks`): it is fixed from the compressed size of the
+    first chunks, the first eight planes or fewer once they pass ``max_shard_bytes``, which are the only
+    ones held in memory. Because a shard spans every dimension after its split dimension whole, chunks in
+    C order fill one shard after another: after the decision each compressed chunk goes straight into its
+    open shard file, whose index is appended when the next shard starts. Chunks that are entirely fill are
+    not stored, and a shard with no stored chunk is not written. With a thread ``pool`` compression runs
+    in parallel while at most ``max_inflight`` chunks wait for it. Every chunk of the array must be
+    offered (``None`` for one without data), because the estimate counts rows and planes as they end.
     """
-
-    #: the first slabs whose compressed size fixes the shard height
-    DECIDE_SLABS = 8
 
     def __init__(self, root, path, shape, dtype, inner, fill, dims, *, level, max_shard_bytes, codec,
                  pool=None, max_inflight=None):
@@ -237,92 +271,116 @@ class ArrayWriter:
         self.max_shard_bytes, self.codec, self.pool = int(max_shard_bytes), codec, pool
         self.max_inflight = max_inflight or (2 * getattr(pool, "_max_workers", 1) + 2)
         self.counts = [_ceil_div(s, i) for s, i in zip(self.shape, self.inner)]
-        self.per_slab = _prod(self.counts[1:])
         self.chunk_bytes = _prod(self.inner) * self.dtype.itemsize
-        self.queue = collections.deque()  # (flat chunk number, bytes or a Future of them), not yet written
-        self.slabs_seen = 0
-        self.slabs_per_shard = 0
+        self.sample_planes = min(SHARD_SAMPLE_PLANES, _prod(self.counts[:-2]))
+        self.per = None                    # inner chunks per shard along each dimension, once decided
+        # before the decision: the held chunks [(coords, bytes or Future)], the row ends seen
+        # [(held count, ends a plane)], and how far the estimate has been added up
+        self._held = []
+        self._marks = []
+        self._mark_ptr = 0
+        self._resolved = 0
+        self._waited = 0
+        self._held_bytes = 0
+        self._rows = 0
+        self._planes = 0
+        self._plane_bytes = 0
+        self.queue = collections.deque()  # after the decision: (coords, bytes or a Future), not yet written
         self.bytes = 0
         self.files = 0
-        self._shard = None                 # the open shard: its number, file, entries and write position
+        self._shard = None                 # the open shard: its coordinates, file, entries and write position
         self._file = None
         self._entries = {}
         self._pos = 0
         os.makedirs(os.path.join(root, path), exist_ok=True)
 
-    def _flat(self, coords):
-        k = 0
-        for c, n in zip(coords, self.counts):
-            k = k * n + int(c)
-        return k
-
     def add(self, coords, chunk):
         """Add one inner chunk (exactly ``inner`` samples, any shape); ``None`` or an all-fill chunk
-        stores nothing. Chunks must arrive in C order of ``coords``."""
-        slab = int(coords[0])
-        self.slabs_seen = max(self.slabs_seen, slab + 1)
+        stores nothing. Chunks must arrive in C order of ``coords``, every one of them."""
+        coords = tuple(int(c) for c in coords)
+        item = None
         if chunk is not None and not all_fill(chunk, self.fill):
             raw = np.ascontiguousarray(chunk, dtype=self.dtype).reshape(-1).view(np.uint8)
             if raw.nbytes != self.chunk_bytes:
                 raise ValueError(f"fluximg: chunk has {raw.nbytes} bytes, expected {self.chunk_bytes}")
-            if self.pool is None:
-                item = self.codec.compress(raw, self.level)
-            else:
-                item = self.pool.submit(self.codec.compress, raw, self.level)
-            self.queue.append((self._flat(coords), item))
-        if not self.slabs_per_shard and slab >= min(self.DECIDE_SLABS, self.counts[0]):
-            self._decide(slab)                                        # slabs before this one are complete
-        if self.slabs_per_shard:
-            self._drain(force=False)
-        elif len(self.queue) > self.max_inflight:
-            self._resolve(len(self.queue) - self.max_inflight)        # bound the raw chunks still waiting
+            item = self.codec.compress(raw, self.level) if self.pool is None else \
+                self.pool.submit(self.codec.compress, raw, self.level)
+        if self.per is not None:
+            if item is not None:
+                self.queue.append((coords, item))
+                self._drain(force=False)
+            return
+        if item is not None:
+            self._held.append((coords, item))
+        if coords[-1] == self.counts[-1] - 1:                          # a row of inner chunks ends here
+            self._marks.append((len(self._held), coords[-2] == self.counts[-2] - 1))
+        while len(self._held) - self._waited > self.max_inflight:     # bound the raw chunks still waiting
+            c, it = self._held[self._waited]
+            if not isinstance(it, (bytes, bytearray)):
+                self._held[self._waited] = (c, it.result())
+            self._waited += 1
+        self._advance(block=False)
 
-    def _resolve(self, n):
-        """Turn the first ``n`` queued Futures into their bytes."""
-        for i in range(n):
-            flat, item = self.queue[i]
-            if not isinstance(item, (bytes, bytearray)):
-                self.queue[i] = (flat, item.result())
+    def _advance(self, block):
+        """Add up the estimate row by row, in order, as far as compressed sizes are known (all of them
+        when ``block``); decide the shard shape at the row where the sample ends."""
+        while self._mark_ptr < len(self._marks):
+            n, plane_end = self._marks[self._mark_ptr]
+            while self._resolved < n:
+                coords, item = self._held[self._resolved]
+                if not isinstance(item, (bytes, bytearray)):
+                    if not block and not item.done():
+                        return
+                    item = item.result()
+                    self._held[self._resolved] = (coords, item)
+                self._held_bytes += len(item)
+                self._resolved += 1
+            self._mark_ptr += 1
+            self._rows += 1
+            if plane_end:
+                self._planes += 1
+                self._plane_bytes = self._held_bytes
+            if self._planes >= self.sample_planes or self._held_bytes > self.max_shard_bytes:
+                self._decide()
+                return
 
-    def _decide(self, complete):
-        known = max(1, complete)
-        self._resolve(len(self.queue))
-        total = sum(len(item) for flat, item in self.queue if flat // self.per_slab < known)
-        mean = total / known
-        n0 = self.counts[0]
-        if mean * n0 <= self.max_shard_bytes or mean <= 0:
-            self.slabs_per_shard = n0
-        else:
-            self.slabs_per_shard = max(1, min(n0, int(self.max_shard_bytes * 0.9 // mean)))
+    def _decide(self):
+        self.per = shard_chunks(self.counts, self._planes, self._plane_bytes, self._rows, self._held_bytes,
+                                self.max_shard_bytes)
+        held, self._held, self._marks = self._held, [], []
+        self.queue.extend(held)
+        self._drain(force=False)
 
     def _drain(self, force):
         while self.queue:
-            flat, item = self.queue[0]
+            coords, item = self.queue[0]
             if not isinstance(item, (bytes, bytearray)):
                 if not force and not item.done() and len(self.queue) <= self.max_inflight:
                     break
                 item = item.result()
             self.queue.popleft()
-            self._write_chunk(flat, item)
+            self._write_chunk(coords, item)
 
-    def _write_chunk(self, flat, blob):
-        k = self.slabs_per_shard
-        slab = flat // self.per_slab
-        shard = slab // k
+    def _write_chunk(self, coords, blob):
+        per = self.per
+        shard = tuple(c // p for c, p in zip(coords, per))
+        local = 0
+        for c, p in zip(coords, per):
+            local = local * p + c % p
         if shard != self._shard:
             self._close_shard()
-            key = os.path.join(self.root, self.path, "c", str(shard), *(["0"] * (len(self.shape) - 1)))
+            key = os.path.join(self.root, self.path, "c", *map(str, shard))
             os.makedirs(os.path.dirname(key), exist_ok=True)
             self._file = open(key, "wb")
             self._shard, self._entries, self._pos = shard, {}, 0
         self._file.write(blob)
-        self._entries[(slab - shard * k) * self.per_slab + flat % self.per_slab] = (self._pos, len(blob))
+        self._entries[local] = (self._pos, len(blob))
         self._pos += len(blob)
 
     def _close_shard(self):
         if self._file is None:
             return
-        n = self.slabs_per_shard * self.per_slab
+        n = _prod(self.per)
         offsets, lengths = [None] * n, [0] * n
         for local, (o, ln) in self._entries.items():
             offsets[local], lengths[local] = o, ln
@@ -342,11 +400,13 @@ class ArrayWriter:
     def finish(self, attributes=None) -> dict:
         """Write the remaining chunks, close the last shard and write ``zarr.json``; return the
         metadata dict."""
-        if not self.slabs_per_shard:
-            self._decide(self.slabs_seen)
+        if self.per is None:
+            self._advance(block=True)
+        if self.per is None:
+            self._decide()
         self._drain(force=True)
         self._close_shard()
-        outer = [self.slabs_per_shard * self.inner[0]] + [c * i for c, i in zip(self.counts[1:], self.inner[1:])]
+        outer = [p * i for p, i in zip(self.per, self.inner)]
         meta = array_meta_json(self.shape, self.dtype.name, self.inner, outer, self.fill, self.dims, self.level,
                                attributes)
         text = json.dumps(meta, indent=1)
