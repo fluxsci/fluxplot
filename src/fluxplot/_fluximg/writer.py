@@ -47,15 +47,32 @@ DEFAULT_ZSTD_LEVEL = 5
 PREVIEW_SIDE = 512
 REGION_PLANES = 16
 MAX_AUTO_REGIONS = 64
-#: channel colours of a multi-channel image without ``channels`` colours (the reference writer's)
-DEFAULT_COLOURS = ("#00ff00", "#ff00ff", "#00ffff", "#ffff00", "#ff8000", "#0080ff")
+#: channel colours past three channels, after gray, green and magenta (see :func:`default_channel_colours`)
+DEFAULT_COLOURS = (None, "#00ff00", "#ff00ff", "#00ffff", "#0080ff", "#ff0000")
 RGB_COLOURS = ("#ff0000", "#00ff00", "#0000ff")
-LABEL_COLOUR = "#ffd400"
+#: vector and label layers without ``color`` take these in turn, yellow first; none is a default channel colour
+LAYER_COLOURS = ("#ffd400", "#ff8000", "#ffffff", "#ff5c5c", "#9c8cff")
 INTENSITY_COLOUR = "#ff00ff"
-VECTOR_COLOUR = "#00e5ff"
+#: ``regions="auto"`` ignores connected valid areas smaller than this many pixels (stray valid specks)
+REGION_MIN_PIXELS = 64
 ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 _STORED_INTS = ("uint8", "int8", "uint16", "int16", "uint32", "int32")
 _SPATIAL = ("y", "x", "z")
+
+
+def default_channel_colours(n):
+    """The default colour of each of ``n`` channels (``None`` = the gray LUT), as Flux's reference writer.
+
+    One channel: gray. Two: green + magenta. Three: gray, green, magenta, the trio that stays
+    distinguishable for deuteranopes, protanopes and tritanopes. Four and more continue cyan, azure and
+    red (then repeat): no additive set of four or more stays apart for every colour-vision deficiency, so
+    the first three keep their colours when a channel is added, and explicit colours are better there.
+    """
+    if n <= 1:
+        return [None]
+    if n == 2:
+        return ["#00ff00", "#ff00ff"]
+    return [DEFAULT_COLOURS[i % len(DEFAULT_COLOURS)] for i in range(n)]
 
 
 def canonical_dims(dims) -> list:
@@ -99,24 +116,59 @@ def _hex(colour, what):
     return mcolors.to_hex(colour, keep_alpha=False).lower()
 
 
+_LUT_HELP = ("a colour ('magenta', '#ff2bd6') or the name of a colour map Flux knows ('gray', 'viridis', "
+             "'magma', 'cmasher.ember', 'crameri.batlow'; fp.colors.maps.collections() lists the collections)")
+
+
+def _flux_lut_name(name):
+    """The name Flux stores for colour map ``name``, or None when Flux cannot draw it.
+
+    Flux resolves names the way ``colormapLut`` does: ``collection.map`` (``cmr.`` meaning ``cmasher.``),
+    a bare name found in matplotlib's, Crameri's, Tol's or cmasher's collection (in that order), either
+    with ``_r`` for the reversed map, against fluxplot's shipped ``definitions/colormaps.json`` (the
+    same tables Flux carries)."""
+    from ..colors import _definitions
+    table = {c["id"]: {m["name"] for m in c["maps"]} for c in _definitions("colormaps")["collections"]}
+    name = str(name).strip()
+    base = name[:-2] if name.endswith("_r") else name
+    if "." in base:
+        cid, _, bare = base.partition(".")
+        cid = "cmasher" if cid == "cmr" else cid
+        return f"{cid}.{name.partition('.')[2]}" if bare in table.get(cid, ()) else None
+    return name if any(base in table.get(cid, ()) for cid in ("mpl", "crameri", "tol", "cmasher")) else None
+
+
 def _colour_or_lut(spec, what):
-    """``(color, lut)`` from a LUT spec: a colour name / hex is a colour (the black-to-colour ramp),
-    anything else a colour-map name, resolved like ``fp.image`` does (``images.resolve_lut``)."""
+    """``(color, lut)`` from a LUT spec, resolved NOW (when the image or layer is built, never after
+    pixels are written): a colour name / hex is a colour (the black-to-colour ramp); a colour-map name or
+    a matplotlib ``Colormap`` must be a map Flux knows, and is stored by its canonical name."""
+    from matplotlib import colors as mcolors
     from ..images import _MONO_PREFIX, resolve_lut
     if spec is None:
         return None, None
+    if isinstance(spec, mcolors.Colormap):
+        name = str(spec.name)
+        if name.startswith(_MONO_PREFIX):
+            return name[len(_MONO_PREFIX):], None
+        known = _flux_lut_name(name)
+        if known is None:
+            _bad(f"{what}: the Colormap {name!r} is not a map Flux knows, so Flux could not draw it. Give "
+                 f"{_LUT_HELP}")
+        return None, known
+    if not isinstance(spec, str):
+        _bad(f"{what}: {spec!r} is not a colour or a colour-map name. Give {_LUT_HELP}")
     try:
         cmap = resolve_lut(spec)
     except (ValueError, TypeError, KeyError):
-        _bad(f"{what}: {spec!r} is neither a colour nor a colour-map name")
+        _bad(f"{what}: {spec!r} is neither a colour nor a colour-map name. Give {_LUT_HELP}")
     name = str(cmap.name)
     if name.startswith(_MONO_PREFIX):
         return name[len(_MONO_PREFIX):], None
-    if name.startswith("cmr."):
-        # once cmasher itself is imported, matplotlib resolves its maps under the legacy "cmr."
-        # prefix; store fluxplot's (and Flux's) canonical name whatever was imported
-        name = "cmasher." + name[len("cmr."):]
-    return None, name
+    known = _flux_lut_name(name) or _flux_lut_name(spec)          # the resolved map's own (canonical) name first
+    if known is None:
+        _bad(f"{what}: {spec!r} is a colour map Flux does not know (registered only in this Python session), "
+             f"so Flux could not draw it. Give {_LUT_HELP}")
+    return None, known
 
 
 def _range(value, what):
@@ -276,17 +328,28 @@ class SaveReport:
     seconds: float = 0.0
     #: True when ``FLUXPLOT_ONLY`` filtered this image out: nothing was written
     skipped: bool = False
+    #: of ``bytes``: the stored pixels (``pixels/``, overview levels included), the layers, and the rest
+    #: (manifest, preview, Zarr group metadata)
+    pixel_bytes: int = 0
+    layer_bytes: int = 0
+    other_bytes: int = 0
 
     def __str__(self):
         if self.skipped:
             return f"fluximg: skipped {self.path} ({self.reason})"
         shape = " × ".join(f"{d}={n}" for d, n in zip(self.dims, self.shape))
         stored = self.encoding if self.stored_dtype == self.dtype else f"{self.encoding} ({self.stored_dtype})"
-        ratio = f", {100 * self.bytes / self.raw_bytes:.0f}% of" if self.raw_bytes else " vs"
+        ratio = f" ({100 * self.pixel_bytes / self.raw_bytes:.0f}% of the {_size(self.raw_bytes)} raw)" if self.raw_bytes else ""
+        extra = []
+        if self.layer_bytes:
+            extra.append(f"layers {_size(self.layer_bytes)}")
+        if self.other_bytes:
+            extra.append(f"manifest + preview {_size(self.other_bytes)}")
         lines = [f"fluximg  {self.path}",
                  f"  pixels   {shape}, {self.dtype} → stored {stored}",
                  *_wrap("  why      ", self.reason),
-                 f"  size     {_size(self.bytes)} on disk{ratio} the {_size(self.raw_bytes)} of raw pixels"]
+                 f"  size     {_size(self.bytes)} on disk: pixels {_size(self.pixel_bytes)}{ratio}"
+                 + "".join(f", {e}" for e in extra)]
         if self.layers:
             lines += _wrap("  layers   ", ", ".join(f"{i} ({k})" for i, k in self.layers))
         for note in self.notes:
@@ -433,30 +496,36 @@ class FluxImage:
             if given is None:
                 spec = {}
             elif isinstance(given, dict):
-                unknown = set(given) - {"name", "color", "colour", "lut", "range"}
+                unknown = set(given) - {"name", "color", "colour", "lut", "range", "visible"}
                 if unknown:
-                    _bad(f"channel {i}: unknown keys {sorted(unknown)} (use name, color, lut, range)")
+                    _bad(f"channel {i}: unknown keys {sorted(unknown)} (use name, color, lut, range, visible)")
                 spec = dict(given)
             else:
                 spec = {"name": str(given)}
             color = spec.get("color", spec.get("colour"))
             lut = spec.get("lut")
+            label = f"channel {i}" + (f" ({spec['name']!r})" if spec.get("name") is not None else "")
             if color is not None and lut is not None:
-                _bad(f"channel {i}: give color or lut, not both")
+                _bad(f"{label}: give color or lut, not both")
             if color is not None:
-                color, lut = _hex(color, f"channel {i} color"), None
+                color, lut = _hex(color, f"{label} color"), None
             elif lut is not None:
-                color, lut = _colour_or_lut(lut, f"channel {i} lut")
+                color, lut = _colour_or_lut(lut, f"{label} lut")
+            visible = spec.get("visible", True)
+            if not isinstance(visible, (bool, np.bool_)):
+                _bad(f"channel {i}: visible must be True or False, got {visible!r}")
             self._channels.append({"name": None if spec.get("name") is None else str(spec["name"]), "color": color,
-                                   "lut": lut, "range": _range(spec.get("range"), f"channel {i} range")})
+                                   "lut": lut, "range": _range(spec.get("range"), f"channel {i} range"),
+                                   "visible": bool(visible)})
 
         # ---- world, meta ---------------------------------------------------------------------
         self.world = None
         if transform is not None:
             world = dict(transform) if isinstance(transform, dict) else {"matrix": transform, "unit": unit}
             m = np.asarray(world.get("matrix"), dtype=float)
-            if m.shape != (4, 4) or not np.isfinite(m).all():
-                _bad("transform must be a finite 4 x 4 matrix")
+            if m.shape not in ((3, 3), (4, 4)) or not np.isfinite(m).all():
+                _bad("transform must be a finite 3 x 3 matrix (x, y) or 4 x 4 matrix (x, y, z), in homogeneous "
+                     f"pixel coordinates (the first pixel's centre is (0.5, 0.5)); got shape {m.shape}")
             world["matrix"] = m.tolist()
             self.world = json_safe(world)
         if meta is not None and not isinstance(meta, dict):
@@ -481,6 +550,7 @@ class FluxImage:
             self.default_index = index
         self._layers: List[dict] = []
         self._regions: List[dict] = []
+        self._object_layers = 0              # vector and label layers given no colour: they take LAYER_COLOURS in turn
 
     # ---- display ---------------------------------------------------------------------------
     def __repr__(self):
@@ -508,6 +578,11 @@ class FluxImage:
             hint = " (it looks transposed: pass data.T)" if arr.shape == (self.W, self.H) else ""
             _bad(f"{what} has shape {arr.shape} but the image's (y, x) grid is {(self.H, self.W)}{hint}")
         return arr
+
+    def _next_layer_colour(self):
+        colour = LAYER_COLOURS[self._object_layers % len(LAYER_COLOURS)]
+        self._object_layers += 1
+        return colour
 
     def _take_layer_id(self, id, what):
         if not isinstance(id, str) or not ID_RE.match(id):
@@ -563,7 +638,10 @@ class FluxImage:
         rest = arr[~is_bg]
         if rest.size and rest.min() <= 0:
             bad_value = rest[rest <= 0][0].item()
-            _bad(f"labels {id!r}: every value but background={background!r} must be a positive label; found {bad_value!r}")
+            hint = (" Label 0 means no object, so 0-based ids cannot be labels: add 1 to the map (and to the "
+                    "table's label column) so objects are numbered from 1." if bad_value == 0 else "")
+            _bad(f"labels {id!r}: every value but background={background!r} must be a positive label; found "
+                 f"{bad_value!r}.{hint}")
         top = int(rest.max()) if rest.size else 0
         if top > 0xFFFFFFFF:
             _bad(f"labels {id!r}: label {top} does not fit uint32")
@@ -572,6 +650,8 @@ class FluxImage:
         present = np.unique(lab[lab > 0]).astype(np.int64)
 
         cols = columns_of(table, f"labels {id!r} table") if table is not None else None
+        given_cols = set(cols) if cols is not None else set()
+        notes = []
         if cols is None:
             if key not in (None, "label"):
                 _bad(f"labels {id!r}: key={key!r} names a table column, but no table= was given")
@@ -589,12 +669,27 @@ class FluxImage:
                      "whose values are the label values")
             cols["label"] = [int(v) for v in cols["label"]]
             key = key or "label"
+            low = [v for v in cols["label"] if v <= 0 or v == bg]
+            if low:
+                src = "label" if "label" in given_cols else key
+                _bad(f"labels {id!r}: the table has a row for label {low[0]}, but label 0 (and background="
+                     f"{background!r}) means no object, so that row can never match one. The {src!r} column looks "
+                     "0-based while the map numbers objects from 1. Give the table a 'label' column holding the "
+                     f"map's values (for example table['label'] = table[{src!r}] + 1 when the map is that id + 1), "
+                     "and keep key= naming your own id column, which is what Flux shows.")
             if len(set(cols["label"])) != len(cols["label"]):
                 _bad(f"labels {id!r}: the table's label column repeats a label")
             rows = set(cols["label"])
             missing = [int(v) for v in present if int(v) not in rows]
             if missing:
                 _bad(f"labels {id!r}: {len(missing)} label(s) in the map have no table row, e.g. {missing[:5]}")
+            present_set = {int(v) for v in present}
+            orphans = [v for v in cols["label"] if v not in present_set]
+            if orphans:
+                notes.append(f"labels {id}: {len(orphans)} table row(s) have no object in the map (labels "
+                             f"{', '.join(map(str, orphans[:5]))}{', …' if len(orphans) > 5 else ''}); they are "
+                             "kept in the table but nothing is drawn for them. Check that the table and the map "
+                             "number objects the same way.")
             key_of = dict(zip(cols["label"], cols[key]))
             names = [key_of[int(v)] for v in present]
             if any(n is None for n in names):
@@ -609,13 +704,14 @@ class FluxImage:
             warr = self._plane2d(weights, f"labels {id!r} weights")
             if warr.dtype.kind not in "fiub":
                 _bad(f"labels {id!r}: weights must be numeric")
-        colour = _hex(color, f"labels {id!r} color") if color is not None else LABEL_COLOUR
+        colour = _hex(color, f"labels {id!r} color") if color is not None else self._next_layer_colour()
         if warr is not None:
             self._layers.append({"kind": "intensity", "id": wid, "name": f"{name or id} weights", "data": warr,
                                  "color": colour, "lut": None, "range": None, "opacity": 1.0, "visible": False,
                                  "lossless": True})
         self._layers.append({"kind": "labels", "id": id, "name": str(name) if name is not None else id, "data": lab,
-                             "table": cols, "key": key, "weights": wid, "color": colour, "visible": bool(visible)})
+                             "table": cols, "key": key, "weights": wid, "color": colour, "visible": bool(visible),
+                             "notes": notes})
         return self
 
     def add_shapes(self, id, *, lines=None, circles=None, polygons=None, coords="xy", diameter=None, radius=None,
@@ -680,7 +776,7 @@ class FluxImage:
         self._layers.append({"kind": "vector", "id": id, "name": str(name) if name is not None else id,
                              "shapes": [(t, s[1], s[2]) for t, s in zip(texts, shapes)], "table": cols,
                              "key": key_col, "color": _hex(color, f"layer {id!r} color") if color is not None
-                             else VECTOR_COLOUR, "visible": bool(visible)})
+                             else self._next_layer_colour(), "visible": bool(visible)})
         return self
 
     def _xy(self, pts, coords, what):
@@ -826,7 +922,8 @@ class FluxImage:
         return self
 
     # ---- saving ----------------------------------------------------------------------------
-    def save(self, path, *, layers=None, recipe=None, regions="auto", zstd_level=DEFAULT_ZSTD_LEVEL) -> SaveReport:
+    def save(self, path, *, layers=None, recipe=None, regions="auto", zstd_level=DEFAULT_ZSTD_LEVEL,
+             region_min_pixels=REGION_MIN_PIXELS) -> SaveReport:
         """Write the bundle ``<path>.fluximg`` (``.fluximg`` is appended when missing).
 
         An existing bundle is replaced safely: everything is written to a sibling temporary
@@ -843,17 +940,23 @@ class FluxImage:
             write none.
         regions
             ``"auto"``: when the image has missing data, the connected valid areas (of up to 16
-            evenly spaced planes) become regions ``ROI 1…``, left to right (none when there are more
-            than 64). ``None`` / ``False``: only regions added with :meth:`add_region`.
+            evenly spaced planes) become regions ``ROI 1…``, left to right: areas smaller than
+            ``region_min_pixels`` are ignored, an area spanning the whole image is not a region, and
+            there are none when more than 64 remain. When ``layers=`` borrows another bundle's layers,
+            its regions are borrowed too instead. ``None`` / ``False``: only regions added with
+            :meth:`add_region`.
         zstd_level
             The zstd compression level (default 5).
+        region_min_pixels
+            The smallest connected valid area (in pixels, default 64) that ``regions="auto"`` makes a region.
 
         Returns
         -------
         SaveReport
             Printed as a short summary; its ``manifest`` is what was written.
         """
-        return _save(self, path, layers=layers, recipe=recipe, regions=regions, zstd_level=zstd_level)
+        return _save(self, path, layers=layers, recipe=recipe, regions=regions, zstd_level=zstd_level,
+                     region_min_pixels=region_min_pixels)
 
 
 def _num(v) -> str:
@@ -1066,17 +1169,21 @@ def _write_pixels(root, img, *, level, codec, pool, max_shard_bytes):
             lo = min(enc.default_range(s)[0] for s in stats)
             hi = max(enc.default_range(s)[1] for s in stats)
             rgb_range = [lo, hi]
+    defaults = default_channel_colours(C)
     for i, (given, st) in enumerate(zip(img._channels, stats)):
         color, lut = given["color"], given["lut"]
         if color is None and lut is None:
             if img.photometric == "rgb":
                 color = RGB_COLOURS[i]
-            elif C == 1:
+            elif defaults[i] is None:
                 lut = "gray"
             else:
-                color = DEFAULT_COLOURS[i % len(DEFAULT_COLOURS)]
-        channels.append({"name": names[i], "color": color, "lut": lut,
-                         "range": given["range"] or rgb_range or enc.default_range(st), "stats": st})
+                color = defaults[i]
+        ch = {"name": names[i], "color": color, "lut": lut,
+              "range": given["range"] or rgb_range or enc.default_range(st), "stats": st}
+        if not given["visible"]:
+            ch["visible"] = False                                     # starts hidden (contract update 2)
+        channels.append(ch)
     profiles = {}
     for d in profile_dims:
         with np.errstate(invalid="ignore", divide="ignore"):
@@ -1116,7 +1223,7 @@ def _ome_attrs(name, dims, axes, factors, channels, encoding):
                 return 1 + (v - p["offset"]) / p["scale"]
             return v
         ome["omero"] = {"channels": [{
-            "label": ch["name"], "active": True, "color": (ch["color"] or "#ffffff").lstrip("#").upper(),
+            "label": ch["name"], "active": ch.get("visible", True), "color": (ch["color"] or "#ffffff").lstrip("#").upper(),
             "window": {"start": stored(ch["range"][0], c), "end": stored(ch["range"][1], c),
                        "min": stored(ch["stats"]["min"], c), "max": stored(ch["stats"]["max"], c)}}
             for c, ch in enumerate(channels)]}
@@ -1135,15 +1242,26 @@ def _preview_values(plane, mask, work):
 
 
 def _preview_png(planes, channels):
+    """``preview.png`` of the default view: the visible channels blended (8-bit RGB, alpha where no channel
+    has data), or 8-bit grayscale (+ alpha) when the view is a single gray channel."""
     from matplotlib import colors as mcolors
     from ..images import resolve_lut
-    first = next(iter(planes.values()))
+    shown = [c for c, ch in enumerate(channels) if ch.get("visible", True) and planes.get(c) is not None]
+    if not shown:
+        shown = [c for c in range(len(channels)) if planes.get(c) is not None][:1]
+    first = planes[shown[0]]
+    if len(shown) == 1 and channels[shown[0]]["lut"] == "gray":
+        lo, hi = channels[shown[0]]["range"]
+        valid = np.isfinite(first)
+        # Flux's colour law (lut.ts): slot = min(255, trunc(x * 256)); the gray table's entry i is i
+        g = np.minimum(255, np.floor(np.clip((np.where(valid, first, lo) - lo) / (hi - lo), 0.0, 1.0) * 256)).astype(np.uint8)
+        if valid.all():
+            return encode_png(g)
+        return encode_png(np.stack([np.where(valid, g, 0), np.where(valid, 255, 0)], axis=-1).astype(np.uint8))
     rgb = np.zeros(first.shape + (3,))
     any_valid = np.zeros(first.shape, dtype=bool)
-    for c, ch in enumerate(channels):
-        v = planes.get(c)
-        if v is None:
-            continue
+    for c in shown:
+        ch, v = channels[c], planes[c]
         lo, hi = ch["range"]
         valid = np.isfinite(v)
         any_valid |= valid
@@ -1153,10 +1271,10 @@ def _preview_png(planes, channels):
         else:
             layer = resolve_lut(ch["lut"])(t)[..., :3]
         rgb += np.where(valid[..., None], layer, 0.0)
-    out = np.empty(first.shape + (4,), dtype=np.uint8)
-    out[..., :3] = np.rint(np.clip(rgb, 0.0, 1.0) * 255)
-    out[..., 3] = np.where(any_valid, 255, 0)
-    return encode_png(out)
+    rgb8 = np.rint(np.clip(rgb, 0.0, 1.0) * 255).astype(np.uint8)
+    if any_valid.all():
+        return encode_png(rgb8)
+    return encode_png(np.concatenate([rgb8, np.where(any_valid, 255, 0).astype(np.uint8)[..., None]], axis=-1))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1192,13 +1310,14 @@ def _write_intensity(root, L, *, level, codec, pool, max_shard_bytes):
 
 def _short_note(encoding, work, lossless):
     if encoding["kind"] == "linear16":
-        return f"16-bit linear16 (step {encoding['guard']['stepOverNeighbour'][0]:.2g} of the neighbour difference)"
+        return (f"stored at 16 bits (linear16): the rounding step is "
+                f"{encoding['guard']['stepOverNeighbour'][0]:.2g} of the typical neighbour difference")
     if work.kind != "f":
         return f"exact {work.name}"
     if lossless:
         return f"exact {work.name} (lossless)"
     r = encoding["guard"]["stepOverNeighbour"][0]
-    why = "no pixel-to-pixel variation" if r is None else f"step {r:.2g} of the neighbour difference"
+    why = "no pixel-to-pixel variation" if r is None else f"its rounding step would be {r:.2g} of the typical neighbour difference, over 0.1"
     return f"exact {work.name}: a 16-bit copy was refused ({why})"
 
 
@@ -1316,6 +1435,30 @@ def _borrow_plan(sources, img, dest_bundle):
     return plan
 
 
+def _borrowed_regions(sources, taken):
+    """The regions of the bundles ``layers=`` borrows from (same pixel grid, already checked), each rect
+    once; an id already taken gets a numeric suffix."""
+    from .reader import read_manifest
+    if sources is None:
+        return []
+    if isinstance(sources, (str, os.PathLike)):
+        sources = [sources]
+    out, rects = [], set()
+    for src in sources:
+        for r in read_manifest(_bundle_path(src)).get("regions") or []:
+            q = r.get("rect") or {}
+            key = tuple(q.get(k) for k in ("x", "y", "width", "height"))
+            if key in rects:
+                continue
+            rects.add(key)
+            rid, k = str(r["id"]), 2
+            while rid in taken:
+                rid, k = f"{r['id']}_{k}", k + 1
+            taken.add(rid)
+            out.append({"id": rid, "name": str(r.get("name", rid)), "rect": dict(q)})
+    return out
+
+
 def _copy_tree(src, dst):
     """Copy a file or a directory tree. Never a hard link: a later in-place edit of the source bundle
     must not change this one."""
@@ -1333,15 +1476,23 @@ def _copy_tree(src, dst):
 # ---------------------------------------------------------------------------------------------
 # regions
 # ---------------------------------------------------------------------------------------------
-def _auto_regions(union, taken):
+def _auto_regions(union, taken, min_pixels=REGION_MIN_PIXELS):
+    """Regions from the connected valid areas (8-neighbour) of ``union``: areas smaller than
+    ``min_pixels`` are ignored (stray valid specks), a box covering the whole image is never a region, and
+    there are none when more than ``MAX_AUTO_REGIONS`` areas remain."""
     from scipy import ndimage
     if union is None or union.all():
         return []
+    H, W = union.shape
     lab, n = ndimage.label(union, structure=np.ones((3, 3), dtype=bool))
-    if n == 0 or n > MAX_AUTO_REGIONS:
+    if n == 0:
         return []
+    sizes = np.bincount(lab.ravel(), minlength=n + 1)
     boxes = [(sl[1].start, sl[0].start, sl[1].stop - sl[1].start, sl[0].stop - sl[0].start)
-             for sl in ndimage.find_objects(lab)]
+             for k, sl in enumerate(ndimage.find_objects(lab), start=1) if sizes[k] >= max(1, int(min_pixels))]
+    boxes = [b for b in boxes if b != (0, 0, W, H)]
+    if not boxes or len(boxes) > MAX_AUTO_REGIONS:
+        return []
     boxes.sort()
     out, k = [], 0
     for i, (x, y, w, h) in enumerate(boxes, start=1):
@@ -1405,12 +1556,14 @@ def _only_skip(plot_name):
     return None
 
 
-def _save(img, path, *, layers, recipe, regions, zstd_level, max_shard_bytes=None):
+def _save(img, path, *, layers, recipe, regions, zstd_level, region_min_pixels=REGION_MIN_PIXELS, max_shard_bytes=None):
     from .. import recipe as _recipe
     from ..version import SPEC_VERSION, __version__
     started = time.perf_counter()
     if regions not in ("auto", True, None, False):
         _bad(f"regions must be 'auto' or None, got {regions!r}")
+    if isinstance(region_min_pixels, bool) or not isinstance(region_min_pixels, (int, np.integer)) or region_min_pixels < 1:
+        _bad(f"region_min_pixels must be a positive integer, got {region_min_pixels!r}")
     level = int(zstd_level)
     if not 1 <= level <= 22:
         _bad(f"zstd_level must be 1..22, got {zstd_level!r}")
@@ -1454,6 +1607,7 @@ def _save(img, path, *, layers, recipe, regions, zstd_level, max_shard_bytes=Non
                 elif L["kind"] == "labels":
                     entry = _write_labels(tmp, L, img.H, img.W, level=level, codec=codec, pool=pool,
                                           max_shard_bytes=max_shard)
+                    notes += L.get("notes", [])
                 else:
                     entry = _write_vector(tmp, L, img.H, img.W)
                 entries.append(entry)
@@ -1470,7 +1624,15 @@ def _save(img, path, *, layers, recipe, regions, zstd_level, max_shard_bytes=Non
                 _bad(f"layer {e['id']!r} names a weights layer {e['weights']!r} that does not exist")
         region_list = [dict(r) for r in img._regions]
         if regions in ("auto", True):
-            region_list += _auto_regions(px["union"], {r["id"] for r in region_list})
+            taken = {r["id"] for r in region_list}
+            # an image that borrows another bundle's layers shares its grid: take its regions as they are
+            # rather than recomputing slightly different ones from this image's own valid pixels
+            shared = _borrowed_regions(layers, taken) if borrowed else []
+            if shared:
+                region_list += shared
+                notes.append(f"regions: {', '.join(r['name'] for r in shared)} borrowed with the layers")
+            else:
+                region_list += _auto_regions(px["union"], taken, region_min_pixels)
         group = _zarr.group_meta_json(_ome_attrs(name, img.dims, img.axes, px["factors"], px["channels"],
                                                  px["pixels"]["encoding"]) if px["pixels"]["ome"] else {})
         _write_text(tmp, "pixels/zarr.json", json.dumps(group, indent=1, ensure_ascii=False, allow_nan=False))
@@ -1510,9 +1672,13 @@ def _save(img, path, *, layers, recipe, regions, zstd_level, max_shard_bytes=Non
         from ..api import _write_staged
         from ..canonical_json import dumps
         _write_staged([(recipe_path, dumps(rec).encode("utf-8"))])
+    total = _dir_bytes(bundle)
+    pixel_bytes = _dir_bytes(os.path.join(bundle, "pixels"))
+    layer_bytes = _dir_bytes(os.path.join(bundle, "layers"))
     report = SaveReport(path=bundle, name=name, dims=list(img.dims), shape=list(img.shape), dtype=img.input_dtype.name,
                         stored_dtype=px["pixels"]["dtype"], encoding=px["pixels"]["encoding"]["kind"],
-                        reason=px["note"].split(": ", 1)[1], bytes=_dir_bytes(bundle), raw_bytes=raw,
+                        reason=px["note"].split(": ", 1)[1], bytes=total, raw_bytes=raw, pixel_bytes=pixel_bytes,
+                        layer_bytes=layer_bytes, other_bytes=total - pixel_bytes - layer_bytes,
                         layers=[(e["id"], e["kind"]) for e in entries], regions=[r["name"] for r in region_list],
                         manifest=manifest, recipe=recipe_path, notes=notes,
                         seconds=time.perf_counter() - started)
@@ -1593,13 +1759,13 @@ def fluximg(data, dims=None, *, pixel_size=None, unit="µm", channels=None, coor
 
 
 def imsave(path, data, dims=None, *, layers=None, recipe=None, regions="auto", zstd_level=DEFAULT_ZSTD_LEVEL,
-           **keywords) -> SaveReport:
+           region_min_pixels=REGION_MIN_PIXELS, **keywords) -> SaveReport:
     """Save an image as a fluximg bundle in one call: ``fp.fluximg(data, dims, **keywords).save(path, …)``.
 
     Takes every keyword of :func:`fluximg` (``pixel_size``, ``unit``, ``channels``, ``coords``,
     ``dt``, ``t0``, ``nodata``, ``transform``, ``meta``, ``name``, ``lossless``, ``photometric``,
     ``default_index``)
-    and of :meth:`FluxImage.save` (``layers``, ``recipe``, ``regions``, ``zstd_level``).
+    and of :meth:`FluxImage.save` (``layers``, ``recipe``, ``regions``, ``zstd_level``, ``region_min_pixels``).
 
     Examples
     --------
@@ -1607,4 +1773,4 @@ def imsave(path, data, dims=None, *, layers=None, recipe=None, regions="auto", z
     >>> fp.imsave("plots/trial1", movie, dims=("c", "t", "x", "y"), dt=1 / 80, layers="plots/stack")
     """
     return FluxImage(data, dims, **keywords).save(path, layers=layers, recipe=recipe, regions=regions,
-                                                  zstd_level=zstd_level)
+                                                  zstd_level=zstd_level, region_min_pixels=region_min_pixels)

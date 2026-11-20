@@ -367,7 +367,7 @@ def test_channels_names_colours_luts_and_ranges(tmp_path):
         {"color": "magenta"}]))
     ch = m["channels"]
     assert [c["name"] for c in ch] == ["dapi", "gfp", "act", "channel 4"]
-    assert (ch[0]["color"], ch[0]["lut"]) == ("#00ff00", None)
+    assert (ch[0]["color"], ch[0]["lut"]) == (None, "gray")          # the first of three or more is gray
     assert (ch[1]["color"], ch[1]["lut"]) == ("#2bff00", None)
     assert (ch[2]["color"], ch[2]["lut"]) == (None, "cmasher.ember") and ch[2]["range"] == [90.0, 110.0]
     assert ch[3]["color"] == "#ff00ff"
@@ -377,7 +377,7 @@ def test_channels_names_colours_luts_and_ranges(tmp_path):
     assert single == [{**single[0], "name": "image", "color": None, "lut": "gray"}]
     assert single[0]["range"] == E.default_range(single[0]["stats"])
     many = man(save(tmp_path, noisy((7, 4, 4)), ("c", "y", "x"), name="many"))["channels"]
-    assert [c["color"] for c in many] == list(W.DEFAULT_COLOURS) + [W.DEFAULT_COLOURS[0]]
+    assert [c["color"] or c["lut"] for c in many] == ["gray", "#00ff00", "#ff00ff", "#00ffff", "#0080ff", "#ff0000", "gray"]
 
 
 def test_colour_map_names_are_canonical_whatever_was_imported(tmp_path):
@@ -428,8 +428,10 @@ def test_world_meta_name_and_default_index(tmp_path):
     assert m["name"] == "mean image" and m["defaults"] == {"index": {"z": 3}}
     m = man(save(tmp_path, noisy((6, 8)), name="w", transform={"matrix": np.eye(4), "note": "affine"}))
     assert m["world"] == {"matrix": np.eye(4).tolist(), "note": "affine"} and m["name"] == "w"
-    with pytest.raises(ValueError, match="4 x 4"):
-        fp.fluximg(np.zeros((4, 4)), transform=np.eye(3))
+    m = man(save(tmp_path, noisy((6, 8)), name="w3", transform=np.diag([0.5, 0.5, 1.0])))
+    assert m["world"]["matrix"] == np.diag([0.5, 0.5, 1.0]).tolist()             # 3 x 3: a 2-D mapping
+    with pytest.raises(ValueError, match="3 x 3 matrix .* or 4 x 4"):
+        fp.fluximg(np.zeros((4, 4)), transform=np.zeros((2, 3)))
     with pytest.raises(ValueError, match="meta must be a dict"):
         fp.fluximg(np.zeros((4, 4)), meta=[1])
     with pytest.raises(ValueError, match="it can name z"):
@@ -617,7 +619,7 @@ def test_add_shapes_lines_from_dicts_in_row_col(tmp_path):
                                                  key="dendrite_id").save(tmp_path / "a")
     L = man(rep)["layers"][0]
     assert (L["kind"], L["path"], L["table"], L["key"], L["count"], L["color"]) == (
-        "vector", "layers/prox_lines.svg", "layers/prox_lines.table.json", "dendrite_id", 2, "#00e5ff")
+        "vector", "layers/prox_lines.svg", "layers/prox_lines.table.json", "dendrite_id", 2, "#ffd400")
     svg = open(os.path.join(rep.path, L["path"])).read()
     assert '<polyline id="prox_lines/d1" data-key="d1" points="14.5,14.5 30.5,22.5"/>' in svg
     assert '<polyline id="prox_lines/d2" data-key="d2" points="50.5,31.5 56.5,36.5 60.5,40.5"/>' in svg
@@ -742,13 +744,15 @@ def _scanned(shape=(40, 80)):
 
 
 def test_auto_regions_name_valid_areas_left_to_right(tmp_path):
-    m = man(save(tmp_path, _scanned()))
+    m = man(save(tmp_path, _scanned(), region_min_pixels=1))
     assert m["regions"] == [
         {"id": "roi_1", "name": "ROI 1", "rect": {"x": 5, "y": 5, "width": 20, "height": 10}},
         {"id": "roi_2", "name": "ROI 2", "rect": {"x": 30, "y": 2, "width": 10, "height": 6}},
         {"id": "roi_3", "name": "ROI 3", "rect": {"x": 50, "y": 20, "width": 20, "height": 10}}]
     assert man(save(tmp_path, _scanned(), name="b", regions=None))["regions"] == []
     assert man(save(tmp_path, noisy((10, 10)), name="c"))["regions"] == []          # no missing data
+    # the default ignores areas under 64 pixels: the 10 x 6 one goes, and the others are renumbered
+    assert [r["rect"]["width"] for r in man(save(tmp_path, _scanned(), name="d"))["regions"]] == [20, 20]
 
 
 def test_auto_regions_use_the_union_of_planes_and_give_up_past_64(tmp_path):
@@ -756,7 +760,7 @@ def test_auto_regions_use_the_union_of_planes_and_give_up_past_64(tmp_path):
     stack[0, 2:5, 2:5] = 1
     stack[19, 20:25, 20:25] = 2                                # only in the last plane
     stack += noisy((20, 30, 30), amp=0.2)
-    m = man(save(tmp_path, stack, ("t", "y", "x"), lossless=True))
+    m = man(save(tmp_path, stack, ("t", "y", "x"), lossless=True, region_min_pixels=9))
     assert [r["rect"] for r in m["regions"]] == [{"x": 2, "y": 2, "width": 3, "height": 3},
                                                  {"x": 20, "y": 20, "width": 5, "height": 5}]
     speckle = np.full((40, 40), np.nan)
@@ -769,7 +773,7 @@ def test_add_region_and_its_errors(tmp_path):
     img.add_region("Cell body", (1, 2, 10, 5))
     img.add_region("Cell body", (0, 0, 4, 4))
     img.add_region("ROI 1", (0, 0, 80, 40), id="roi_1")
-    m = man(img.save(tmp_path / "a"))
+    m = man(img.save(tmp_path / "a", region_min_pixels=1))
     assert [(r["id"], r["name"]) for r in m["regions"]] == [
         ("cell_body", "Cell body"), ("cell_body_2", "Cell body"), ("roi_1", "ROI 1"),
         ("roi_2", "ROI 1"), ("roi_3", "ROI 2"), ("roi_4", "ROI 3")]
@@ -949,12 +953,16 @@ def test_the_report(tmp_path, capsys):
     assert out.strip() == str(rep)
     assert rep.path in out and "y=40 × x=80" in out and "float32 → stored linear16 (uint16)" in out
     assert "why      stored at 16 bits" in out and "lossless=True" in out
-    assert "on disk" in out and "of the 12.8 kB of raw pixels" in out
-    assert "act (intensity), cells (labels)" in out and "layer act: 16-bit linear16" in out
-    assert "regions  ROI 1, ROI 2, ROI 3" in out
+    assert "on disk: pixels" in out and "of the 12.8 kB raw)" in out and "layers" in out and "manifest + preview" in out
+    assert "act (intensity), cells (labels)" in out and "layer act: stored at 16 bits" in out
+    assert "regions  ROI 1, ROI 2" in out
     assert (rep.encoding, rep.stored_dtype, rep.dtype, rep.raw_bytes) == ("linear16", "uint16", "float32", 40 * 80 * 4)
     assert rep.bytes == sum(os.path.getsize(os.path.join(d, f)) for d, _, fs in os.walk(rep.path) for f in fs)
-    assert rep.layers == [("act", "intensity"), ("cells", "labels")] and rep.regions == ["ROI 1", "ROI 2", "ROI 3"]
+    assert rep.layers == [("act", "intensity"), ("cells", "labels")] and rep.regions == ["ROI 1", "ROI 2"]
+    # the percentage is about the pixel data; layers, manifest and preview are reported apart
+    assert rep.pixel_bytes == sum(os.path.getsize(os.path.join(d, f)) for d, _, fs in os.walk(os.path.join(rep.path, "pixels")) for f in fs)
+    assert rep.pixel_bytes + rep.layer_bytes + rep.other_bytes == rep.bytes and rep.layer_bytes > 0 and rep.other_bytes > 0
+    assert f"({100 * rep.pixel_bytes / rep.raw_bytes:.0f}% of the 12.8 kB raw)" in out
     assert rep.manifest == man(rep) and rep.seconds > 0 and not rep.skipped
     assert repr(img).startswith("FluxImage(y=40 × x=80, float32, 2 layer(s)")
 
@@ -1150,3 +1158,159 @@ def test_a_large_stack_is_written_plane_by_plane(tmp_path):
     # no second copy: what is held is the bounded statistics sample (~1M values and ~2M neighbour
     # differences per channel), a few planes and the chunks waiting for compression
     assert peak < 0.5 * data.nbytes
+
+
+# ---------------------------------------------------------------------------------------------
+# contract update 2 (2026-11-19): shard shapes, hidden channels, label tables, LUTs, regions,
+# default colours, previews and the report
+# ---------------------------------------------------------------------------------------------
+def _stack(shape, seed=3):
+    rng = np.random.default_rng(seed)
+    return (800 + 60 * rng.standard_normal(shape)).clip(0).astype(np.uint16)
+
+
+def test_shard_rule_cases():
+    MiB = 1 << 20
+    cap = 64 * MiB
+    assert Z.shard_chunks([2, 7, 1, 1], 8, 8 * 3_000_000, 8, 8 * 3_000_000, cap) == [2, 7, 1, 1]
+    assert Z.shard_chunks([3, 25, 1, 1], 8, 8 * 5_000_000, 8, 8 * 5_000_000, cap) == [1, 12, 1, 1]
+    assert Z.shard_chunks([10, 3, 4, 1, 1], 8, 8 * 6_000_000, 8, 8 * 6_000_000, cap) == [1, 2, 4, 1, 1]
+    assert Z.shard_chunks([5, 9, 4], 0, 0, 3, 90_000_000, cap) == [1, 2, 4]          # one plane over the cap
+    assert Z.shard_chunks([4, 1, 1], 4, 0, 4, 0, cap) == [4, 1, 1]                    # nothing stored
+
+
+def test_channel_first_stack_is_split_along_z_under_the_cap(tmp_path, monkeypatch):
+    data = _stack((3, 10, 40, 48))
+    plane = len(_zstd.codec().compress(np.ascontiguousarray(data[0, 0]).view(np.uint8), 5))
+    cap = int(4.5 * plane / 0.9)                                     # runs of 4 z planes of one channel
+    monkeypatch.setattr(W, "MAX_SHARD_BYTES", cap)
+    rep = save(tmp_path, data, ("c", "z", "y", "x"))
+    assert _zarr_json(rep.path, "pixels/0")["chunk_grid"]["configuration"]["chunk_shape"] == [1, 4, 40, 48]
+    shards = sorted(os.path.relpath(os.path.join(d, f), rep.path) for d, _, fs in os.walk(os.path.join(rep.path, "pixels/0/c"))
+                    for f in fs)
+    assert len(shards) == 9 and all(os.path.getsize(os.path.join(rep.path, s)) <= cap for s in shards)
+    np.testing.assert_array_equal(fp.imread(rep.path).values, data)
+
+
+def test_y_is_split_only_when_one_plane_is_over_the_cap(tmp_path, monkeypatch):
+    data = np.random.default_rng(4).integers(1, 256, (2100, 600)).astype(np.uint8)
+    monkeypatch.setattr(W, "MAX_SHARD_BYTES", 800_000)
+    rep = save(tmp_path, data)
+    assert _zarr_json(rep.path, "pixels/0")["chunk_grid"]["configuration"]["chunk_shape"] == [1024, 1024]
+    np.testing.assert_array_equal(fp.imread(rep.path).values, data)
+
+
+def test_shards_stream_with_only_the_sample_held(tmp_path):
+    codec = _zstd.codec()
+    data = _stack((3, 10, 40, 48))
+    plane = len(codec.compress(np.ascontiguousarray(data[0, 0]).view(np.uint8), 5))
+    w = Z.ArrayWriter(str(tmp_path), "a", data.shape, np.uint16, [1, 1, 40, 48], 0, ["c", "z", "y", "x"], level=5,
+                      max_shard_bytes=int(4.5 * plane / 0.9), codec=codec)
+    for c in range(3):
+        for z in range(10):
+            w.add((c, z, 0, 0), data[c, z])
+            if (c, z) == (0, 6):
+                assert w.per == [1, 4, 1, 1] and not w._held and w.files == 1   # decided; the first shard is on disk
+    w.finish()
+    assert w.files == 9 + 1                                           # nine shards and zarr.json
+
+
+def test_a_channel_can_start_hidden(tmp_path):
+    from PIL import Image
+    rep = save(tmp_path, _stack((3, 12, 16)), ("c", "y", "x"),
+               channels=["nuclei", {"name": "bg", "visible": False}, {"name": "marker", "visible": False}])
+    m = man(rep)
+    assert [c.get("visible", True) for c in m["channels"]] == [True, False, False]
+    assert "visible" not in m["channels"][0]
+    assert [c["color"] or c["lut"] for c in m["channels"]] == ["gray", "#00ff00", "#ff00ff"]
+    group = _zarr_json(rep.path, "pixels")
+    assert [c["active"] for c in group["attributes"]["ome"]["omero"]["channels"]] == [True, False, False]
+    with Image.open(os.path.join(rep.path, "preview.png")) as im:
+        assert im.mode == "L"                                         # only the gray channel is shown
+    with pytest.raises(ValueError, match="visible must be True or False"):
+        fp.fluximg(_stack((2, 4, 4)), dims=("c", "y", "x"), channels=[{"visible": "no"}, "b"])
+
+
+def test_previews_of_one_gray_channel_are_gray_pngs(tmp_path):
+    from PIL import Image
+    d = noisy((20, 30))
+    with Image.open(os.path.join(save(tmp_path, d).path, "preview.png")) as im:
+        assert im.mode == "L" and im.size == (30, 20)
+    d[:5] = np.nan
+    with Image.open(os.path.join(save(tmp_path, d, name="b").path, "preview.png")) as im:
+        assert im.mode == "LA" and np.asarray(im)[0, 0, 1] == 0 and np.asarray(im)[10, 0, 1] == 255
+    with Image.open(os.path.join(save(tmp_path, _stack((2, 6, 8)), ("c", "y", "x"), name="c").path, "preview.png")) as im:
+        assert im.mode == "RGB"
+
+
+def test_label_tables_refuse_label_zero_and_note_rows_without_objects(tmp_path):
+    lab = np.zeros((6, 6), np.int32)
+    lab[1:3, 1:3], lab[4:6, 4:6] = 1, 2
+    img = fp.fluximg(noisy((6, 6)))
+    with pytest.raises(ValueError, match=r"row for label 0.*0-based.*table\['label'\] = table\['source_id'\] \+ 1"):
+        img.add_labels("a", lab, table={"source_id": [0, 1, 2]}, key="source_id")
+    with pytest.raises(ValueError, match="row for label 0"):
+        img.add_labels("a", lab, table={"label": [0, 1, 2], "name": ["x", "y", "z"]}, key="name")
+    with pytest.raises(ValueError, match="row for label -1"):
+        img.add_labels("a", np.where(lab == 0, -1, lab), background=-1, table={"label": [-1, 1, 2]})
+    with pytest.raises(ValueError, match="Label 0 means no object, so 0-based ids cannot be labels"):
+        img.add_labels("a", np.where(lab == 0, -1, lab - 1), background=-1)
+    img.add_labels("a", lab, table={"label": [1, 2, 3, 4], "source_id": [10, 11, 12, 13]}, key="source_id")
+    rep = img.save(tmp_path / "t")
+    assert any("2 table row(s) have no object in the map (labels 3, 4)" in n for n in rep.notes)
+    assert "no object in the map" in str(rep)
+
+
+def test_luts_are_resolved_or_refused_when_the_image_is_built():
+    import matplotlib
+    from matplotlib import colors as mcolors
+    img = fp.fluximg(_stack((2, 6, 6)), dims=("c", "y", "x"), channels=[{"lut": matplotlib.colormaps["magma"]}, "b"])
+    assert (img._channels[0]["color"], img._channels[0]["lut"]) == (None, "magma")
+    custom = mcolors.LinearSegmentedColormap.from_list("my_ramp", ["black", "orange"])
+    with pytest.raises(ValueError, match=r"channel 0 \('dendrite'\) lut: the Colormap 'my_ramp' is not a map Flux knows.*a colour"):
+        fp.fluximg(_stack((2, 6, 6)), dims=("c", "y", "x"), channels=[{"name": "dendrite", "lut": custom}, "b"])
+    with pytest.raises(ValueError, match=r"layer 'act' lut: the Colormap 'my_ramp'"):
+        fp.fluximg(noisy((6, 6))).add_image("act", noisy((6, 6)), lut=custom)
+    matplotlib.colormaps.register(custom, name="w11_session_only", force=True)
+    try:
+        with pytest.raises(ValueError, match="'w11_session_only' is a colour map Flux does not know"):
+            fp.fluximg(noisy((6, 6))).add_image("act", noisy((6, 6)), lut="w11_session_only")
+    finally:
+        matplotlib.colormaps.unregister("w11_session_only")
+    with pytest.raises(ValueError, match="neither a colour nor a colour-map name"):
+        fp.fluximg(noisy((6, 6))).add_image("act", noisy((6, 6)), lut="not_a_map_at_all")
+    assert fp.fluximg(noisy((6, 6))).add_image("act", noisy((6, 6)), lut=matplotlib.colormaps["viridis_r"])._layers[0]["lut"] == "viridis_r"
+
+
+def test_layers_without_a_colour_take_distinct_defaults(tmp_path):
+    lab = np.zeros((8, 8), np.uint8)
+    lab[2:4, 2:4] = 1
+    img = fp.fluximg(noisy((8, 8)))
+    img.add_labels("cells", lab).add_shapes("a", lines=[[[0, 0], [3, 3]]]).add_shapes("b", lines=[[[1, 0], [3, 5]]])
+    img.add_shapes("c", lines=[[[0, 1], [7, 7]]], color="red").add_shapes("d", lines=[[[2, 1], [7, 7]]])
+    colours = {L["id"]: L["color"] for L in man(img.save(tmp_path / "l"))["layers"]}
+    assert colours == {"cells": "#ffd400", "a": "#ff8000", "b": "#ffffff", "c": "#ff0000", "d": "#ff5c5c"}
+    assert not set(colours.values()) & {"#00ff00", "#ff00ff", "#00ffff", "#0080ff"}
+
+
+def test_auto_regions_never_cover_the_whole_image_and_follow_borrowed_layers(tmp_path):
+    whole = noisy((20, 30))
+    whole[0, 0] = np.nan                                              # missing data, but one area spans the image
+    assert man(save(tmp_path, whole, name="w"))["regions"] == []
+    specks = np.full((40, 40), np.nan, np.float32)
+    specks[5:20, 5:20] = 1.0
+    specks[30, 30] = specks[35, 2] = 1.0                              # stray valid pixels
+    specks += noisy((40, 40), amp=0.3)
+    m = man(save(tmp_path, specks, name="s"))
+    assert [r["rect"] for r in m["regions"]] == [{"x": 5, "y": 5, "width": 15, "height": 15}]
+    assert len(man(save(tmp_path, specks, name="s1", region_min_pixels=1))["regions"]) == 3
+    with pytest.raises(ValueError, match="region_min_pixels"):
+        save(tmp_path, specks, name="s2", region_min_pixels=0)
+    # a movie that borrows the mean image's layers takes its regions too, not slightly different ones
+    mean = fp.fluximg(specks).add_shapes("marks", lines=[[[6, 6], [10, 10]]])
+    mean.save(tmp_path / "mean")
+    movie = np.stack([specks] * 3)
+    movie[:, 5:21, 5:21] = 1.0 + noisy((3, 16, 16), amp=0.3)       # its valid area is a pixel larger
+    rep = fp.imsave(tmp_path / "movie", movie, dims=("t", "y", "x"), layers=tmp_path / "mean")
+    assert man(rep)["regions"] == man(tmp_path / "mean.fluximg")["regions"]
+    assert any("borrowed with the layers" in n for n in rep.notes)

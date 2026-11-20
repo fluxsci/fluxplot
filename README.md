@@ -1232,8 +1232,8 @@ img = fp.imread("plots/stack")                         # .values, .dims, .axes, 
 
 Integer pixels are stored exactly. Float pixels are stored at 16 bits per channel range only when a
 check on the image shows the rounding step is negligible next to its pixel-to-pixel variation, and
-the printed report says which was chosen and why; `lossless=True` always keeps the floats. Needs a
-zstd library (`pip install "fluxplot[images]"`). See the [image guide](docs/FLUXIMG.md).
+the printed report says which was chosen and why; `lossless=True` always keeps the floats. No file in
+a bundle is much over 64 MB, so bundles fit in a git repository. Needs a zstd library (`pip install "fluxplot[images]"`). See the [image guide](docs/FLUXIMG.md).
 
 ## License
 

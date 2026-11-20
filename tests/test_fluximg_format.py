@@ -338,16 +338,18 @@ def test_outlines_of_an_empty_map_and_bad_input():
 
 
 # ---- PNG ---------------------------------------------------------------------------------
-@pytest.mark.parametrize("channels", [3, 4])
+@pytest.mark.parametrize("channels", [0, 2, 3, 4])
 def test_png_round_trip(tmp_path, channels):
-    import matplotlib.image as mpimg
-    px = np.random.default_rng(5).integers(0, 256, (7, 11, channels)).astype(np.uint8)
+    from PIL import Image
+    shape = (7, 11) if channels == 0 else (7, 11, channels)
+    px = np.random.default_rng(5).integers(0, 256, shape).astype(np.uint8)
     path = tmp_path / "a.png"
     path.write_bytes(_png.encode_png(px))
-    back = np.rint(mpimg.imread(path) * 255).astype(np.uint8)
-    np.testing.assert_array_equal(back, px)
+    with Image.open(path) as im:
+        assert im.mode == {0: "L", 2: "LA", 3: "RGB", 4: "RGBA"}[channels]       # gray previews are gray PNGs
+        np.testing.assert_array_equal(np.asarray(im), px)
     with pytest.raises(ValueError):
-        _png.encode_png(np.zeros((4, 4), np.uint8))
+        _png.encode_png(np.zeros((4, 4, 5), np.uint8))
 
 
 # ---- tables --------------------------------------------------------------------------------
