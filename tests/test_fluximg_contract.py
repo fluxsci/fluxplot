@@ -6,8 +6,9 @@
 - The label-outline port gives the reference ``outlines.ts`` output character for character.
 - The owner-approved workflow and a bundle with every layer kind on a tiled grid validate.
 
-The tools live in a Flux worktree (``$FLUXIMG_CONTRACT``, default below). Without them, or without
-Node, these tests skip and say why; on the development machine they must pass.
+The tools live in a Flux checkout: set ``$FLUXIMG_CONTRACT`` to its path (one with ``npm install``
+done). Without it, or without Node, these tests skip and say why; on a development machine that
+has Flux they must pass.
 """
 import json
 import os
@@ -22,11 +23,14 @@ import fluxplot as fp
 from fluxplot._fluximg import writer as W
 from fluxplot._fluximg._outlines import label_outlines
 
-CONTRACT = Path(os.environ.get("FLUXIMG_CONTRACT", "/home/driessen2/flux/flux-wt/fluximg-contract"))
+_CONTRACT_ENV = os.environ.get("FLUXIMG_CONTRACT")
+CONTRACT = Path(_CONTRACT_ENV) if _CONTRACT_ENV else None
 NODE = shutil.which("node")
 
 
 def _skip_reason():
+    if CONTRACT is None:
+        return "FLUXIMG_CONTRACT is not set (the path of a Flux checkout holding the pinned contract tools)"
     if not (CONTRACT / "scripts" / "fluximg-validate.ts").is_file():
         return f"the pinned fluximg contract tools are not at {CONTRACT} (set FLUXIMG_CONTRACT)"
     if NODE is None:
