@@ -58,10 +58,10 @@
     ]
   },
   "build": {
-    "generator": "fluxplot 0.4.0"
+    "generator": "fluxplot 0.5.0"
   },
   "glb": "box-axes.glb",
-  "glbSha256": "46ae6e424de8cba22d986c1d87e1c2831dbec5a5181f85a23186f867787fcf5e",
+  "glbSha256": "05dd4e45ca823dae4426af65289ba7e51863b0c315170c2cd82ee577bf98485a",
   "layout": {},
   "lighting": "studio",
   "order": [

@@ -15,10 +15,10 @@
     ]
   },
   "build": {
-    "generator": "fluxplot 0.4.0"
+    "generator": "fluxplot 0.5.0"
   },
   "glb": "morph-incompatible.glb",
-  "glbSha256": "0697b4980a12bcefc012196997dbf6c798ea5d8bdfac79f42ae87f6d9f659468",
+  "glbSha256": "0768a3e504cc464b276ee3bd743be3a86c69eb19a9dae222dd6cc06f116b67d3",
   "layout": {},
   "lighting": "studio",
   "morphGroup": "cortex",

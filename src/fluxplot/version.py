@@ -1,6 +1,6 @@
 """Single source of truth for version + spec version (kept separate to avoid import cycles)."""
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 # The manifest/recipe schema version this build emits.
 # 0.2.0 — completed the parts model: gridlines/ticks/spines/legend-entries tagged,
