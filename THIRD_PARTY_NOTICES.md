@@ -3,7 +3,8 @@
 fluxplot itself is MIT-licensed (see `LICENSE`). It ships colour data derived from the
 projects below, as plain samples in `src/fluxplot/definitions/` (built by
 `tools/build_color_definitions.py`). Their notices are reproduced here as their licenses
-require.
+require. It also ships three.js inside its 3D viewer; see "Other bundled or
+reproduced work" below.
 
 | Collection | Source | License |
 |---|---|---|
@@ -17,8 +18,53 @@ require.
 | Paul Tol's colour schemes | Paul Tol, https://personal.sron.nl/~pault/ (via tol-colors) | BSD-3-Clause |
 | cmasher | Ellert van der Velden, https://cmasher.readthedocs.io | BSD-3-Clause |
 
-Crameri's maps are also citable: Crameri, F. (2018). Scientific colour maps. Zenodo.
-https://doi.org/10.5281/zenodo.1243862
+## What to cite
+
+- Scientific colour maps: Crameri, F. (2018). Scientific colour maps. Zenodo.
+  https://doi.org/10.5281/zenodo.1243862. Crameri, F., Shephard, G. E. and Heron, P. J. (2020).
+  The misuse of colour in science communication. Nature Communications 11, 5444.
+  https://doi.org/10.1038/s41467-020-19160-7
+- cmasher: van der Velden, E. (2020). CMasher: scientific colormaps for making accessible,
+  informative and 'cmashing' plots. Journal of Open Source Software 5(46), 2004.
+  https://doi.org/10.21105/joss.02004
+- Paul Tol's colour schemes: Tol, P. Colour Schemes. SRON Technical Note SRON/EPS/TN/09-002.
+  https://personal.sron.nl/~pault/
+- ColorBrewer: Harrower, M. and Brewer, C. A. (2003). ColorBrewer.org: an online tool for
+  selecting colour schemes for maps. The Cartographic Journal 40, 27-37.
+  https://doi.org/10.1179/000870403235002042
+- matplotlib: Hunter, J. D. (2007). Matplotlib: a 2D graphics environment. Computing in Science
+  & Engineering 9, 90-95. https://doi.org/10.1109/MCSE.2007.55
+
+## Individual maps in the matplotlib collection
+
+Several maps that matplotlib distributes have authors of their own, as its source records:
+
+| Maps | Authors and source | License |
+|---|---|---|
+| viridis, magma, inferno, plasma | Nathaniel J. Smith, Stéfan van der Walt and (for viridis) Eric Firing | CC0-1.0 |
+| cividis | Nuñez, J. R., Anderton, C. R. and Renslow, R. S. (2018), PLOS ONE 13, e0199239, https://doi.org/10.1371/journal.pone.0199239 | as matplotlib |
+| turbo | Anton Mikhailov, Google LLC | Apache-2.0 |
+| twilight, twilight_shifted | Bastian Bechtold | as matplotlib |
+| coolwarm | Kenneth Moreland (2009), Diverging color maps for scientific visualization, https://doi.org/10.1007/978-3-642-10520-3_9 | as matplotlib |
+| cubehelix | D. A. Green (2011), A colour scheme for the display of astronomical intensity images, Bulletin of the Astronomical Society of India 39, 289-295 | as matplotlib |
+| CMRmap | Carey Rappaport | as matplotlib |
+| Wistia | Wistia, https://github.com/wistia/heatmap-palette | MIT |
+| tab10, tab20, tab20b, tab20c | Categorical palettes from Vega, after Tableau | as matplotlib |
+| berlin, managua, vanimo | Fabio Crameri (Scientific colour maps) | MIT |
+
+fluxplot's "green" ramp in the Flexoki palette is the author's own, built around Paul Tol's
+bright green (`#228833`) as its main shade; Flexoki's green is kept under the name "olive". The five maps in the `flexoki` collection are fluxplot's, made as linear ramps
+through Flexoki colours.
+
+## Other bundled or reproduced work
+
+| Component | Source | License |
+|---|---|---|
+| three.js 0.186.1, inside the 3D viewer (`src/fluxplot/_viewer/flux-model3d-viewer.min.js`); the viewer also carries a copy of the matplotlib, Crameri, Tol and cmasher colour tables above | three.js authors, https://threejs.org | MIT; full text in `src/fluxplot/_viewer/THIRD-PARTY.txt` |
+| Colour-vision-deficiency matrices in `fluxplot.colorcheck` | Machado, G. M., Oliveira, M. M. and Fernandes, L. A. F. (2009). A physiologically-based model for simulation of color vision deficiency. IEEE Transactions on Visualization and Computer Graphics 15, 1291-1298. https://doi.org/10.1109/TVCG.2009.113 | published values |
+
+A viewer written into a notebook output or an HTML file embeds that three.js copy; its first
+line names three.js and its MIT license.
 
 ---
 

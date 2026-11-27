@@ -1237,4 +1237,4 @@ a bundle is much over 64 MB, so bundles fit in a git repository. Needs a zstd li
 
 ## License
 
-MIT (see `LICENSE`). The bundled colour data comes from Flexoki, matplotlib, ColorBrewer, Crameri's Scientific colour maps, Paul Tol and cmasher under their own permissive licenses; see `THIRD_PARTY_NOTICES.md`.
+MIT (see `LICENSE`). The bundled colour data comes from Flexoki (Steph Ango), matplotlib, ColorBrewer (Cynthia Brewer and Mark Harrower), Fabio Crameri's Scientific colour maps, Paul Tol's colour schemes and cmasher (Ellert van der Velden) under their own permissive licenses. The 3D viewer includes three.js (MIT). `THIRD_PARTY_NOTICES.md` has the notices and the papers to cite.
